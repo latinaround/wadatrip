@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "rootDir": ".",
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "sourceMap": true,
+    "strict": false,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@wadatrip/common": ["libs/common/src/index.ts"],
+      "@wadatrip/common/*": ["libs/common/src/*"],
+      "@wadatrip/connectors": ["libs/connectors/src/index.ts"],
+      "@wadatrip/connectors/*": ["libs/connectors/src/*"],
+      "@wadatrip/pricing": ["libs/pricing/src/index.ts"],
+      "@wadatrip/pricing/*": ["libs/pricing/src/*"],
+      "@wadatrip/db": ["libs/db/index.ts"],
+      "@wadatrip/db/*": ["libs/db/*"]
+    }
+  }
+}

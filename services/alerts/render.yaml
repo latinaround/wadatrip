@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: wadatrip-alerts
+    env: node
+    plan: starter
+    rootDir: wadatrip-platform/services/alerts
+    nodeVersion: 20
+    buildCommand: pnpm install && pnpm build
+    startCommand: pnpm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ALERTS_PORT
+        value: 3000

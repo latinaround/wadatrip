@@ -1,0 +1,224 @@
+// ---------- Prisma base ----------
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------- Modelos ----------
+model users {
+  id          String                 @id @default(cuid())
+  email       String                 @unique
+  name        String?
+  created_at  DateTime               @default(now())
+
+  itineraries         itineraries[]
+  alert_subscriptions alert_subscriptions[]   // 🔁 inversa añadida
+
+  bookings            bookings[]
+
+  @@index([email])
+}
+
+model itineraries {
+  id           String                 @id @default(cuid())
+  owner_id     String
+  title        String
+  origin       String
+  destination  String
+  start_date   DateTime
+  end_date     DateTime
+  pax          Int
+  status       String                 @default("draft")
+  created_at   DateTime               @default(now())
+
+  // Relaciones
+  owner                users           @relation(fields: [owner_id], references: [id])
+  versions             itinerary_versions[]
+  alert_subscriptions  alert_subscriptions[]     // 🔁 inversa requerida
+
+  @@index([owner_id], name: "idx_itin_owner")
+  @@index([destination, start_date], name: "idx_itin_dest_date")
+}
+
+model itinerary_versions {
+  id             String        @id @default(cuid())
+  itinerary_id   String
+  scenario       String        // "economy" | "balanced" | "premium"
+  total_price    Decimal?      @db.Decimal(12, 2)
+  adred_action   String?       // "buy" | "wait"
+  created_at     DateTime      @default(now())
+  diff_from_prev Json?         @db.JsonB
+
+  itinerary      itineraries   @relation(fields: [itinerary_id], references: [id])
+  items          itinerary_items[]
+
+  @@index([itinerary_id, scenario], name: "idx_items_version")
+}
+
+model itinerary_items {
+  id         String             @id @default(cuid())
+  version_id String
+  type       String             // "flight" | "lodging" | "activity"
+  supplier   String?            // amadeus|travelpayouts|viator|mock
+  provider   String?            // idem arriba (campo extra para trazabilidad)
+  title      String?
+  start_ts   DateTime?
+  end_ts     DateTime?
+  geo        Json?              @db.JsonB  // { lat, lng }
+  price      Decimal?           @db.Decimal(12, 2)
+  currency   String?
+  details    Json?              @db.JsonB  // payload acotado (raw resumido)
+
+  version    itinerary_versions @relation(fields: [version_id], references: [id])
+
+  @@index([version_id], name: "idx_items_version_fk")
+}
+
+model alert_subscriptions {
+  id               String        @id @default(cuid())
+  user_id          String
+  itinerary_id     String?       // puede ser null si la alerta es general (por ruta, etc.)
+  rule             Json          @db.JsonB   // {type, route, threshold, ...}
+  channel          String        // push | email | fcm
+  active           Boolean       @default(true)
+  last_notified_at DateTime?
+  created_at       DateTime      @default(now())
+
+  // Relaciones
+  user       users         @relation(fields: [user_id], references: [id])
+  itinerary  itineraries?  @relation(fields: [itinerary_id], references: [id])
+  alerts     alerts[]
+
+  @@index([user_id], name: "idx_alerts_user")
+  @@index([itinerary_id], name: "idx_alerts_itinerary")
+  @@index([active], name: "idx_alerts_active")
+}
+
+model alerts {
+  id               String                @id @default(cuid())
+  subscription_id  String?               // 👈 ahora opcional
+  payload          Json                  @db.JsonB
+  status           String                @default("queued") // queued|sent|failed
+  created_at       DateTime              @default(now())
+
+  subscription     alert_subscriptions?  @relation(fields: [subscription_id], references: [id])
+
+  @@index([subscription_id, status], name: "idx_alerts_status")
+}
+
+model adred_predictions {
+  id             String   @id @default(cuid())
+  route_key      String   // p.ej. "SCL-JFK"
+  date_bucket    DateTime // día de salida
+  current_price  Decimal? @db.Decimal(12, 2)
+  predicted_low  Decimal? @db.Decimal(12, 2)
+  action         String?  // buy|wait
+  confidence     Float?
+  horizon_days   Int?
+  meta           Json?    @db.JsonB
+  created_at     DateTime @default(now())
+
+  @@index([route_key, date_bucket], name: "idx_adred_route_date")
+}
+
+// ---------- Provider Hub (guides/operators) ----------
+
+model providers {
+  id             String   @id @default(cuid())
+  type           String   // 'guide' | 'operator'
+  name           String
+  email          String   @unique
+  phone          String?
+  languages      String[]
+  base_city      String
+  country_code   String
+  ratings_avg    Float    @default(0)
+  ratings_count  Int      @default(0)
+  status         String   @default("pending") // 'pending' | 'verified' | 'rejected'
+  created_at     DateTime @default(now())
+  stripe_account_id String?
+
+  documents      provider_documents[]
+  listings       listings[]
+  bookings       bookings[]
+
+  @@index([status], name: "idx_providers_status")
+  @@index([base_city, country_code], name: "idx_providers_city_country")
+}
+
+model provider_documents {
+  id          String   @id @default(cuid())
+  provider_id String
+  doc_type    String   // 'id' | 'license' | 'insurance' | 'other'
+  url         String
+  status      String   @default("pending") // 'pending' | 'approved' | 'rejected'
+  notes       String?
+  created_at  DateTime @default(now())
+
+  provider    providers @relation(fields: [provider_id], references: [id])
+
+  @@index([provider_id], name: "idx_provider_docs_provider")
+}
+
+model listings {
+  id               String   @id @default(cuid())
+  provider_id      String
+  title            String
+  description      String?  @db.Text
+  category         String   // 'tour' | 'transfer' | 'activity' | 'custom'
+  city             String
+  country_code     String
+  duration_minutes Int?
+  price_from       Decimal? @db.Decimal(12, 2)
+  currency         String   @default("USD")
+  start_date       DateTime?
+  end_date         DateTime?
+  tags             String[]
+  status           String   @default("draft") // 'draft' | 'published' | 'paused'
+  created_at       DateTime @default(now())
+
+  provider         providers @relation(fields: [provider_id], references: [id])
+  availability     listing_availability[]
+  bookings         bookings[]
+
+  @@index([provider_id], name: "idx_listings_provider")
+  @@index([city, country_code, category, status], name: "idx_listings_search")
+}
+
+model listing_availability {
+  id              String   @id @default(cuid())
+  listing_id      String
+  date            DateTime
+  spots_total     Int
+  spots_available Int
+
+  listing         listings @relation(fields: [listing_id], references: [id])
+
+  @@index([listing_id, date], name: "idx_listing_availability_date")
+}
+
+// ---------- Bookings ----------
+
+model bookings {
+  id             String   @id @default(cuid())
+  listing_id     String
+  provider_id    String
+  user_id        String
+  status         String   @default("pending") // pending|confirmed|cancelled|completed
+  date           DateTime
+  num_people     Int
+  total_price    Decimal? @db.Decimal(12, 2)
+  payment_status String?  // unpaid|requires_action|paid|refunded|failed
+  created_at     DateTime @default(now())
+
+  listing  listings  @relation(fields: [listing_id], references: [id])
+  provider providers @relation(fields: [provider_id], references: [id])
+  user     users     @relation(fields: [user_id], references: [id])
+
+  @@index([provider_id, status, date], name: "idx_bookings_provider_status_date")
+  @@index([user_id, status], name: "idx_bookings_user_status")
+}

@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "types": ["node"]   // 👈 necesario para que reconozca process/env
+  },
+  "include": ["src/**/*", "prisma/**/*", "prisma/seed.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,60 @@
+{
+  "info": {
+    "name": "Wadatrip Platform API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Generate Itinerary (provider debug)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "http://localhost:3000/itineraries/generate?providerFlights=amadeus&providerHotels=travelpayouts", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["itineraries","generate"], "query": [{"key":"providerFlights","value":"amadeus"},{"key":"providerHotels","value":"travelpayouts"}]},
+        "body": {"mode": "raw", "raw": "{\n  \"origin\": \"SCL\",\n  \"destination\": \"JFK\",\n  \"start_date\": \"2025-09-10\",\n  \"end_date\": \"2025-09-15\",\n  \"adults\": 2,\n  \"budget_total\": 1500\n}"}
+      }
+    },
+    {
+      "name": "Update Itinerary (provider debug)",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "http://localhost:3000/itineraries/update?providerFlights=amadeus&providerHotels=travelpayouts", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["itineraries","update"], "query": [{"key":"providerFlights","value":"amadeus"},{"key":"providerHotels","value":"travelpayouts"}]},
+        "body": {"mode": "raw", "raw": "{\n  \"itinerary_id\": \"<replace>\",\n  \"changes\": { \n    \"budget_total\": 1700\n  }\n}"}
+      }
+    },
+    {
+      "name": "Pricing Predict",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "http://localhost:3000/pricing/predict", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["pricing","predict"]},
+        "body": {"mode": "raw", "raw": "{\n  \"routes\": [{\n    \"origin\": \"SCL\",\n    \"destination\": \"JFK\",\n    \"date\": \"2025-09-10\"\n  }]\n}"}
+      }
+    },
+    {
+      "name": "Alerts Subscribe",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "http://localhost:3000/alerts/subscribe", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["alerts","subscribe"]},
+        "body": {"mode": "raw", "raw": "{\n  \"itinerary_id\": \"<replace>\",\n  \"rules\": [{\n    \"type\": \"price_drop\",\n    \"route\": \"SCL-JFK\",\n    \"threshold\": 30\n  }]\n}"}
+      }
+    },
+    {
+      "name": "Alerts List",
+      "request": {
+        "method": "GET",
+        "url": {"raw": "http://localhost:3000/alerts/list?itinerary_id=<replace>", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["alerts","list"], "query": [{"key":"itinerary_id","value":"<replace>"}]}
+      }
+    },
+    {
+      "name": "Alerts Test Fire",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": {"raw": "http://localhost:3000/alerts/test-fire", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["alerts","test-fire"]},
+        "body": {"mode": "raw", "raw": "{\n  \"type\": \"test\",\n  \"message\": \"hello from test\"\n}"}
+      }
+    }
+  ]
+}
