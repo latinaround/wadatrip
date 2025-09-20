@@ -66,5 +66,7 @@ Deployment
 - Copia `.env.example` a `.env` y define `STRIPE_SECRET_KEY=your_secret_here` y `STRIPE_PUBLISHABLE_KEY=your_publishable_here` (nunca los subas al repo).
 
 - Para desplegar `services/alerts` en Render usando el blueprint: `render blueprint launch .render.yaml` (define `STRIPE_SECRET_KEY` y `STRIPE_PUBLISHABLE_KEY` como variables en Render antes del deploy).
+- El blueprint fija `NODE_VERSION=20.11.1` y usa Yarn 4.9.4 via Corepack; Render instala dependencias con `yarn install --immutable` y arranca con `yarn start`.
 - En Render/Heroku/Railway configura `STRIPE_SECRET_KEY` y `STRIPE_PUBLISHABLE_KEY`; para Expo agrega `EXPO_PUBLIC_STRIPE_KEY` en la configuracion del proyecto antes de desplegar.
+
 

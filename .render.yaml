@@ -8,8 +8,10 @@ services:
       corepack prepare yarn@4.9.4 --activate
       yarn install --immutable
       yarn build
-    startCommand: node services/alerts/dist/main.js
+    startCommand: yarn start
     envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
       - key: NODE_ENV
         value: production
       - key: STRIPE_SECRET_KEY
