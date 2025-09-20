@@ -1,5 +1,5 @@
 {
-  "name": "wadatrip-platform",
+  "name": "wadatrip",
   "private": true,
   "workspaces": [
     "apps/*",

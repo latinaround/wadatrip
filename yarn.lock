@@ -5487,9 +5487,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"wadatrip-platform@workspace:.":
+"wadatrip@workspace:.":
   version: 0.0.0-use.local
-  resolution: "wadatrip-platform@workspace:."
+  resolution: "wadatrip@workspace:."
   dependencies:
     "@nestjs/common": ^10.0.0
     "@nestjs/core": ^10.0.0

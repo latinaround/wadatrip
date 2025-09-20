@@ -63,6 +63,8 @@ Provider Hub quickstart
 
 Deployment
 
-- Copia .env.example a .env y define STRIPE_SECRET_KEY y STRIPE_PUBLISHABLE_KEY localmente (nunca lo subas al repo).
-- En Render/Heroku/Railway agrega esas variables de entorno en la configuracion del servicio antes de desplegar.
+- Copia `.env.example` a `.env` y define `STRIPE_SECRET_KEY=your_secret_here` y `STRIPE_PUBLISHABLE_KEY=your_publishable_here` (nunca los subas al repo).
+
+- Para desplegar `services/alerts` en Render usando el blueprint: `render blueprint launch .render.yaml` (define `STRIPE_SECRET_KEY` y `STRIPE_PUBLISHABLE_KEY` como variables en Render antes del deploy).
+- En Render/Heroku/Railway configura `STRIPE_SECRET_KEY` y `STRIPE_PUBLISHABLE_KEY`; para Expo agrega `EXPO_PUBLIC_STRIPE_KEY` en la configuracion del proyecto antes de desplegar.
 
