@@ -71,9 +71,6 @@
     "uuid": "^9.0.0"
   },
   "packageManager": "yarn@4.9.4",
-  "prisma": {
-    "seed": "ts-node libs/db/prisma/seed.ts"
-  },
   "engines": {
     "node": "20.11.1"
   }

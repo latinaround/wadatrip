@@ -4,8 +4,9 @@
     env: node
     rootDir: .
     buildCommand: |
-      node .yarn/releases/yarn-4.9.4.cjs install --immutable
-      node .yarn/releases/yarn-4.9.4.cjs workspaces focus @wadatrip/service-gateway --production
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs install
+      node .yarn/releases/yarn-4.9.4.cjs prisma generate --schema libs/db/prisma/schema.prisma
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs workspaces focus @wadatrip/service-gateway --production
     startCommand: node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-gateway start
     envVars:
       - key: NODE_VERSION
