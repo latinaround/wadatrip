@@ -26,3 +26,7 @@ yarn-error.log*
 
 # Misc
 replacements.txt
+
+# Allow committing prebuilt gateway dist for Render
+!apps/gateway/dist/
+!apps/gateway/dist/**
