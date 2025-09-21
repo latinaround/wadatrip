@@ -1245,9 +1245,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wadatrip/alerts@workspace:services/alerts":
+"@wadatrip/service-alerts@workspace:services/alerts":
   version: 0.0.0-use.local
-  resolution: "@wadatrip/alerts@workspace:services/alerts"
+  resolution: "@wadatrip/service-alerts@workspace:services/alerts"
   dependencies:
     "@nestjs/common": ^10.0.0
     "@nestjs/core": ^10.0.0
@@ -1260,6 +1260,80 @@ __metadata:
     ioredis: ^5.3.2
     reflect-metadata: ^0.2.1
     rxjs: ^7.8.1
+    ts-node-dev: ^2.0.0
+    tsconfig-paths: ^4.2.0
+    typescript: ^5.4.0
+  languageName: unknown
+  linkType: soft
+
+"@wadatrip/service-gateway@workspace:apps/gateway":
+  version: 0.0.0-use.local
+  resolution: "@wadatrip/service-gateway@workspace:apps/gateway"
+  dependencies:
+    "@nestjs/common": ^10.0.0
+    "@nestjs/core": ^10.0.0
+    "@nestjs/platform-express": ^10.0.0
+    "@nestjs/platform-socket.io": ^10.0.0
+    "@nestjs/swagger": ^7.1.18
+    "@nestjs/websockets": ^10.0.0
+    "@types/node": ^24.3.0
+    axios: ^1.6.7
+    class-transformer: ^0.5.1
+    class-validator: ^0.14.2
+    cors: ^2.8.5
+    dotenv: ^16.4.5
+    express: ^4.18.2
+    http-proxy-middleware: ^3.0.5
+    reflect-metadata: ^0.2.1
+    rxjs: ^7.8.1
+    socket.io: ^4.7.5
+    socket.io-client: ^4.7.5
+    stripe: 11.1.0
+    swagger-ui-express: ^5.0.1
+    ts-node-dev: ^2.0.0
+    tsconfig-paths: ^4.2.0
+    typescript: ^5.4.0
+    uuid: ^9.0.0
+  languageName: unknown
+  linkType: soft
+
+"@wadatrip/service-itineraries@workspace:services/itineraries":
+  version: 0.0.0-use.local
+  resolution: "@wadatrip/service-itineraries@workspace:services/itineraries"
+  dependencies:
+    "@nestjs/common": ^10.0.0
+    "@nestjs/core": ^10.0.0
+    "@nestjs/platform-express": ^10.0.0
+    "@prisma/client": ^5.22.0
+    "@types/node": ^24.3.0
+    axios: ^1.6.7
+    class-transformer: ^0.5.1
+    class-validator: ^0.14.2
+    reflect-metadata: ^0.2.1
+    rxjs: ^7.8.1
+    ts-node-dev: ^2.0.0
+    tsconfig-paths: ^4.2.0
+    typescript: ^5.4.0
+  languageName: unknown
+  linkType: soft
+
+"@wadatrip/service-pricing@workspace:services/pricing":
+  version: 0.0.0-use.local
+  resolution: "@wadatrip/service-pricing@workspace:services/pricing"
+  dependencies:
+    "@nestjs/common": ^10.0.0
+    "@nestjs/core": ^10.0.0
+    "@nestjs/platform-express": ^10.0.0
+    "@nestjs/swagger": ^7.1.18
+    "@types/node": ^24.3.0
+    axios: ^1.6.7
+    class-transformer: ^0.5.1
+    class-validator: ^0.14.2
+    dotenv: ^16.4.5
+    express: ^4.18.2
+    reflect-metadata: ^0.2.1
+    rxjs: ^7.8.1
+    swagger-ui-express: ^5.0.1
     ts-node-dev: ^2.0.0
     tsconfig-paths: ^4.2.0
     typescript: ^5.4.0
