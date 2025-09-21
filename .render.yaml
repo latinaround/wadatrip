@@ -6,7 +6,7 @@ services:
     buildCommand: |
       corepack enable
       corepack prepare yarn@4.9.4 --activate
-      yarn install --immutable
+      yarn install
       yarn build
     startCommand: yarn start
     envVars:
