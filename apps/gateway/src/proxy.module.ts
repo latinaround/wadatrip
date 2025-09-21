@@ -12,7 +12,7 @@ export class ProxyModule implements NestModule {
           changeOrigin: true,
           proxyTimeout: 60000,
           timeout: 60000,
-          logLevel: 'debug',
+          logger: console,
           onError: (err: any, req, res: any) => {
             if (!res.headersSent) {
               res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -24,7 +24,7 @@ export class ProxyModule implements NestModule {
               target: process.env.ITINERARIES_URL || 'http://127.0.0.1:3011',
             }));
           },
-        }),
+        } as any), // 👈 Fix
       )
       .forRoutes(
         { path: 'itineraries', method: RequestMethod.ALL },
@@ -39,7 +39,7 @@ export class ProxyModule implements NestModule {
           changeOrigin: true,
           proxyTimeout: 60000,
           timeout: 60000,
-          logLevel: 'debug',
+          logger: console,
           onProxyReq: (proxyReq, req: any) => {
             if (!req.body || !Object.keys(req.body).length) return;
             const contentType = String(proxyReq.getHeader('Content-Type') || '');
@@ -63,7 +63,7 @@ export class ProxyModule implements NestModule {
               target: process.env.PRICING_URL || 'http://127.0.0.1:3012',
             }));
           },
-        }),
+        } as any), // 👈 Fix
       )
       .forRoutes(
         { path: 'pricing', method: RequestMethod.ALL },
@@ -78,7 +78,7 @@ export class ProxyModule implements NestModule {
           changeOrigin: true,
           proxyTimeout: 60000,
           timeout: 60000,
-          logLevel: 'debug',
+          logger: console,
           onError: (err: any, req, res: any) => {
             if (!res.headersSent) {
               res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -90,7 +90,7 @@ export class ProxyModule implements NestModule {
               target: process.env.ALERTS_URL || 'http://127.0.0.1:3013',
             }));
           },
-        }),
+        } as any), // 👈 Fix
       )
       .forRoutes(
         { path: 'alerts', method: RequestMethod.ALL },
@@ -105,8 +105,7 @@ export class ProxyModule implements NestModule {
           changeOrigin: true,
           proxyTimeout: 60000,
           timeout: 60000,
-          logLevel: 'debug',
-          // Do not rewrite path; Provider Hub expects '/providers' base
+          logger: console,
           onError: (err: any, req, res: any) => {
             if (!res.headersSent) {
               res.writeHead(502, { 'Content-Type': 'application/json' });
@@ -118,7 +117,7 @@ export class ProxyModule implements NestModule {
               target: process.env.PROVIDER_HUB_URL || 'http://127.0.0.1:3014',
             }));
           },
-        }),
+        } as any), // 👈 Fix
       )
       .forRoutes(
         { path: 'providers', method: RequestMethod.ALL },
