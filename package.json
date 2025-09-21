@@ -22,7 +22,7 @@
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "smoke": "cross-env TS_NODE_PROJECT=tsconfig.seed.json ts-node-dev -r tsconfig-paths/register --transpile-only scripts/smoke.ts",
-    "build": "prisma generate --schema=libs/db/prisma/schema.prisma && tsc -b apps/gateway services/alerts services/itineraries services/pricing",
+    "build": "yarn prisma generate --schema=libs/db/prisma/schema.prisma && tsc -b apps/gateway services/alerts services/itineraries services/pricing",
     "start": "node apps/gateway/dist/main.js"
   },
   "devDependencies": {
@@ -47,7 +47,7 @@
     "@nestjs/platform-socket.io": "^10.0.0",
     "@nestjs/swagger": "^7.1.18",
     "@nestjs/websockets": "^10.0.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^6.16.2",
     "@wadatrip/service-alerts": "workspace:*",
     "@wadatrip/service-gateway": "workspace:*",
     "@wadatrip/service-itineraries": "workspace:*",

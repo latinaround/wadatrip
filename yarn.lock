@@ -958,6 +958,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@prisma/client@npm:^6.16.2":
+  version: 6.16.2
+  resolution: "@prisma/client@npm:6.16.2"
+  peerDependencies:
+    prisma: "*"
+    typescript: ">=5.1.0"
+  peerDependenciesMeta:
+    prisma:
+      optional: true
+    typescript:
+      optional: true
+  checksum: 57e86bc06fdd32614459701123b129fb513390569054121419e9e1dd65f85ee52f1684c6ac896ca743e1c9b6f0f498808de637ab1d2ef3d1ce59b0edab3fe578
+  languageName: node
+  linkType: hard
+
 "@prisma/debug@npm:5.22.0":
   version: 5.22.0
   resolution: "@prisma/debug@npm:5.22.0"
@@ -5586,7 +5601,7 @@ __metadata:
     "@nestjs/platform-socket.io": ^10.0.0
     "@nestjs/swagger": ^7.1.18
     "@nestjs/websockets": ^10.0.0
-    "@prisma/client": ^5.22.0
+    "@prisma/client": ^6.16.2
     "@types/jest": ^29.5.12
     "@types/node": ^24.3.0
     "@wadatrip/service-alerts": "workspace:*"
