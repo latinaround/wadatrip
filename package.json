@@ -22,7 +22,7 @@
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "smoke": "cross-env TS_NODE_PROJECT=tsconfig.seed.json ts-node-dev -r tsconfig-paths/register --transpile-only scripts/smoke.ts",
-    "build": "tsc --project services/alerts/tsconfig.json",
+    "build": "tsc -b apps/gateway services/alerts services/itineraries services/pricing",
     "start": "node apps/gateway/dist/main.js"
   },
   "devDependencies": {
