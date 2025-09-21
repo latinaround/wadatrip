@@ -22,8 +22,9 @@
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "smoke": "cross-env TS_NODE_PROJECT=tsconfig.seed.json ts-node-dev -r tsconfig-paths/register --transpile-only scripts/smoke.ts",
-    "build": "yarn prisma generate --schema=libs/db/prisma/schema.prisma && tsc -b apps/gateway services/alerts services/itineraries services/pricing",
-    "start": "cross-env NODE_ENV=production node apps/gateway/dist/main.js"
+    "build": "prisma generate --schema=libs/db/prisma/schema.prisma && tsc -b apps/gateway services/alerts services/itineraries services/pricing",
+    "start": "cross-env NODE_ENV=production node apps/gateway/dist/main.js",
+    "postinstall": "prisma generate --schema=libs/db/prisma/schema.prisma"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
