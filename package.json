@@ -69,6 +69,6 @@
     "seed": "ts-node libs/db/prisma/seed.ts"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.11.1"
   }
 }
