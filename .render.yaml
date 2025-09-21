@@ -1,4 +1,4 @@
-services:
+﻿services:
   - type: web
     name: wadatrip-alerts
     env: node
@@ -6,9 +6,9 @@ services:
     buildCommand: |
       corepack enable
       corepack prepare yarn@4.9.4 --activate
-      yarn install
-      yarn build
-    startCommand: yarn start
+      yarn install --immutable
+      yarn workspace @wadatrip/service-gateway build
+    startCommand: yarn workspace @wadatrip/service-gateway start
     envVars:
       - key: NODE_VERSION
         value: 20.11.1

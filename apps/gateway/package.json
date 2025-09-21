@@ -2,10 +2,10 @@
   "name": "@wadatrip/service-gateway",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/main.js",
+  "main": "dist/apps/gateway/src/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node -r tsconfig-paths/register dist/main.js",
+    "start": "node -r tsconfig-paths/register dist/apps/gateway/src/main.js",
     "dev": "ts-node-dev --respawn --transpile-only --project tsconfig.json -r tsconfig-paths/register src/main.ts"
   },
   "dependencies": {
