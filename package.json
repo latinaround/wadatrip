@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "start:dev": "concurrently -k -n gw,it,pr,al \"yarn dev:gateway\" \"yarn dev:itineraries\" \"yarn dev:pricing\" \"yarn dev:alerts\"",
-    "start:prod": "cross-env NODE_ENV=production GATEWAY_PORT=3000 node -r ts-node/register -r tsconfig-paths/register apps/gateway/src/main.ts",
+    "start:prod": "NODE_ENV=production GATEWAY_PORT=3000 node -r ts-node/register -r tsconfig-paths/register apps/gateway/src/main.ts",
     "dev:gateway": "cross-env TS_NODE_PROJECT=apps/gateway/tsconfig.json ts-node-dev -r tsconfig-paths/register --respawn --transpile-only apps/gateway/src/main.ts",
     "dev:itineraries": "cross-env TS_NODE_PROJECT=services/itineraries/tsconfig.json ts-node-dev -r tsconfig-paths/register --respawn --transpile-only services/itineraries/src/main.ts",
     "dev:pricing": "cross-env TS_NODE_PROJECT=services/pricing/tsconfig.json ts-node-dev -r tsconfig-paths/register --respawn --transpile-only services/pricing/src/main.ts",
@@ -23,12 +23,13 @@
     "test:watch": "jest --watch",
     "smoke": "cross-env TS_NODE_PROJECT=tsconfig.seed.json ts-node-dev -r tsconfig-paths/register --transpile-only scripts/smoke.ts",
     "build": "tsc --project services/alerts/tsconfig.json",
-    "start": "cross-env NODE_ENV=production node services/alerts/dist/main.js"
+    "start": "node apps/gateway/dist/main.js"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^24.3.0",
     "concurrently": "^8.2.2",
+    "cross-env": "^10.0.0",
     "dotenv": "^16.4.5",
     "jest": "^29.7.0",
     "jsonwebtoken": "^9.0.2",
@@ -56,7 +57,6 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cors": "^2.8.5",
-    "cross-env": "^10.0.0",
     "express": "^4.18.2",
     "http-proxy-middleware": "^3.0.5",
     "ioredis": "^5.3.2",
