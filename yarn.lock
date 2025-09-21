@@ -1245,7 +1245,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wadatrip/service-alerts@workspace:services/alerts":
+"@wadatrip/service-alerts@workspace:*, @wadatrip/service-alerts@workspace:services/alerts":
   version: 0.0.0-use.local
   resolution: "@wadatrip/service-alerts@workspace:services/alerts"
   dependencies:
@@ -1266,7 +1266,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@wadatrip/service-gateway@workspace:apps/gateway":
+"@wadatrip/service-gateway@workspace:*, @wadatrip/service-gateway@workspace:apps/gateway":
   version: 0.0.0-use.local
   resolution: "@wadatrip/service-gateway@workspace:apps/gateway"
   dependencies:
@@ -1297,7 +1297,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@wadatrip/service-itineraries@workspace:services/itineraries":
+"@wadatrip/service-itineraries@workspace:*, @wadatrip/service-itineraries@workspace:services/itineraries":
   version: 0.0.0-use.local
   resolution: "@wadatrip/service-itineraries@workspace:services/itineraries"
   dependencies:
@@ -1317,7 +1317,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@wadatrip/service-pricing@workspace:services/pricing":
+"@wadatrip/service-pricing@workspace:*, @wadatrip/service-pricing@workspace:services/pricing":
   version: 0.0.0-use.local
   resolution: "@wadatrip/service-pricing@workspace:services/pricing"
   dependencies:
@@ -5589,6 +5589,10 @@ __metadata:
     "@prisma/client": ^5.22.0
     "@types/jest": ^29.5.12
     "@types/node": ^24.3.0
+    "@wadatrip/service-alerts": "workspace:*"
+    "@wadatrip/service-gateway": "workspace:*"
+    "@wadatrip/service-itineraries": "workspace:*"
+    "@wadatrip/service-pricing": "workspace:*"
     axios: ^1.6.7
     body-parser: ^1.20.2
     class-transformer: ^0.5.1
