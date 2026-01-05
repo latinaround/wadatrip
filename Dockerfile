@@ -14,6 +14,8 @@ COPY .yarn ./.yarn
 COPY apps/gateway/package.json apps/gateway/package.json
 COPY libs/db/package.json libs/db/package.json
 COPY libs/common/package.json libs/common/package.json
+COPY services/alerts/package.json services/alerts/package.json
+
 
 # Install all workspaces (node-modules linker)
 RUN yarn install --immutable
@@ -25,6 +27,8 @@ COPY . .
 RUN yarn workspace @wadatrip/db build
 RUN yarn workspace @wadatrip/common build
 RUN yarn workspace @wadatrip/service-gateway build
+RUN yarn workspace @wadatrip/service-alerts build
+
 
 
 FROM node:20-bullseye-slim AS runner
