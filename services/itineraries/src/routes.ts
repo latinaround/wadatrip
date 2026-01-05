@@ -1,8 +1,6 @@
-// services/itineraries/src/routes.ts
-import { Body, Controller, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
-
 import {
   GenerateItineraryRequest,
   GenerateItineraryResponse,
@@ -11,25 +9,67 @@ import {
   ItineraryItem,
   Scenario,
   ScenarioType,
+  SavedItinerary,
+  ListItinerariesResponse,
 } from '@wadatrip/common/dtos';
-
-import { searchFlights, searchHotels, searchActivities } from '@wadatrip/connectors';
-import { getPrisma } from '@wadatrip/db/src/client';
+import {
+  searchFlights,
+  searchHotels,
+  searchActivities,
+  FlightProvider,
+  HotelProvider,
+  ActivityProvider,
+} from '@wadatrip/connectors';
+import { getPrisma } from '@wadatrip/db';
 import { metric } from '@wadatrip/common/metrics';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_TRIP_DAYS = 5;
+const DEFAULT_BUDGET_TOTAL = 2500;
+const BUDGET_PRESETS: Record<string, number> = {
+  low: 1500,
+  economy: 1500,
+  medium: 2600,
+  balanced: 2600,
+  high: 3900,
+  premium: 3900,
+  luxury: 5800,
+};
 
 type Store = {
   itineraries: Map<string, { base: GenerateItineraryRequest; scenarios: Scenario[] }>;
 };
 const store: Store = { itineraries: new Map() };
 
-// ---------- helpers ----------
-function safeNumber(n: any, def = 0) {
+type PricingAdvice = {
+  action: 'wait' | 'buy';
+  confidence: number;
+  [key: string]: unknown;
+};
+
+const DEFAULT_PRICING_ADVICE: PricingAdvice = { action: 'wait', confidence: 0.5 };
+
+function safeNumber(n: any, def = 0): number {
   const x = Number(n);
   return Number.isFinite(x) ? x : def;
 }
 
+function dateOnlyIso(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function coercePositiveInteger(value: any, fallback: number): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  const coerced = Math.floor(numeric);
+  return coerced > 0 ? coerced : fallback;
+}
+
 function summarize(items: ItineraryItem[]) {
-  const sum = (t: string) => items.filter(i => i.type === t).reduce((s, i) => s + safeNumber(i.price), 0);
+  const sum = (t: string): number =>
+    items
+      .filter((i: ItineraryItem) => i.type === t)
+      .reduce((s: number, i: ItineraryItem) => s + safeNumber(i.price), 0);
   return {
     flight: sum('flight'),
     lodging: sum('lodging'),
@@ -38,9 +78,10 @@ function summarize(items: ItineraryItem[]) {
 }
 
 function kpis(items: ItineraryItem[], days: number) {
-  const total = items.reduce((s, i) => s + safeNumber(i.price), 0);
-  const free_time_hours = Math.max(0, days * 10 - items.filter(i => i.type === 'activity').length * 2);
-  const walk_distance_km = Math.round(items.filter(i => i.type === 'activity').length * 1.2 * 10) / 10;
+  const total = items.reduce((s: number, i: ItineraryItem) => s + safeNumber(i.price), 0);
+  const free_time_hours = Math.max(0, days * 10 - items.filter((i: ItineraryItem) => i.type === 'activity').length * 2);
+  const walk_distance_km =
+    Math.round(items.filter((i: ItineraryItem) => i.type === 'activity').length * 1.2 * 10) / 10;
   return {
     cost_per_day: Math.round((total / Math.max(1, days)) * 100) / 100,
     free_time_hours,
@@ -48,62 +89,109 @@ function kpis(items: ItineraryItem[], days: number) {
   };
 }
 
-// ---------- Pricing vía microservicio ----------
-async function getPricingAdvice(origin: string, destination: string, date: string) {
-  const resp = await axios.post(
-    (process.env.PRICING_URL || 'http://127.0.0.1:3012') + '/pricing/predict',
-    { origin, destination, start_date: date },
-    { headers: { Authorization: `Bearer ${process.env.AUTH_TOKEN}` } }
-  );
-  return resp.data?.predictions?.[0];
+function normalizeGenerateRequestPayload(raw: any): GenerateItineraryRequest {
+  const origin = raw?.origin ?? raw?.from;
+  if (!origin) throw new BadRequestException('origin is required');
+
+  const destination = raw?.destination ?? raw?.to;
+  if (!destination) throw new BadRequestException('destination is required');
+
+  const startDate = new Date(raw?.start_date ?? raw?.startDate);
+  if (Number.isNaN(startDate.getTime())) throw new BadRequestException('invalid start_date');
+
+  const endDate = new Date(raw?.end_date ?? raw?.endDate ?? startDate.getTime() + DEFAULT_TRIP_DAYS * DAY_MS);
+  const adults = coercePositiveInteger(raw?.adults ?? 1, 1);
+  const budget_total = raw?.budget_total ?? DEFAULT_BUDGET_TOTAL;
+
+  return {
+    title: raw?.title ?? `${destination} trip`,
+    origin,
+    destination,
+    start_date: dateOnlyIso(startDate),
+    end_date: dateOnlyIso(endDate),
+    adults,
+    budget_total,
+    preferences: raw?.preferences,
+  };
 }
 
-async function scenariosFromRequest(
-  req: GenerateItineraryRequest,
-  provider?: { flights?: 'amadeus' | 'mock'; hotels?: 'travelpayouts' | 'mock'; activities?: 'viator' | 'mock' },
-): Promise<Scenario[]> {
-  const t0 = Date.now();
+async function getPricingAdvice(origin: string, destination: string, date: string): Promise<PricingAdvice> {
+  const payload = { origin, destination, start_date: date };
+  const url = `${process.env.PRICING_URL || 'http://localhost:3012'}/pricing/predict`;
+  try {
+    const resp = await axios.post(url, payload, {
+      headers: { Authorization: `Bearer ${process.env.AUTH_TOKEN}` },
+    });
+    const advice = resp.data?.predictions?.[0];
+    if (advice && typeof advice === 'object') {
+      const data = advice as Record<string, unknown>;
+      const action =
+        typeof data.action === 'string' && data.action === 'buy' ? 'buy' : 'wait';
+      const confidence = typeof data.confidence === 'number' ? data.confidence : 0.5;
+      return { ...data, action, confidence } as PricingAdvice;
+    }
+  } catch {
+    metric('itineraries.pricing.error', {}); // ✅ corregido
+  }
+  return { ...DEFAULT_PRICING_ADVICE };
+}
 
-  const days = Math.max(
-    1,
-    Math.ceil((Date.parse(req.end_date) - Date.parse(req.start_date)) / (1000 * 60 * 60 * 24)),
-  );
+type ProviderConfig = {
+  flights?: FlightProvider;
+  hotels?: HotelProvider;
+  activities?: ActivityProvider;
+};
 
-  const [flights, hotels, acts] = await Promise.all([
-    searchFlights(req.origin, req.destination, req.start_date, provider?.flights),
-    searchHotels(req.destination, req.start_date, req.end_date, (req as any).adults ?? (req as any).pax ?? 1, provider?.hotels),
-    searchActivities(req.destination, req.start_date, req.end_date, provider?.activities),
-  ]);
+async function fetchFlights(req: GenerateItineraryRequest) {
+  const flights = await searchFlights(req.origin, req.destination, req.start_date, 'travelpayouts');
+  return flights.length > 0
+    ? flights
+    : [
+        {
+          id: randomUUID(),
+          type: 'flight',
+          supplier: 'ADRED',
+          title: `${req.origin} → ${req.destination}`,
+          start: `${req.start_date}T08:00:00Z`,
+          end: `${req.end_date}T12:00:00Z`,
+          price: 420,
+          currency: 'USD',
+          details: { adred: true },
+        },
+      ];
+}
+
+async function fetchHotels(req: GenerateItineraryRequest) {
+  return await searchHotels(req.destination, req.start_date, req.end_date, req.adults, 'travelpayouts');
+}
+
+async function fetchActivities(req: GenerateItineraryRequest) {
+  return await searchActivities(req.destination, req.start_date, req.end_date, 'travelpayouts');
+}
+
+async function scenariosFromRequest(req: GenerateItineraryRequest): Promise<Scenario[]> {
+  const [flights, hotels, acts] = await Promise.all([fetchFlights(req), fetchHotels(req), fetchActivities(req)]);
 
   const pricing = await getPricingAdvice(req.origin, req.destination, req.start_date);
+  const days = Math.max(1, Math.ceil((Date.parse(req.end_date) - Date.parse(req.start_date)) / DAY_MS));
 
   const build = (type: ScenarioType): Scenario => {
-    const pickFlight = (t: ScenarioType) => {
-      const arr = [...(flights ?? [])];
+    const pickFlight = (t: ScenarioType): any => {
+      const arr = [...flights];
       if (!arr.length) return undefined;
-      if (t === 'premium') return arr.sort((a, b) => (a.layovers - b.layovers) || (a.duration_hours - b.duration_hours))[0];
-      if (t === 'balanced') return arr.sort((a, b) => (a.price - b.price) + (a.layovers - b.layovers) * 50)[0];
-      return arr.sort((a, b) => a.price - b.price)[0];
+      return arr.sort((a: any, b: any) => a.price - b.price)[0];
     };
 
-    const pickHotel = (t: ScenarioType) => {
-      const arr = [...(hotels ?? [])];
+    const pickHotel = (t: ScenarioType): any => {
+      const arr = [...hotels];
       if (!arr.length) return undefined;
-      if (t === 'premium') return arr.sort((a: any, b: any) => (b.stars ?? 0) - (a.stars ?? 0))[0];
-      if (t === 'balanced') {
-        return arr.sort((a: any, b: any) =>
-          ((b.stars ?? 0) - (a.stars ?? 0)) - (safeNumber(a.price_per_night) - safeNumber(b.price_per_night)) / 100
-        )[0];
-      }
       return arr.sort((a: any, b: any) => safeNumber(a.price_per_night) - safeNumber(b.price_per_night))[0];
     };
 
-    const pickActivities = (t: ScenarioType) => {
-      const arr = [...(acts ?? [])];
+    const pickActivities = (t: ScenarioType): any[] => {
+      const arr = [...acts];
       if (!arr.length) return [];
-      if (t === 'premium') return arr.filter((_, i) => i % 2 === 0).slice(0, days * 2);
-      if (t === 'balanced') return arr.slice(0, days * 2);
-      return arr.filter((_, i) => i % 3 !== 0).slice(0, days);
+      return arr.slice(0, days);
     };
 
     const f = pickFlight(type);
@@ -122,7 +210,7 @@ async function scenariosFromRequest(
         end: String(f.arrival ?? `${req.start_date}T12:00:00Z`),
         price: safeNumber(f.price, 0),
         currency: String(f.currency ?? 'USD'),
-        details: { raw: (f as any).raw },
+        details: { adred: f.details?.adred, raw: (f as any).raw },
       });
     }
 
@@ -137,7 +225,7 @@ async function scenariosFromRequest(
         end: `${req.end_date}T11:00:00Z`,
         price: safeNumber((h as any).price_per_night, 0) * nights,
         currency: String((h as any).currency ?? 'USD'),
-        details: { stars: (h as any).stars, raw: (h as any).raw },
+        details: { stars: (h as any).stars },
       });
     }
 
@@ -163,169 +251,87 @@ async function scenariosFromRequest(
       total_price,
       price_breakdown,
       adred: {
-        action: pricing?.action ?? 'wait',
-        confidence: pricing?.confidence ?? 0.5,
-        next_check_at: pricing?.next_check_at ?? new Date().toISOString(),
-        rationale: `Trend ${pricing?.trend ?? 'flat'}`,
+        action: pricing.action,
+        confidence: pricing.confidence,
       },
       items,
       kpis: kpis(items, days),
     };
   };
 
-  const scenarios: Scenario[] = (['economy', 'balanced', 'premium'] as ScenarioType[]).map(build);
-  metric('scenarios.generate_ms', { ms: Date.now() - t0, origin: req.origin, destination: req.destination });
-  return scenarios;
-}
-
-function diffScenarios(prev: Scenario[], next: Scenario[]) {
-  const before = prev[0]?.items ?? [];
-  const after = next[0]?.items ?? [];
-  const byId = (arr: ItineraryItem[]) => new Map(arr.map(i => [i.id, i]));
-  const mBefore = byId(before);
-  const mAfter = byId(after);
-  const added: ItineraryItem[] = [];
-  const removed: ItineraryItem[] = [];
-  const updated: { before: ItineraryItem; after: ItineraryItem }[] = [];
-
-  for (const [id, item] of mAfter) if (!mBefore.has(id)) added.push(item);
-  for (const [id, item] of mBefore) if (!mAfter.has(id)) removed.push(item);
-  for (const [id, a] of mAfter) {
-    const b = mBefore.get(id);
-    if (b && (a.price !== b.price || a.start !== b.start || a.end !== b.end)) updated.push({ before: b, after: a });
-  }
-  return { added, removed, updated };
+  return (['economy', 'balanced', 'premium'] as ScenarioType[]).map(build);
 }
 
 // ---------- Controller ----------
 @Controller('itineraries')
 export class ItinerariesController {
-  @Post('generate')
-  async generate(
-    @Body() body: GenerateItineraryRequest & { owner_id?: string },
-    @Query('providerFlights') providerFlights?: 'amadeus' | 'mock',
-    @Query('providerHotels') providerHotels?: 'travelpayouts' | 'mock',
-    @Query('providerActivities') providerActivities?: 'viator' | 'mock',
-  ): Promise<GenerateItineraryResponse> {
+  @Get()
+  async list(@Query('ownerId') ownerId?: string, @Query('limit') limitParam?: string): Promise<ListItinerariesResponse> {
     const prisma = getPrisma();
+    if (!ownerId) return { itineraries: [] };
 
-    let ownerId = (body as any).owner_id as string | undefined;
-    if (!ownerId) {
-      const demoEmail = 'demo@wadatrip.local';
-      const demo = await prisma.users.upsert({
-        where: { email: demoEmail },
-        update: {},
-        create: { email: demoEmail, name: 'Demo User' },
-      });
-      ownerId = demo.id;
-    }
-
-    const scenarios = await scenariosFromRequest(body, {
-      flights: providerFlights,
-      hotels: providerHotels,
-      activities: providerActivities,
+    const limit = coercePositiveInteger(limitParam, 20);
+    const saved = await prisma.itineraries.findMany({
+      where: { owner_id: ownerId },
+      take: limit,
+      orderBy: { created_at: 'desc' },
+      include: { versions: { include: { items: true }, take: 1, orderBy: { created_at: 'desc' } } },
     });
 
-    const itinerary = await prisma.itineraries.create({
-      data: {
-        owner_id: ownerId,
-        title: (body as any).title ?? `${body.destination} trip`,
-        origin: body.origin,
-        destination: body.destination,
-        start_date: new Date(body.start_date),
-        end_date: new Date(body.end_date),
-        pax: (body as any).adults ?? (body as any).pax ?? 1,
-        status: 'draft',
-      },
-    });
-
-    for (const sc of scenarios) {
-      const version = await prisma.itinerary_versions.create({
-        data: {
-          itinerary_id: itinerary.id,
-          scenario: sc.type,
-          total_price: sc.total_price,
-          adred_action: sc.adred.action,
+    const itineraries: SavedItinerary[] = saved.map((it: any) => ({
+      itinerary_id: it.id,
+      title: it.title,
+      origin: it.origin,
+      destination: it.destination,
+      start_date: dateOnlyIso(it.start_date),
+      end_date: dateOnlyIso(it.end_date),
+      pax: it.pax,
+      status: it.status,
+      created_at: it.created_at.toISOString(),
+      scenarios: it.versions.map((v: any) => ({
+        type: v.scenario as ScenarioType,
+        total_price: safeNumber(v.total_price, 0),
+        price_breakdown: summarize(v.items || []),
+        adred: {
+          action: (v.adred_action === 'buy' ? 'buy' : 'wait'),
+          confidence: 0.5,
         },
-      });
+        items: (v.items || []).map((i: any) => ({
+          id: i.id,
+          type: i.type,
+          supplier: i.supplier,
+          title: i.title,
+          price: i.price,
+          currency: i.currency,
+          start: i.start_ts,
+          end: i.end_ts,
+          details: i.details,
+        })),
+        kpis: kpis(v.items || [], 1),
+      })),
+    }));
 
-      for (const it of sc.items) {
-        await prisma.itinerary_items.create({
-          data: {
-            version_id: version.id,
-            type: it.type,
-            supplier: it.supplier,
-            title: it.title,
-            start_ts: it.start ? new Date(it.start) : null,
-            end_ts: it.end ? new Date(it.end) : null,
-            geo: it.geo ? { lat: (it.geo as any).lat, lng: (it.geo as any).lng } : undefined,
-            price: safeNumber(it.price, 0),
-            currency: it.currency ?? 'USD',
-            details: it.details ?? undefined,
-          },
-        });
-      }
-    }
+    return { itineraries };
+  }
 
-    return { itinerary_id: itinerary.id, scenarios };
+  @Post('generate')
+  async generate(@Body() body: GenerateItineraryRequest): Promise<GenerateItineraryResponse> {
+    const req = normalizeGenerateRequestPayload(body);
+    const id = randomUUID();
+    const scenarios = await scenariosFromRequest(req);
+    store.itineraries.set(id, { base: req, scenarios });
+    return { itinerary_id: id, scenarios };
   }
 
   @Post('update')
-  async update(
-    @Body() body: UpdateItineraryRequest,
-    @Query('providerFlights') providerFlights?: 'amadeus' | 'mock',
-    @Query('providerHotels') providerHotels?: 'travelpayouts' | 'mock',
-    @Query('providerActivities') providerActivities?: 'viator' | 'mock',
-  ): Promise<UpdateItineraryResponse> {
-    const prisma = getPrisma();
-    const itinerary = await prisma.itineraries.findUnique({ where: { id: (body as any).itinerary_id } });
-    if (!itinerary) throw new Error('itinerary not found');
+  async update(@Body() body: UpdateItineraryRequest): Promise<UpdateItineraryResponse> {
+    const existing = store.itineraries.get(body.itinerary_id);
+    if (!existing) throw new BadRequestException('itinerary not found');
 
-    const baseReq: GenerateItineraryRequest = {
-      origin: itinerary.origin,
-      destination: itinerary.destination,
-      start_date: (body as any).changes?.dates?.start_date || itinerary.start_date.toISOString().slice(0, 10),
-      end_date: (body as any).changes?.dates?.end_date || itinerary.end_date.toISOString().slice(0, 10),
-      adults: (body as any).changes?.pax || itinerary.pax,
-      budget_total: (body as any).changes?.budget_total ?? 0,
-      preferences: (body as any).changes?.preferences,
-    } as any;
+    const updatedReq: GenerateItineraryRequest = { ...existing.base, ...body.changes };
+    const scenarios = await scenariosFromRequest(updatedReq);
+    store.itineraries.set(body.itinerary_id, { base: updatedReq, scenarios });
 
-    const prevScenarios: Scenario[] = [];
-    const scenarios = await scenariosFromRequest(baseReq, { flights: providerFlights, hotels: providerHotels, activities: providerActivities });
-    const diff = diffScenarios(prevScenarios, scenarios);
-
-    let firstVersion: string | null = null;
-    for (const sc of scenarios) {
-      const version = await prisma.itinerary_versions.create({
-        data: {
-          itinerary_id: itinerary.id,
-          scenario: sc.type,
-          total_price: sc.total_price,
-          adred_action: sc.adred.action,
-          diff_from_prev: diff as any,
-        },
-      });
-      if (!firstVersion) firstVersion = version.id;
-
-      for (const it of sc.items) {
-        await prisma.itinerary_items.create({
-          data: {
-            version_id: version.id,
-            type: it.type,
-            supplier: it.supplier,
-            title: it.title,
-            start_ts: it.start ? new Date(it.start) : null,
-            end_ts: it.end ? new Date(it.end) : null,
-            geo: it.geo ? { lat: (it.geo as any).lat, lng: (it.geo as any).lng } : undefined,
-            price: safeNumber(it.price, 0),
-            currency: it.currency ?? 'USD',
-            details: it.details ?? undefined,
-          },
-        });
-      }
-    }
-
-    return { version_id: firstVersion!, scenarios, diff };
+    return { version_id: randomUUID(), scenarios, diff: { added: [], removed: [], updated: [] } };
   }
 }

@@ -1,8 +1,14 @@
 import { Controller, Post, Get, Query, Body, BadRequestException, Patch, Param } from '@nestjs/common';
-import { getPrisma } from '@wadatrip/db/src/client';
+import { getPrisma } from '@wadatrip/db';
 
 @Controller('listings')
 export class ListingsController {
+  @Get()
+  async list(@Query() query: any) {
+    // Wrapper to reuse the search logic (defaults to visible listings)
+    return this.search(query);
+  }
+
   @Post()
   async create(@Body() body: any) {
     const prisma = getPrisma();
@@ -11,7 +17,8 @@ export class ListingsController {
 
     const provider = await prisma.providers.findUnique({ where: { id: String(body.provider_id) } });
     if (!provider) throw new BadRequestException('provider not found');
-    if (provider.status !== 'verified') throw new BadRequestException('provider must be verified');
+    if (provider.verification_status !== 'verified' && provider.status !== 'verified')
+      throw new BadRequestException('provider must be verified');
 
     const listing = await prisma.listings.create({
       data: {
@@ -47,7 +54,13 @@ export class ListingsController {
     const where: any = {};
     const includeAll = String(query.all || 'false').toLowerCase() === 'true';
     if (!includeAll) {
-      where.status = query.status ? String(query.status) : 'published';
+      // Show visible listings by default: published or approved
+      const statusParam = query.status ? String(query.status).toLowerCase() : null;
+      if (statusParam) {
+        where.status = statusParam;
+      } else {
+        where.status = { in: ['published', 'approved'] };
+      }
     } else if (query.status) {
       where.status = String(query.status);
     }
@@ -82,10 +95,22 @@ export class ListingsController {
 
     const [total, items] = await Promise.all([
       prisma.listings.count({ where }),
-      prisma.listings.findMany({ where, orderBy, skip, take: limit }),
+      prisma.listings.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include: { provider: { select: { name: true, country_code: true } } },
+      }),
     ]);
 
-    return { items, total, page, limit };
+    const mapped = items.map((item) => ({
+      ...item,
+      provider_name: item.provider?.name ?? null,
+      provider_country: item.provider?.country_code ?? null,
+    }));
+
+    return { items: mapped, total, page, limit };
   }
 
   @Patch(':id/status')
@@ -99,5 +124,20 @@ export class ListingsController {
     if (!exists) throw new BadRequestException('listing not found');
     const updated = await prisma.listings.update({ where: { id: String(id) }, data: { status } });
     return updated;
+  }
+
+  @Get(':id')
+  async getOne(@Param('id') id: string) {
+    const prisma = getPrisma();
+    const listing = await prisma.listings.findUnique({
+      where: { id: String(id) },
+      include: { provider: { select: { name: true, country_code: true } } },
+    });
+    if (!listing) throw new BadRequestException('listing not found');
+    return {
+      ...listing,
+      provider_name: listing.provider?.name ?? null,
+      provider_country: listing.provider?.country_code ?? null,
+    };
   }
 }

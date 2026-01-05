@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query, NotFoundException } from '@nestjs/common';
 import axios from 'axios';
 
-const HUB = process.env.PROVIDER_HUB_URL || 'http://127.0.0.1:3014';
+const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 function ensureEnabled() { if (!ENABLED) throw new NotFoundException(); }
 
@@ -23,6 +23,12 @@ export class BookingsController {
   async create(@Body() body: any) {
     ensureEnabled();
     const { data } = await axios.post(`${HUB}/bookings`, body);
+    return data;
+  }
+  @Post('bookings/simple')
+  async createSimple(@Body() body: any) {
+    ensureEnabled();
+    const { data } = await axios.post(`${HUB}/bookings/simple`, body);
     return data;
   }
   @Post('bookings/:id/status')

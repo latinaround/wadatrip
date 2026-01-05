@@ -2,11 +2,12 @@
   "name": "@wadatrip/service-itineraries",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/services/itineraries/src/main.js",
+  "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node -r tsconfig-paths/register dist/services/itineraries/src/main.js",
-    "dev": "ts-node-dev --respawn --transpile-only --project tsconfig.json -r tsconfig-paths/register src/main.ts"
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node -r tsconfig-paths/register dist/main.js",
+    "test": "jest --config jest.config.js",
+    "test:watch": "jest --watch --config jest.config.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -21,8 +22,10 @@
     "tsconfig-paths": "^4.2.0"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.12",
     "@types/node": "^24.3.0",
-    "ts-node-dev": "^2.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "typescript": "^5.4.0"
   }
 }

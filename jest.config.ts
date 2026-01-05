@@ -3,7 +3,7 @@ import type { Config } from 'jest';
 const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/libs', '<rootDir>/services'],
+  roots: ['<rootDir>/libs', '<rootDir>/services', '<rootDir>/apps'],
   moduleNameMapper: {
     '^@wadatrip/common(.*)$': '<rootDir>/libs/common/src$1',
     '^@wadatrip/connectors$': '<rootDir>/libs/connectors/src/index.ts',

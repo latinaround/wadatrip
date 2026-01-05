@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getRedis } from '@wadatrip/common/redis';
-import { FlightCandidate } from './flights.mock';
+import { FlightCandidate } from './types';
 import { withCircuit } from './circuit';
 
 function cfg() {

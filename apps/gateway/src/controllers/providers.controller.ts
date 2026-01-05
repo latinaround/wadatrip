@@ -1,7 +1,7 @@
-import { Controller, Post, Get, Param, Body, Query, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Query, NotFoundException, Delete } from '@nestjs/common';
 import axios from 'axios';
 
-const HUB = process.env.PROVIDER_HUB_URL || 'http://127.0.0.1:3014';
+const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 
 function ensureEnabled() {
@@ -44,17 +44,32 @@ export class ProvidersController {
     return data;
   }
 
-  @Get('listings/search')
-  async searchListings(@Query() q: Record<string, any>) {
-    ensureEnabled();
-    const { data } = await axios.get(`${HUB}/listings/search`, { params: q });
-    return data;
-  }
 
   @Post('listings/:id/status')
   async setListingStatus(@Param('id') id: string, @Body() body: any) {
     ensureEnabled();
     const { data } = await axios.patch(`${HUB}/listings/${id}/status`, body);
+    return data;
+  }
+
+  @Post('alerts/tours/create')
+  async createTourAlert(@Body() body: any) {
+    ensureEnabled();
+    const { data } = await axios.post(`${HUB}/alerts/tours/create`, body);
+    return data;
+  }
+
+  @Get('alerts/tours/list')
+  async listTourAlerts() {
+    ensureEnabled();
+    const { data } = await axios.get(`${HUB}/alerts/tours/list`);
+    return data;
+  }
+
+  @Delete('alerts/:id')
+  async deleteAlert(@Param('id') id: string) {
+    ensureEnabled();
+    const { data } = await axios.delete(`${HUB}/alerts/${id}`);
     return data;
   }
 }

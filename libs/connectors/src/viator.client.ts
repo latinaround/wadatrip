@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { withCircuit } from './circuit';
-import { ActivityCandidate } from './activities.mock';
+import { ActivityCandidate } from './types';
 
 function cfg() {
   return {

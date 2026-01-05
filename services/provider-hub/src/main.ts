@@ -1,16 +1,29 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded, Request, Response, NextFunction } from 'express';
 import { AppModule } from './module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule, { bodyParser: false, cors: true });
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const contentType = req.headers['content-type'] || '';
+
+    if (contentType.startsWith('multipart/form-data')) {
+      return next();
+    }
+
+    json({ limit: '10mb' })(req, res, () => {
+      urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+    });
+  });
 
   // Validaciones globales
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // Configuración Swagger
+  // Configuraci�n Swagger
   const swagger = new DocumentBuilder()
     .setTitle('Provider Hub')
     .setDescription('Provider/Listing service for Wadatrip')

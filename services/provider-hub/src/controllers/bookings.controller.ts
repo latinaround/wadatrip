@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Param, Body, Query, BadRequestException } from '@nestjs/common';
-import { getPrisma } from '@wadatrip/db/src/client';
+import { Controller, Post, Get, Param, Body, Query, BadRequestException } from '@nestjs/common';
+import { getPrisma } from '@wadatrip/db';
 
 @Controller('bookings')
 export class BookingsController {
@@ -8,15 +8,20 @@ export class BookingsController {
     const prisma = getPrisma();
     const required = ['listing_id', 'date', 'num_people'];
     for (const k of required) if (!body?.[k]) throw new BadRequestException(`missing ${k}`);
+
     const listing = await prisma.listings.findUnique({ where: { id: String(body.listing_id) } });
     if (!listing) throw new BadRequestException('listing not found');
+
     const provider_id = listing.provider_id;
     const date = new Date(String(body.date));
     if (isNaN(+date)) throw new BadRequestException('invalid date');
+
     const num_people = Number(body.num_people);
     if (!Number.isFinite(num_people) || num_people <= 0) throw new BadRequestException('invalid num_people');
+
     const total_price = body.total_price != null ? String(body.total_price) : null;
-    // Resolve user
+
+    // Resolver usuario
     let user_id: string | null = null;
     if (body.user_id) {
       const u = await prisma.users.findUnique({ where: { id: String(body.user_id) } });
@@ -28,6 +33,7 @@ export class BookingsController {
       const demo = await prisma.users.upsert({ where: { email }, update: {}, create: { email, name } });
       user_id = demo.id;
     }
+
     const created = await prisma.bookings.create({
       data: {
         listing_id: String(body.listing_id),
@@ -40,7 +46,25 @@ export class BookingsController {
         payment_status: 'unpaid',
       },
     });
+
     return created;
+  }
+
+  // Lightweight booking path for quick reservations (defaults date=tomorrow, num_people=1)
+  @Post('simple')
+  async createSimple(@Body() body: any) {
+    const today = new Date();
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const payload = {
+      listing_id: body.listing_id,
+      date: body.date ?? tomorrow.toISOString(),
+      num_people: body.num_people ?? 1,
+      total_price: body.total_price,
+      user_name: body.customer_name,
+      user_email: body.customer_email,
+      user_id: body.user_id,
+    };
+    return this.create(payload);
   }
 
   @Get()
@@ -50,9 +74,12 @@ export class BookingsController {
     const limit = Math.min(100, Math.max(1, Number(query.limit || 20)));
     const skip = (page - 1) * limit;
     const where: any = {};
+
     if (query.status) where.status = String(query.status);
+    if (query.payment_status) where.payment_status = String(query.payment_status);
     if (query.provider_id) where.provider_id = String(query.provider_id);
     if (query.user_id) where.user_id = String(query.user_id);
+
     if (query.q) {
       const q = String(query.q);
       where.OR = [
@@ -60,17 +87,28 @@ export class BookingsController {
         { provider: { name: { contains: q, mode: 'insensitive' } } },
       ];
     }
+
     const [total, items] = await Promise.all([
       prisma.bookings.count({ where }),
-      prisma.bookings.findMany({ where, orderBy: { created_at: 'desc' }, skip, take: limit, include: { listing: true, provider: true, user: true } }),
+      prisma.bookings.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: limit,
+        include: { listing: true, provider: true, user: true },
+      }),
     ]);
+
     return { items, total, page, limit };
   }
 
   @Get(':id')
   async getOne(@Param('id') id: string) {
     const prisma = getPrisma();
-    const b = await prisma.bookings.findUnique({ where: { id }, include: { listing: true, provider: true, user: true } });
+    const b = await prisma.bookings.findUnique({
+      where: { id },
+      include: { listing: true, provider: true, user: true },
+    });
     if (!b) throw new BadRequestException('booking not found');
     return b;
   }
@@ -78,12 +116,31 @@ export class BookingsController {
   @Post(':id/status')
   async updateStatus(@Param('id') id: string, @Body() body: any) {
     const prisma = getPrisma();
-    const allowed = ['pending', 'confirmed', 'cancelled', 'completed'];
-    const status = String(body?.status || '').toLowerCase();
-    if (!allowed.includes(status)) throw new BadRequestException('invalid status');
+
+    const allowedStatus = ['pending', 'confirmed', 'cancelled', 'completed'];
+    const allowedPayment = ['unpaid', 'paid', 'failed', 'refunded'];
+
+    const status = body?.status ? String(body.status).toLowerCase() : null;
+    const payment_status = body?.payment_status ? String(body.payment_status).toLowerCase() : null;
+
+    if (status && !allowedStatus.includes(status)) {
+      throw new BadRequestException('invalid status');
+    }
+    if (payment_status && !allowedPayment.includes(payment_status)) {
+      throw new BadRequestException('invalid payment_status');
+    }
+
     const exists = await prisma.bookings.findUnique({ where: { id } });
     if (!exists) throw new BadRequestException('booking not found');
-    const updated = await prisma.bookings.update({ where: { id }, data: { status } });
+
+    const updated = await prisma.bookings.update({
+      where: { id },
+      data: {
+        ...(status ? { status } : {}),
+        ...(payment_status ? { payment_status } : {}),
+      },
+    });
+
     return updated;
   }
 }

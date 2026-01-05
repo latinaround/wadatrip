@@ -1,72 +1,61 @@
-WadaTrip Platform (Backend)
+# Wadatrip Platform - Updated Overview (Oct 2025)
 
-Servicios y scripts para el backend (NestJS) y dependencias locales.
+## Structure
+- **apps/web** -> React + Vite + Tailwind + Shadcn UI (Frontend principal)
+- **apps/gateway** -> NestJS API Gateway
+- **services/provider-hub** -> Registro y gestion de operadores (con Prisma)
+- **libs/db** -> Prisma schema y conexion centralizada
+- **uploads/operators** -> Carpeta temporal para documentos
 
-Requisitos
+## Core Flows
 
-- Docker + Docker Compose
-- Node.js LTS + Corepack (yarn habilitado)
+### 1. Registro de Operadores
+- Ruta publica: `/operator/register`
+- Tipos: Guide | Agency | Partner
+- Campos: name, email, phone, base_city, country_code, languages, social links, documento (PDF/imagen)
+- Endpoint: `POST ${getApiBase()}/providers/register`
+- Estado inicial: `pending`
+- Verificacion posterior: panel admin o IA
 
-Levantar dependencias (DB/Redis)
+### 2. Panel de Administracion
+- Ruta protegida: `/admin/providers`
+- Autenticacion: Firebase Auth + whitelist (`VITE_FB_*`)
+- Funciones: listar, aprobar/rechazar operadores, verificacion IA
+- Columnas destacadas: tipo, estado, badge de verificacion
 
-- cd wadatrip-platform
-- docker compose up -d
+### 3. Creacion de Tours
+- Ruta: `/operator/tours/new`
+- Requiere operador verificado
+- Endpoint: `POST /listings`
+- Campos: titulo, descripcion, precio, pais, idioma, duracion, tipo, imagenes
+- Estado inicial: `pending` (publicable tras aprobacion)
 
-Preparar y levantar backend
+### 4. Listado Publico de Tours
+- Ruta: `/tours`
+- Endpoint: `/listings/search?status=published`
+- Filtros: tipo de operador, pais
+- Banner final: CTA "Unete como operador" -> `/operator/register`
 
-- Instalar deps: yarn
-- Generar Prisma: yarn prisma:generate
-- Migraciones (dev): yarn prisma:migrate
-- (Opcional) Seed: yarn seed
-- Levantar todos los servicios: yarn start:dev
-  - Gateway: http://localhost:3000 (docs en /docs, health en /health)
-  - Itineraries: :3011, Pricing: :3012, Alerts: :3013
+## Variables Importantes (.env)
+```
+VITE_API_BASE_URL=http://localhost:3015
+VITE_STRIPE_PUBLIC_KEY=...
+VITE_APP_NAME=Wadatrip
+VITE_FB_API_KEY=...
+VITE_FB_AUTH_DOMAIN=...
+VITE_FB_PROJECT_ID=...
+VITE_ADMIN_WHITELIST=kiara@wadatrip.com
+```
 
-Variables útiles (por defecto):
+## Dev Commands
+- yarn workspace @wadatrip/web dev -> levantar frontend
+- yarn workspace @wadatrip/web build -> compilar
+- yarn workspace @wadatrip/service-gateway dev -> API Gateway
+- yarn workspace @wadatrip/service-provider-hub dev -> Provider Hub
 
-- GATEWAY_PORT=3000
-- ITINERARIES_PORT=3011
-- PRICING_PORT=3012
-- ALERTS_URL=http://localhost:3013
-
-App móvil (Live)
-
-- cd wadatrip-mobile
-- npm run dev:agent
-  - Usa adb reverse y conecta a http://localhost:3000 automáticamente
-
-Web
-
-- cd wadatrip-web
-- pnpm dev (o npm run dev)
-
-Solución de problemas
-
-- Network request failed/timeout en móvil:
-  - Verifica que Gateway esté en :3000 y que docker compose tenga postgres/redis UP (healthy)
-  - En Home ver “API: http://localhost:3000” y modo LIVE
-- My Alerts: http://localhost:3000/alerts responde
-
-Provider Hub quickstart
-
-- Objetivo: Operadores se registran, el admin verifica y publican tours; la app móvil los consulta.
-- Arranque:
-  - Terminal A: `yarn dev:provider-hub` (puerto 3014)
-  - Terminal B: exportar FF y URL, luego `yarn start:dev`
-    - PowerShell: `$env:FF_PROVIDER_HUB='true'; $env:PROVIDER_HUB_URL='http://127.0.0.1:3014'`
-- Endpoints vía Gateway (3000):
-  - `POST /providers` — crea operador `{ type,name,email,base_city,country_code,... }`
-  - `POST /providers/:id/verify` — `{ status: 'verified' | 'rejected' }`
-  - `POST /listings` — crea tour `{ provider_id,title,description?,category,city,country_code,price_from?,currency?,startDate?,endDate?,tags?,status? }`
-  - `GET /listings/search?city=...&limit=10&startDate=...&endDate=...` — buscar tours
-- App móvil (emulador): `npm run dev:agent:hub` apunta a `http://localhost:3000` y activa `EXPO_PUBLIC_FF_PROVIDER_HUB=true`.
-
-Deployment
-
-- Copia `.env.example` a `.env` y define `STRIPE_SECRET_KEY=your_secret_here` y `STRIPE_PUBLISHABLE_KEY=your_publishable_here` (nunca los subas al repo).
-
-- Para desplegar `services/alerts` en Render usando el blueprint: `render blueprint launch .render.yaml` (define `STRIPE_SECRET_KEY` y `STRIPE_PUBLISHABLE_KEY` como variables en Render antes del deploy).
-- El blueprint fija `NODE_VERSION=20.11.1` y usa Yarn 4.9.4 via Corepack; Render instala dependencias con `yarn install --immutable` y arranca con `yarn start`.
-- En Render/Heroku/Railway configura `STRIPE_SECRET_KEY` y `STRIPE_PUBLISHABLE_KEY`; para Expo agrega `EXPO_PUBLIC_STRIPE_KEY` en la configuracion del proyecto antes de desplegar.
-
-
+## Notes
+- Prisma controla la BD y validaciones de proveedores/tours.
+- Firebase gestiona login del panel admin.
+- HRM/IA verification pendiente de integracion futura.
+- Los avisos de JSX (>) se resolvieron utilizando {'->'}.
+- Flujo completo probado: registro -> aprobacion -> creacion de tour -> publicacion publica.

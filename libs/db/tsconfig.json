@@ -1,11 +1,24 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",        // 👈 fuerza resolución clásica
+    "rootDir": "src",
     "outDir": "dist",
-    "types": ["node"]   // 👈 necesario para que reconozca process/env
+    "declaration": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": ["node"],
+    "baseUrl": "../../",
+    "paths": {
+      "@wadatrip/common": ["libs/common/src/index.ts"],
+      "@wadatrip/common/*": ["libs/common/src/*"],
+      "@wadatrip/db": ["libs/db/src/index.ts"],
+      "@wadatrip/db/*": ["libs/db/src/*"]
+    }
   },
-  "include": ["src/**/*", "prisma/**/*", "prisma/seed.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "prisma", "**/*.spec.ts", "**/*.test.ts"]
 }

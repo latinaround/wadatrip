@@ -92,9 +92,11 @@ export interface PricingPrediction {
   destination: string;
   date: string;
   current_price: number;
+  avg_price: number;
   trend: 'up' | 'down' | 'flat';
-  action: 'buy' | 'wait';
+  action: 'buy' | 'wait' | 'alert';
   confidence: number;
+  adred_score: number;
   horizon_days: number;
   next_check_at: string;
 }
@@ -137,4 +139,20 @@ export interface AlertsListQuery {
   from?: string; // ISO date
   to?: string;   // ISO date
   limit?: number;
+}
+export interface SavedItinerary {
+  itinerary_id: string;
+  title: string;
+  origin: string;
+  destination: string;
+  start_date: string;
+  end_date: string;
+  pax: number;
+  status: string;
+  created_at: string;
+  scenarios: Scenario[];
+}
+
+export interface ListItinerariesResponse {
+  itineraries: SavedItinerary[];
 }

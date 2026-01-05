@@ -12,7 +12,9 @@ declare -A SERVICES=(
   ["pricing"]="3012 yarn dev:pricing"
   ["alerts"]="3013 yarn dev:alerts"
   ["provider-hub"]="3014 yarn dev:provider-hub"
+  ["payments"]="3016 yarn dev:payments"
   ["gateway"]="3015 yarn start:gateway"
+  ["web"]="5173 yarn workspace @wadatrip/web dev -- --host 0.0.0.0 --port 5173 --clearScreen false"
 )
 
 # Cleanup
@@ -32,15 +34,30 @@ done
 for name in "${!SERVICES[@]}"; do
   port=$(echo "${SERVICES[$name]}" | awk '{print $1}')
   cmd=$(echo "${SERVICES[$name]}" | cut -d' ' -f2-)
+  health_path="/health"
+  require_ok=1
+
+  if [ "$name" = "web" ]; then
+    health_path="/"
+    require_ok=0
+  fi
+
   echo "▶ Starting $name on port $port..."
   (cd "$BASE_PATH" && $cmd &) >/dev/null 2>&1
 
   # Health check
   for i in {1..15}; do
     sleep 2
-    if curl -s "http://localhost:$port/health" | grep -q "ok"; then
-      echo "✅ $name service ready at http://localhost:$port"
-      break
+    if [ "$require_ok" -eq 0 ]; then
+      if curl -sf "http://localhost:$port$health_path" >/dev/null; then
+        echo "✅ $name service ready at http://localhost:$port"
+        break
+      fi
+    else
+      if curl -sf "http://localhost:$port$health_path" | grep -q '"ok"[[:space:]]*:[[:space:]]*true'; then
+        echo "✅ $name service ready at http://localhost:$port"
+        break
+      fi
     fi
     if [ $i -eq 15 ]; then
       echo "⚠️ $name did not respond after 15 retries."
