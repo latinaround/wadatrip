@@ -18,7 +18,7 @@ COPY services/alerts/package.json services/alerts/package.json
 
 
 # Install all workspaces (node-modules linker)
-RUN yarn install --immutable
+RUN yarn install
 ENV NODE_ENV=production
 
 
