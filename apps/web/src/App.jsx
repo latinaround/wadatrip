@@ -26,7 +26,7 @@ import { useAuth } from './context/AuthContext.jsx';
 import { AppConfig } from './config/appConfig';
 import { notificationService } from './utils/notifications';
 import AdminApp from './admin/AdminApp.jsx';
-import WadaAgent from '../../wadatrip-platform/apps/web/src/components/WadaAgent';
+import WadaAgent from './components/WadaAgent';
 
 const initialCheckoutState = {
   open: false,
