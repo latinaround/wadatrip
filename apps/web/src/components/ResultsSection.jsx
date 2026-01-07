@@ -1,0 +1,85 @@
+import { useTranslation } from 'react-i18next';
+import { Button } from './ui/button';
+import { Alert, AlertDescription } from './ui/alert';
+import { Search } from 'lucide-react';
+import ItineraryCard from './ItineraryCard';
+
+const ResultsSection = ({ searchData, itinerary, isLoading, error, notice, onStartNewSearch, onSelectScenario }) => {
+  const { t } = useTranslation();
+  const scenarios = itinerary?.scenarios || [];
+
+  if (isLoading) {
+    return (
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Buscando itinerarios reales…</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (!searchData || !itinerary) {
+    return (
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="w-24 h-24 bg-gradient-to-br from-teal-100 to-teal-200 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Search className="w-12 h-12 text-teal-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('results.empty_title')}</h2>
+            <p className="text-gray-600 mb-6">{t('results.empty_desc')}</p>
+            <Button onClick={onStartNewSearch} className="bg-teal-600 hover:bg-teal-700 text-white">
+              {t('results.start_button')}
+            </Button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="py-20 bg-gray-50">
+      <div className="container mx-auto px-4 space-y-10">
+        <div className="text-center">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('results.title')}</h2>
+          <p className="text-xl text-gray-600">
+            {t('results.description', { count: scenarios.length })}
+          </p>
+        </div>
+
+        {error && (
+          <Alert variant="destructive" className="max-w-2xl mx-auto">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {notice && (
+          <Alert className="max-w-2xl mx-auto bg-teal-50 border-teal-400 text-teal-700">
+            <AlertDescription>{notice}</AlertDescription>
+          </Alert>
+        )}
+
+        {scenarios.length === 0 ? (
+          <div className="text-center text-gray-500">
+            {t('results.no_real_data') ?? 'No encontramos itinerarios para los filtros seleccionados. Ajusta tu búsqueda e intenta nuevamente.'}
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {scenarios.map((scenario) => (
+              <ItineraryCard
+                key={`${itinerary.itineraryId || itinerary.id}-${scenario.type}`}
+                scenario={scenario}
+                itineraryId={itinerary.itineraryId || itinerary.id}
+                itineraryMeta={itinerary.meta}
+                onSelect={onSelectScenario}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
+export default ResultsSection;
