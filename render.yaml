@@ -1,0 +1,111 @@
+services:
+  - type: web
+    name: wadatrip-gateway
+    env: node
+    rootDir: .
+    buildCommand: |
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs install
+      node .yarn/releases/yarn-4.9.4.cjs prisma generate --schema libs/db/prisma/schema.prisma
+      node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-gateway build
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs workspaces focus @wadatrip/service-gateway --production
+    startCommand: node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-gateway start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
+      - key: NODE_ENV
+        value: production
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+  - type: web
+    name: wadatrip-itineraries
+    env: node
+    rootDir: .
+    buildCommand: |
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs install
+      node .yarn/releases/yarn-4.9.4.cjs prisma generate --schema libs/db/prisma/schema.prisma
+      node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-itineraries build
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs workspaces focus @wadatrip/service-itineraries --production
+    startCommand: node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-itineraries start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: wadatrip-pricing
+    env: node
+    rootDir: .
+    buildCommand: |
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs install
+      node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-pricing build
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs workspaces focus @wadatrip/service-pricing --production
+    startCommand: node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-pricing start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: wadatrip-provider-hub
+    env: node
+    rootDir: .
+    buildCommand: |
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs install
+      node .yarn/releases/yarn-4.9.4.cjs prisma generate --schema libs/db/prisma/schema.prisma
+      node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-provider-hub build
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs workspaces focus @wadatrip/service-provider-hub --production
+    startCommand: node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-provider-hub start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: wadatrip-alerts
+    env: node
+    rootDir: .
+    buildCommand: |
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs install
+      node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-alerts build
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs workspaces focus @wadatrip/service-alerts --production
+    startCommand: node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-alerts start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: wadatrip-wadagent
+    env: node
+    rootDir: .
+    buildCommand: |
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs install
+      node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-wadagent build
+      YARN_ENABLE_SCRIPTS=0 node .yarn/releases/yarn-4.9.4.cjs workspaces focus @wadatrip/service-wadagent --production
+    startCommand: node .yarn/releases/yarn-4.9.4.cjs workspace @wadatrip/service-wadagent start
+    healthCheckPath: /wadagent/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
+      - key: NODE_ENV
+        value: production
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: MISTRAL_MODEL
+        value: mistral-small-latest
+      - key: PRICING_SERVICE_URL
+        sync: false
