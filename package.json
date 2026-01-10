@@ -1,8 +1,8 @@
 {
-  "name": "wadatrip",
+  "name": "wadatrip-root",
   "private": true,
   "workspaces": [
-    "apps/*",
+    "apps/gateway",
     "services/*",
     "libs/*"
   ],
@@ -26,7 +26,8 @@
     "postinstall": "echo 'Skipping Prisma auto-generate on Windows. Run manually with: npx prisma generate --schema=libs/db/prisma/schema.prisma'",
     "test:pricing": "jest apps/gateway/src/services/pricing.service.spec.ts",
     "build:gateway": "yarn workspace @wadatrip/service-gateway build",
-    "start:gateway": "cross-env TS_NODE_PROJECT=apps/gateway/tsconfig.json ts-node -r tsconfig-paths/register apps/gateway/src/main.ts"
+    "start:gateway": "cross-env TS_NODE_PROJECT=apps/gateway/tsconfig.json ts-node -r tsconfig-paths/register apps/gateway/src/main.ts",
+    "start:all": "concurrently -n pricing,itineraries,provider-hub,alerts,wadagent,gateway \"yarn workspace @wadatrip/service-pricing start\" \"yarn workspace @wadatrip/service-itineraries start\" \"yarn workspace @wadatrip/service-provider-hub start\" \"yarn workspace @wadatrip/service-alerts start\" \"yarn workspace @wadatrip/service-wadagent start\" \"yarn workspace @wadatrip/service-gateway start\""
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
