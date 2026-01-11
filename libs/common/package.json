@@ -4,6 +4,28 @@
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./dtos": {
+      "types": "./dist/dtos/index.d.ts",
+      "default": "./dist/dtos/index.js"
+    },
+    "./dtos/*": {
+      "types": "./dist/dtos/*.d.ts",
+      "default": "./dist/dtos/*.js"
+    },
+    "./metrics": {
+      "types": "./dist/metrics.d.ts",
+      "default": "./dist/metrics.js"
+    },
+    "./redis": {
+      "types": "./dist/redis.d.ts",
+      "default": "./dist/redis.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -11,6 +33,6 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "5.4.5"
   }
 }
