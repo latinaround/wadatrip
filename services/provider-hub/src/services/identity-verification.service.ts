@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
 export type ProviderVerifierResponse = {
-  status?: 'pending' | 'verified' | 'rejected' | 'manual_review';
-  decision?: 'pending' | 'verified' | 'rejected' | 'manual_review';
+  status?: 'pending' | 'verified' | 'rejected' | 'manual_review' | 'not_provided';
+  decision?: 'pending' | 'verified' | 'rejected' | 'manual_review' | 'not_provided';
   match_score?: number | null;
   risk_level?: string | null;
   detectedName?: string | null;
