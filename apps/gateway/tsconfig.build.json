@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "../..",
-    "outDir": "dist/apps/gateway",
+    "outDir": "dist",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "baseUrl": "../..",
