@@ -6,6 +6,15 @@
     "moduleDetection": "force",
     "outDir": "dist",
     "baseUrl": "../..",
+    "paths": {
+      "@wadatrip/common": ["libs/common/src/index.ts"],
+      "@wadatrip/common/dtos": ["libs/common/src/dtos/index.ts"],
+      "@wadatrip/common/*": ["libs/common/src/*"],
+      "@wadatrip/connectors": ["libs/connectors/src/index.ts"],
+      "@wadatrip/connectors/*": ["libs/connectors/src/*"],
+      "@wadatrip/db": ["libs/db/src/index.ts"],
+      "@wadatrip/db/*": ["libs/db/src/*"]
+    },
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
