@@ -2,10 +2,10 @@
   "name": "@wadatrip/service-gateway",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/src/main.js",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "start": "node -r tsconfig-paths/register dist/src/main.js"
+    "start": "node -r tsconfig-paths/register dist/main.js"
   },
   "dependencies": {
     "@nestjs/axios": "3.0.1",

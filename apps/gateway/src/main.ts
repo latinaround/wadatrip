@@ -101,7 +101,7 @@ async function bootstrap() {
   app.useLogger(logger);
   const server = app.getHttpAdapter().getInstance();
 
-  const nestHandledPrefixes = ['/wadagent', '/docs'];
+  const nestHandledPrefixes = ['/docs'];
   // 🚫 Excluir rutas internas del Gateway (como /wadagent)
   server.use(nestHandledPrefixes, (req: express.Request, _res: express.Response, next: express.NextFunction) => {
     logger.log(`[Gateway] Direct route handled by Nest: ${req.originalUrl}`, 'Bypass');
@@ -221,9 +221,10 @@ async function bootstrap() {
 
   // 🔗 Registrar proxies para microservicios
   attachProxy('/itineraries', process.env.ITINERARIES_URL || 'http://localhost:3011', 'itineraries');
-  attachProxy('/pricing', process.env.PRICING_URL || 'http://localhost:3012', 'pricing');
+  attachProxy('/pricing', process.env.PRICING_SERVICE_URL || 'http://localhost:3012', 'pricing');
   attachProxy('/providers', process.env.PROVIDER_HUB_URL || 'http://localhost:3014', 'provider-hub');
   attachProxy('/alerts', process.env.ALERTS_URL || 'http://localhost:3013', 'alerts');
+  attachProxy('/wadagent', process.env.WADAGENT_URL || 'http://localhost:3022', 'wadagent');
 
   // ⚡ Webhook Stripe sin parseo JSON
   server.use('/webhooks/stripe', express.raw({ type: '*/*' }));
@@ -237,7 +238,8 @@ async function bootstrap() {
       req.url?.startsWith('/itineraries') ||
       req.url?.startsWith('/alerts') ||
       req.url?.startsWith('/providers') ||
-      req.url?.startsWith('/pricing')
+      req.url?.startsWith('/pricing') ||
+      req.url?.startsWith('/wadagent')
     ) {
       return next();
     }

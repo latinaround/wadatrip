@@ -7,7 +7,7 @@
     "libs/*"
   ],
   "scripts": {
-    "start:prod": "NODE_ENV=production GATEWAY_PORT=3000 node apps/gateway/dist/apps/gateway/src/main.js",
+    "start:prod": "NODE_ENV=production GATEWAY_PORT=3000 node apps/gateway/dist/main.js",
     "dev:all": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-up.ps1 || bash ./scripts/dev-up.sh",
     "dev:gateway": "cross-env TS_NODE_PROJECT=apps/gateway/tsconfig.json ts-node-dev -r tsconfig-paths/register --respawn --transpile-only apps/gateway/src/main.ts",
     "dev:alerts": "cross-env TS_NODE_PROJECT=services/alerts/tsconfig.json ts-node-dev -r tsconfig-paths/register --respawn --transpile-only services/alerts/src/main.ts",
