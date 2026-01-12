@@ -22,7 +22,7 @@
     "smoke": "cross-env TS_NODE_PROJECT=tsconfig.seed.json ts-node-dev -r tsconfig-paths/register --transpile-only scripts/smoke.ts",
     "build": "yarn workspaces foreach --all --topological-dev run build",
     "build:all": "yarn workspaces foreach --topological-dev run build",
-    "start": "cross-env NODE_ENV=production node apps/gateway/dist/src/main.js",
+    "start": "cross-env NODE_ENV=production node apps/gateway/dist/main.js",
     "postinstall": "echo 'Skipping Prisma auto-generate on Windows. Run manually with: npx prisma generate --schema=libs/db/prisma/schema.prisma'",
     "test:pricing": "jest apps/gateway/src/services/pricing.service.spec.ts",
     "build:gateway": "yarn workspace @wadatrip/service-gateway build",
