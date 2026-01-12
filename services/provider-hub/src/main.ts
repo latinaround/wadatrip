@@ -23,7 +23,7 @@ async function bootstrap() {
   // Validaciones globales
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // Configuración Swagger
+  // Configuraciï¿½n Swagger
   const swagger = new DocumentBuilder()
     .setTitle('Provider Hub')
     .setDescription('Provider/Listing service for Wadatrip')
@@ -34,9 +34,10 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, doc);
 
   // Puerto (usa 3014 por defecto)
-  const port = Number(process.env.PORT || 3014);
+  const port = Number(process.env.PROVIDER_HUB_PORT || process.env.PORT || 3014);
   await app.listen(port, '0.0.0.0');
   console.log(`[provider-hub] listening on :${port}`);
 }
 
 bootstrap();
+
