@@ -132,7 +132,7 @@ function mapScenarioType(type: string): 'standard' | 'premium' | 'custom' {
 }
 
 async function requireApprovedAgent(agentId: string) {
-  const prisma = getPrisma();
+  const prisma = getPrisma() as any;
   const agent = await prisma.providers.findUnique({ where: { id: agentId } });
   if (!agent) {
     throw new BadRequestException('agent not found');
@@ -187,11 +187,11 @@ async function persistItinerary(
   const agent = await requireApprovedAgent(agentId);
   const ownerUser = await ensureOwnerUserFromAgent(agent);
 
-  await prisma.$transaction(async (tx) => {
-    const existing = await tx.itineraries.findUnique({ where: { id: itineraryId } });
+  await prisma.$transaction(async (tx: any) => {
+    const txAny = tx as any;
+    const existing: any = await txAny.itineraries.findUnique({ where: { id: itineraryId } });
     if (!existing) {
-      await tx.itineraries.create({
-        data: {
+      const createData: any = {
           id: itineraryId,
           owner_id: ownerUser.id,
           owner_type: 'agent',
@@ -203,15 +203,13 @@ async function persistItinerary(
           end_date: new Date(base.end_date),
           pax: base.adults,
           status: 'draft',
-        },
-      });
+      };
+      await txAny.itineraries.create({ data: createData });
     } else {
-      if (existing.agent_id && existing.agent_id !== agentId) {
+      if (existing?.agent_id && existing.agent_id !== agentId) {
         throw new BadRequestException('agent mismatch');
       }
-      await tx.itineraries.update({
-        where: { id: itineraryId },
-        data: {
+      const updateData: any = {
           agent_id: agentId,
           title: base.title,
           origin: base.origin,
@@ -219,15 +217,17 @@ async function persistItinerary(
           start_date: new Date(base.start_date),
           end_date: new Date(base.end_date),
           pax: base.adults,
-        },
+      };
+      await txAny.itineraries.update({
+        where: { id: itineraryId },
+        data: updateData,
       });
     }
 
     for (const scenario of scenarios) {
       const kpiPayload = scenario.kpis;
       const itemsJson = scenarioItemsToJson(scenario.items);
-      const version = await tx.itinerary_versions.create({
-        data: {
+      const versionData: any = {
           itinerary_id: itineraryId,
           scenario: scenario.type,
           scenario_type: mapScenarioType(String(scenario.type)),
@@ -235,11 +235,11 @@ async function persistItinerary(
           adred_action: scenario.adred?.action ?? null,
           items_json: itemsJson as any,
           kpis: kpiPayload as any,
-        },
-      });
+      };
+      const version: any = await txAny.itinerary_versions.create({ data: versionData });
 
       if (scenario.items.length) {
-        await tx.itinerary_items.createMany({
+        await txAny.itinerary_items.createMany({
           data: scenario.items.map((item) => ({
             version_id: version.id,
             type: item.type,
@@ -438,12 +438,12 @@ export class ItinerariesController {
   }
 
   @Get('mine')
-  mine(): ListItinerariesResponse {
+  async mine(): Promise<ListItinerariesResponse> {
     return { itineraries: [] };
   }
 
   @Get()
-  list(@Query('ownerId') ownerId?: string, @Query('limit') limitParam?: string): ListItinerariesResponse {
+  async list(@Query('ownerId') ownerId?: string, @Query('limit') limitParam?: string): Promise<ListItinerariesResponse> {
     if (MARKETPLACE_MODE) return { itineraries: [] };
     const prisma = getPrisma();
     if (!ownerId) return { itineraries: [] };
@@ -493,7 +493,7 @@ export class ItinerariesController {
   }
 
   @Post('generate')
-  generate(@Body() body: GenerateItineraryRequest): GenerateItineraryResponse {
+  async generate(@Body() body: GenerateItineraryRequest): Promise<GenerateItineraryResponse> {
     if (MARKETPLACE_MODE) {
       return { itinerary_id: randomUUID(), scenarios: [] };
     }
@@ -510,7 +510,7 @@ export class ItinerariesController {
   }
 
   @Post('update')
-  update(@Body() body: UpdateItineraryRequest): UpdateItineraryResponse {
+  async update(@Body() body: UpdateItineraryRequest): Promise<UpdateItineraryResponse> {
     if (MARKETPLACE_MODE) {
       return { version_id: randomUUID(), scenarios: [], diff: { added: [], removed: [], updated: [] } };
     }
