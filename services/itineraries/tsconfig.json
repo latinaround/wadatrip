@@ -5,6 +5,7 @@
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
     "outDir": "dist",
+    "baseUrl": "../..",
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
