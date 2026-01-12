@@ -3,10 +3,9 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
-    "baseUrl": ".",
-    "paths": {},
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": "../..",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true
