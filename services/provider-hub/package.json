@@ -2,10 +2,10 @@
   "name": "@wadatrip/service-provider-hub",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/main.js",
+  "main": "dist/services/provider-hub/src/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/main.js"
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/services/provider-hub/src/main.js"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.4",

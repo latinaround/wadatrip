@@ -2,10 +2,10 @@
   "name": "@wadatrip/service-itineraries",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/main.js",
+  "main": "dist/services/itineraries/src/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "start": "node -r tsconfig-paths/register dist/main.js",
+    "start": "node -r tsconfig-paths/register dist/services/itineraries/src/main.js",
     "test": "jest --config jest.config.js",
     "test:watch": "jest --watch --config jest.config.js"
   },
