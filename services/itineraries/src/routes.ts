@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Optional, Post, Query } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
 import {
@@ -12,6 +12,7 @@ import {
   SavedItinerary,
   ListItinerariesResponse,
 } from '@wadatrip/common/dtos';
+import { PricingService } from '../../pricing/src/pricing.service';
 import {
   searchFlights,
   searchHotels,
@@ -48,6 +49,8 @@ type PricingAdvice = {
 };
 
 const DEFAULT_PRICING_ADVICE: PricingAdvice = { action: 'wait', confidence: 0.5 };
+const PROVIDER_HUB_URL = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
+const MARKETPLACE_MODE = true;
 
 function safeNumber(n: any, def = 0): number {
   const x = Number(n);
@@ -115,14 +118,173 @@ function normalizeGenerateRequestPayload(raw: any): GenerateItineraryRequest {
   };
 }
 
-async function getPricingAdvice(origin: string, destination: string, date: string): Promise<PricingAdvice> {
+function getScenarioByType(
+  scenarios: Scenario[],
+  type: ScenarioType,
+): Scenario | undefined {
+  return scenarios.find((scenario) => scenario.type === type);
+}
+
+function mapScenarioType(type: string): 'standard' | 'premium' | 'custom' {
+  if (type === 'premium') return 'premium';
+  if (type === 'custom') return 'custom';
+  return 'standard';
+}
+
+async function requireApprovedAgent(agentId: string) {
+  const prisma = getPrisma();
+  const agent = await prisma.providers.findUnique({ where: { id: agentId } });
+  if (!agent) {
+    throw new BadRequestException('agent not found');
+  }
+  if (agent.verification_status !== 'approved') {
+    throw new BadRequestException('agent not approved');
+  }
+  return agent;
+}
+
+async function ensureOwnerUserFromAgent(agent: any) {
+  const prisma = getPrisma();
+  const email = String(agent.email || '').toLowerCase();
+  if (!email) {
+    throw new BadRequestException('agent email is required');
+  }
+  const user = await prisma.users.upsert({
+    where: { email },
+    update: { name: agent.name ?? undefined },
+    create: {
+      email,
+      name: agent.name ?? null,
+      role: 'agent',
+      status: 'active',
+    },
+  });
+  return user;
+}
+
+function scenarioItemsToJson(items: ItineraryItem[]) {
+  return items.map((item) => ({
+    id: item.id,
+    type: item.type,
+    supplier: item.supplier,
+    title: item.title,
+    start: item.start,
+    end: item.end,
+    geo: item.geo,
+    price: item.price,
+    currency: item.currency,
+    details: item.details,
+  }));
+}
+
+async function persistItinerary(
+  itineraryId: string,
+  base: GenerateItineraryRequest,
+  scenarios: Scenario[],
+  agentId: string,
+) {
+  const prisma = getPrisma();
+  const agent = await requireApprovedAgent(agentId);
+  const ownerUser = await ensureOwnerUserFromAgent(agent);
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.itineraries.findUnique({ where: { id: itineraryId } });
+    if (!existing) {
+      await tx.itineraries.create({
+        data: {
+          id: itineraryId,
+          owner_id: ownerUser.id,
+          owner_type: 'agent',
+          agent_id: agentId,
+          title: base.title,
+          origin: base.origin,
+          destination: base.destination,
+          start_date: new Date(base.start_date),
+          end_date: new Date(base.end_date),
+          pax: base.adults,
+          status: 'draft',
+        },
+      });
+    } else {
+      if (existing.agent_id && existing.agent_id !== agentId) {
+        throw new BadRequestException('agent mismatch');
+      }
+      await tx.itineraries.update({
+        where: { id: itineraryId },
+        data: {
+          agent_id: agentId,
+          title: base.title,
+          origin: base.origin,
+          destination: base.destination,
+          start_date: new Date(base.start_date),
+          end_date: new Date(base.end_date),
+          pax: base.adults,
+        },
+      });
+    }
+
+    for (const scenario of scenarios) {
+      const kpiPayload = scenario.kpis;
+      const itemsJson = scenarioItemsToJson(scenario.items);
+      const version = await tx.itinerary_versions.create({
+        data: {
+          itinerary_id: itineraryId,
+          scenario: scenario.type,
+          scenario_type: mapScenarioType(String(scenario.type)),
+          total_price: scenario.total_price,
+          adred_action: scenario.adred?.action ?? null,
+          items_json: itemsJson as any,
+          kpis: kpiPayload as any,
+        },
+      });
+
+      if (scenario.items.length) {
+        await tx.itinerary_items.createMany({
+          data: scenario.items.map((item) => ({
+            version_id: version.id,
+            type: item.type,
+            supplier: item.supplier,
+            provider: item.supplier,
+            title: item.title,
+            start_ts: item.start ? new Date(item.start) : null,
+            end_ts: item.end ? new Date(item.end) : null,
+            geo: item.geo as any,
+            price: item.price,
+            currency: item.currency,
+            details: item.details as any,
+          })),
+        });
+      }
+    }
+  });
+}
+
+async function loadItineraryBase(itineraryId: string): Promise<GenerateItineraryRequest | null> {
+  const prisma = getPrisma();
+  const itin = await prisma.itineraries.findUnique({ where: { id: itineraryId } });
+  if (!itin) return null;
+  return {
+    title: itin.title,
+    origin: itin.origin,
+    destination: itin.destination,
+    start_date: dateOnlyIso(itin.start_date),
+    end_date: dateOnlyIso(itin.end_date),
+    adults: itin.pax,
+    budget_total: DEFAULT_BUDGET_TOTAL,
+  };
+}
+
+async function getPricingAdvice(
+  origin: string,
+  destination: string,
+  date: string,
+  pricingService?: PricingService,
+): Promise<PricingAdvice> {
+  if (!pricingService) return { ...DEFAULT_PRICING_ADVICE };
   const payload = { origin, destination, start_date: date };
-  const url = `${process.env.PRICING_URL || 'http://localhost:3012'}/pricing/predict`;
   try {
-    const resp = await axios.post(url, payload, {
-      headers: { Authorization: `Bearer ${process.env.AUTH_TOKEN}` },
-    });
-    const advice = resp.data?.predictions?.[0];
+    const resp = await pricingService.predict(payload);
+    const advice = resp?.predictions?.[0];
     if (advice && typeof advice === 'object') {
       const data = advice as Record<string, unknown>;
       const action =
@@ -131,7 +293,7 @@ async function getPricingAdvice(origin: string, destination: string, date: strin
       return { ...data, action, confidence } as PricingAdvice;
     }
   } catch {
-    metric('itineraries.pricing.error', {}); // ✅ corregido
+    metric('itineraries.pricing.error', {});
   }
   return { ...DEFAULT_PRICING_ADVICE };
 }
@@ -169,10 +331,13 @@ async function fetchActivities(req: GenerateItineraryRequest) {
   return await searchActivities(req.destination, req.start_date, req.end_date, 'travelpayouts');
 }
 
-async function scenariosFromRequest(req: GenerateItineraryRequest): Promise<Scenario[]> {
+async function scenariosFromRequest(
+  req: GenerateItineraryRequest,
+  pricingService?: PricingService,
+): Promise<Scenario[]> {
   const [flights, hotels, acts] = await Promise.all([fetchFlights(req), fetchHotels(req), fetchActivities(req)]);
 
-  const pricing = await getPricingAdvice(req.origin, req.destination, req.start_date);
+  const pricing = await getPricingAdvice(req.origin, req.destination, req.start_date, pricingService);
   const days = Math.max(1, Math.ceil((Date.parse(req.end_date) - Date.parse(req.start_date)) / DAY_MS));
 
   const build = (type: ScenarioType): Scenario => {
@@ -265,8 +430,21 @@ async function scenariosFromRequest(req: GenerateItineraryRequest): Promise<Scen
 // ---------- Controller ----------
 @Controller('itineraries')
 export class ItinerariesController {
+  constructor(@Optional() private readonly pricingService?: PricingService) {}
+
+  @Get('health')
+  health() {
+    return { status: 'ok' };
+  }
+
+  @Get('mine')
+  mine(): ListItinerariesResponse {
+    return { itineraries: [] };
+  }
+
   @Get()
-  async list(@Query('ownerId') ownerId?: string, @Query('limit') limitParam?: string): Promise<ListItinerariesResponse> {
+  list(@Query('ownerId') ownerId?: string, @Query('limit') limitParam?: string): ListItinerariesResponse {
+    if (MARKETPLACE_MODE) return { itineraries: [] };
     const prisma = getPrisma();
     if (!ownerId) return { itineraries: [] };
 
@@ -315,23 +493,94 @@ export class ItinerariesController {
   }
 
   @Post('generate')
-  async generate(@Body() body: GenerateItineraryRequest): Promise<GenerateItineraryResponse> {
+  generate(@Body() body: GenerateItineraryRequest): GenerateItineraryResponse {
+    if (MARKETPLACE_MODE) {
+      return { itinerary_id: randomUUID(), scenarios: [] };
+    }
+    const agentId = (body as any)?.agent_id ?? (body as any)?.agentId;
+    if (!agentId) {
+      throw new BadRequestException('agent_id is required');
+    }
     const req = normalizeGenerateRequestPayload(body);
     const id = randomUUID();
-    const scenarios = await scenariosFromRequest(req);
+    const scenarios = await scenariosFromRequest(req, this.pricingService);
     store.itineraries.set(id, { base: req, scenarios });
+    await persistItinerary(id, req, scenarios, String(agentId));
     return { itinerary_id: id, scenarios };
   }
 
   @Post('update')
-  async update(@Body() body: UpdateItineraryRequest): Promise<UpdateItineraryResponse> {
-    const existing = store.itineraries.get(body.itinerary_id);
-    if (!existing) throw new BadRequestException('itinerary not found');
+  update(@Body() body: UpdateItineraryRequest): UpdateItineraryResponse {
+    if (MARKETPLACE_MODE) {
+      return { version_id: randomUUID(), scenarios: [], diff: { added: [], removed: [], updated: [] } };
+    }
+    const agentId = (body as any)?.agent_id ?? (body as any)?.agentId;
+    if (!agentId) {
+      throw new BadRequestException('agent_id is required');
+    }
+    let existing = store.itineraries.get(body.itinerary_id);
+    if (!existing) {
+      const base = await loadItineraryBase(body.itinerary_id);
+      if (!base) throw new BadRequestException('itinerary not found');
+      existing = { base, scenarios: [] };
+    }
 
     const updatedReq: GenerateItineraryRequest = { ...existing.base, ...body.changes };
-    const scenarios = await scenariosFromRequest(updatedReq);
+    const scenarios = await scenariosFromRequest(updatedReq, this.pricingService);
     store.itineraries.set(body.itinerary_id, { base: updatedReq, scenarios });
+    await persistItinerary(body.itinerary_id, updatedReq, scenarios, String(agentId));
 
     return { version_id: randomUUID(), scenarios, diff: { added: [], removed: [], updated: [] } };
   }
+
+  @Post('book')
+  async book(@Body() body: any) {
+    if (MARKETPLACE_MODE) {
+      throw new BadRequestException('itinerary booking is disabled in marketplace mode');
+    }
+    const itineraryId = body?.itinerary_id;
+    const scenarioType = body?.scenario_type as ScenarioType | undefined;
+    const listingId = body?.listing_id;
+
+    if (!itineraryId) throw new BadRequestException('itinerary_id is required');
+    if (!scenarioType) throw new BadRequestException('scenario_type is required');
+    if (!listingId) throw new BadRequestException('listing_id is required');
+
+    const existing = store.itineraries.get(String(itineraryId));
+    if (!existing) throw new BadRequestException('itinerary not found');
+
+    const scenario = getScenarioByType(existing.scenarios, scenarioType);
+    if (!scenario) throw new BadRequestException('scenario not found');
+
+    const date = body?.date ?? existing.base.start_date;
+    const num_people = body?.num_people ?? existing.base.adults ?? 1;
+
+    const payload = {
+      listing_id: listingId,
+      date,
+      num_people,
+      total_price: scenario.total_price,
+      user_id: body?.user_id,
+      user_email: body?.user_email,
+      user_name: body?.user_name,
+    };
+
+    const { data } = await axios.post(`${PROVIDER_HUB_URL}/bookings`, payload, {
+      headers: { 'x-internal-service-token': process.env.INTERNAL_SERVICE_TOKEN || '' },
+    });
+
+    return {
+      booking: data,
+      itinerary_id: itineraryId,
+      scenario_type: scenarioType,
+      total_price: scenario.total_price,
+      currency: scenario.items[0]?.currency ?? 'USD',
+      adred: scenario.adred,
+    };
+  }
 }
+
+
+
+
+

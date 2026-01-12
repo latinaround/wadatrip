@@ -11,7 +11,7 @@ type NormalizedRoute = {
 export class PricingService {
   private readonly logger = new Logger(PricingService.name);
 
-  async predict(body: any) {
+  predictSync(body: any) {
     const routes = this.normalizeRoutes(body);
     const useAdred = this.shouldUseAdred();
 
@@ -38,6 +38,10 @@ export class PricingService {
     }
 
     return { predictions };
+  }
+
+  async predict(body: any) {
+    return this.predictSync(body);
   }
 
   private shouldUseAdred(): boolean {

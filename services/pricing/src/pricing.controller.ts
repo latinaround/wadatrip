@@ -1,4 +1,5 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { PricingService } from './pricing.service';
 
 @Controller('pricing')
@@ -6,7 +7,8 @@ export class PricingController {
   constructor(private readonly pricingService: PricingService) {}
 
   @Post('predict')
-  async predict(@Body() body: any) {
-    return this.pricingService.predict(body);
+  predict(@Body() body: any, @Res() res: Response) {
+    const payload = this.pricingService.predictSync(body);
+    return res.json(payload);
   }
 }
