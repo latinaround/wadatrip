@@ -508,8 +508,8 @@ export class ItinerariesController {
     } as any;
 
     try {
-      const created = await withTimeout(
-        prisma.itineraries.create({ data }),
+      const created = await withTimeout<any>(
+        prisma.itineraries.create({ data }) as Promise<any>,
         1200,
       );
       return res.json({ itinerary: created });
@@ -538,15 +538,15 @@ export class ItinerariesController {
     if (!ownerId) return { itineraries: [] };
     const prisma = getPrisma() as any;
     try {
-      const items = await withTimeout(
+      const items = await withTimeout<any[]>(
         prisma.itineraries.findMany({
           where: { owner_id: ownerId },
           orderBy: { created_at: 'desc' },
           take: 50,
-        }),
+        }) as Promise<any[]>,
         1200,
       );
-      return { itineraries: items };
+      return { itineraries: items as any };
     } catch {
       return { itineraries: [] };
     }
@@ -556,8 +556,8 @@ export class ItinerariesController {
   async getOne(@Param('id') id: string) {
     const prisma = getPrisma() as any;
     try {
-      const itinerary = await withTimeout(
-        prisma.itineraries.findUnique({ where: { id } }),
+      const itinerary = await withTimeout<any | null>(
+        prisma.itineraries.findUnique({ where: { id } }) as Promise<any | null>,
         1200,
       );
       if (!itinerary) throw new BadRequestException('itinerary not found');
@@ -570,8 +570,8 @@ export class ItinerariesController {
   @Patch(':id')
   async updateMarketplace(@Param('id') id: string, @Body() body: any) {
     const prisma = getPrisma() as any;
-    const existing = await withTimeout(
-      prisma.itineraries.findUnique({ where: { id } }),
+    const existing = await withTimeout<any | null>(
+      prisma.itineraries.findUnique({ where: { id } }) as Promise<any | null>,
       1200,
     );
     if (!existing) throw new BadRequestException('itinerary not found');
@@ -626,11 +626,11 @@ export class ItinerariesController {
     }
 
     try {
-      const updated = await withTimeout(
-        prisma.itineraries.update({ where: { id }, data }),
+      const updated = await withTimeout<any>(
+        prisma.itineraries.update({ where: { id }, data }) as Promise<any>,
         1200,
       );
-      return { itinerary: updated };
+      return { itinerary: updated as any };
     } catch {
       throw new BadRequestException('itinerary not found');
     }
@@ -639,8 +639,8 @@ export class ItinerariesController {
   @Post(':id/publish')
   async publish(@Param('id') id: string) {
     const prisma = getPrisma() as any;
-    const existing = await withTimeout(
-      prisma.itineraries.findUnique({ where: { id } }),
+    const existing = await withTimeout<any | null>(
+      prisma.itineraries.findUnique({ where: { id } }) as Promise<any | null>,
       1200,
     );
     if (!existing) throw new BadRequestException('itinerary not found');
@@ -650,40 +650,40 @@ export class ItinerariesController {
     if (!existing.price || Number(existing.price) <= 0) {
       throw new BadRequestException('price must be greater than 0 to publish');
     }
-    const updated = await withTimeout(
+    const updated = await withTimeout<any>(
       prisma.itineraries.update({
         where: { id },
         data: { status: 'published' },
-      }),
+      }) as Promise<any>,
       1200,
     );
-    return { itinerary: updated };
+    return { itinerary: updated as any };
   }
 
   @Post(':id/approve')
   async approve(@Param('id') id: string) {
     const prisma = getPrisma() as any;
-    const updated = await withTimeout(
+    const updated = await withTimeout<any>(
       prisma.itineraries.update({
         where: { id },
         data: { status: 'published' },
-      }),
+      }) as Promise<any>,
       1200,
     );
-    return { itinerary: updated };
+    return { itinerary: updated as any };
   }
 
   @Post(':id/hide')
   async hide(@Param('id') id: string) {
     const prisma = getPrisma() as any;
-    const updated = await withTimeout(
+    const updated = await withTimeout<any>(
       prisma.itineraries.update({
         where: { id },
         data: { status: 'hidden' },
-      }),
+      }) as Promise<any>,
       1200,
     );
-    return { itinerary: updated };
+    return { itinerary: updated as any };
   }
 
   @Delete(':id')
@@ -691,13 +691,16 @@ export class ItinerariesController {
     const ownerId = String(body?.owner_id || body?.ownerId || '');
     if (!ownerId) throw new BadRequestException('owner_id is required');
     const prisma = getPrisma() as any;
-    const existing = await withTimeout(
-      prisma.itineraries.findUnique({ where: { id } }),
+    const existing = await withTimeout<any | null>(
+      prisma.itineraries.findUnique({ where: { id } }) as Promise<any | null>,
       1200,
     );
     if (!existing) throw new BadRequestException('itinerary not found');
     if (existing.owner_id !== ownerId) throw new BadRequestException('not authorized');
-    await withTimeout(prisma.itineraries.delete({ where: { id } }), 1200);
+    await withTimeout(
+      prisma.itineraries.delete({ where: { id } }) as Promise<any>,
+      1200,
+    );
     return { ok: true };
   }
 
@@ -707,15 +710,15 @@ export class ItinerariesController {
     const statusFilter = ownerId ? undefined : 'published';
     const limit = coercePositiveInteger(limitParam, 20);
     try {
-      const items = await withTimeout(
+      const items = await withTimeout<any[]>(
         prisma.itineraries.findMany({
           where: ownerId ? { owner_id: ownerId } : { status: statusFilter },
           take: limit,
           orderBy: { created_at: 'desc' },
-        }),
+        }) as Promise<any[]>,
         1200,
       );
-      return { itineraries: items };
+      return { itineraries: items as any };
     } catch {
       return { itineraries: [] };
     }
@@ -724,82 +727,16 @@ export class ItinerariesController {
   @Post('generate')
   async generate(@Body() body: GenerateItineraryRequest): Promise<GenerateItineraryResponse> {
     return { itinerary_id: randomUUID(), scenarios: [] };
-    const agentId = (body as any)?.agent_id ?? (body as any)?.agentId;
-    if (!agentId) {
-      throw new BadRequestException('agent_id is required');
-    }
-    const req = normalizeGenerateRequestPayload(body);
-    const id = randomUUID();
-    const scenarios = await scenariosFromRequest(req, this.pricingService);
-    store.itineraries.set(id, { base: req, scenarios });
-    await persistItinerary(id, req, scenarios, String(agentId));
-    return { itinerary_id: id, scenarios };
   }
 
   @Post('update')
   async update(@Body() body: UpdateItineraryRequest): Promise<UpdateItineraryResponse> {
     return { version_id: randomUUID(), scenarios: [], diff: { added: [], removed: [], updated: [] } };
-    const agentId = (body as any)?.agent_id ?? (body as any)?.agentId;
-    if (!agentId) {
-      throw new BadRequestException('agent_id is required');
-    }
-    let existing = store.itineraries.get(body.itinerary_id);
-    if (!existing) {
-      const base = await loadItineraryBase(body.itinerary_id);
-      if (!base) throw new BadRequestException('itinerary not found');
-      existing = { base, scenarios: [] };
-    }
-
-    const updatedReq: GenerateItineraryRequest = { ...existing.base, ...body.changes };
-    const scenarios = await scenariosFromRequest(updatedReq, this.pricingService);
-    store.itineraries.set(body.itinerary_id, { base: updatedReq, scenarios });
-    await persistItinerary(body.itinerary_id, updatedReq, scenarios, String(agentId));
-
-    return { version_id: randomUUID(), scenarios, diff: { added: [], removed: [], updated: [] } };
   }
 
   @Post('book')
   async book(@Body() body: any) {
     throw new BadRequestException('itinerary booking is disabled in marketplace mode');
-    const itineraryId = body?.itinerary_id;
-    const scenarioType = body?.scenario_type as ScenarioType | undefined;
-    const listingId = body?.listing_id;
-
-    if (!itineraryId) throw new BadRequestException('itinerary_id is required');
-    if (!scenarioType) throw new BadRequestException('scenario_type is required');
-    if (!listingId) throw new BadRequestException('listing_id is required');
-
-    const existing = store.itineraries.get(String(itineraryId));
-    if (!existing) throw new BadRequestException('itinerary not found');
-
-    const scenario = getScenarioByType(existing.scenarios, scenarioType);
-    if (!scenario) throw new BadRequestException('scenario not found');
-
-    const date = body?.date ?? existing.base.start_date;
-    const num_people = body?.num_people ?? existing.base.adults ?? 1;
-
-    const payload = {
-      listing_id: listingId,
-      date,
-      num_people,
-      total_price: scenario.total_price,
-      user_id: body?.user_id,
-      user_email: body?.user_email,
-      user_name: body?.user_name,
-    };
-
-    const { data } = await axios.post(`${PROVIDER_HUB_URL}/bookings`, payload, {
-      headers: { 'x-internal-service-token': process.env.INTERNAL_SERVICE_TOKEN || '' },
-    });
-
-    return {
-      booking: data,
-      itinerary_id: itineraryId,
-      scenario_type: scenarioType,
-      total_price: scenario.total_price,
-      currency: scenario.items[0]?.currency ?? 'USD',
-      adred: scenario.adred,
-    };
   }
 }
 
