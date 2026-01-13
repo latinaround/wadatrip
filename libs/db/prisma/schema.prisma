@@ -30,20 +30,27 @@ model users {
 model itineraries {
   id          String   @id @default(cuid())
   owner_id    String
+  owner_type  String   @default("agent")
+  agent_id    String?
   title       String
   origin      String
   destination String
   start_date  DateTime
   end_date    DateTime
   pax         Int
+  price       Decimal? @db.Decimal(12, 2)
+  currency    String   @default("USD")
+  operator_stripe_account_id String?
   status      String   @default("draft")
   created_at  DateTime @default(now())
 
   owner               users                 @relation(fields: [owner_id], references: [id])
+  agent               providers?            @relation("AgentItineraries", fields: [agent_id], references: [id])
   versions            itinerary_versions[]
   alert_subscriptions alert_subscriptions[]
 
   @@index([owner_id], name: "idx_itin_owner")
+  @@index([agent_id], name: "idx_itin_agent")
   @@index([destination, start_date], name: "idx_itin_dest_date")
 }
 
@@ -51,8 +58,11 @@ model itinerary_versions {
   id             String   @id @default(cuid())
   itinerary_id   String
   scenario       String
+  scenario_type  String?
   total_price    Decimal? @db.Decimal(12, 2)
   adred_action   String?
+  items_json     Json?    @db.JsonB
+  kpis           Json?    @db.JsonB
   created_at     DateTime @default(now())
   diff_from_prev Json?    @db.JsonB
 
@@ -157,6 +167,7 @@ model providers {
   documents provider_documents[]
   listings  listings[]
   bookings  bookings[]
+  itineraries itineraries[] @relation("AgentItineraries")
 
   @@index([status], name: "idx_providers_status")
   @@index([base_city, country_code], name: "idx_providers_city_country")
