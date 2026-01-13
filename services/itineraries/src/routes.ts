@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Get, Optional, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Optional, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
 import {
@@ -51,6 +52,7 @@ type PricingAdvice = {
 const DEFAULT_PRICING_ADVICE: PricingAdvice = { action: 'wait', confidence: 0.5 };
 const PROVIDER_HUB_URL = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const MARKETPLACE_MODE = true;
+const DISABLE_ITINERARIES_DB = true;
 
 function safeNumber(n: any, def = 0): number {
   const x = Number(n);
@@ -116,6 +118,21 @@ function normalizeGenerateRequestPayload(raw: any): GenerateItineraryRequest {
     budget_total,
     preferences: raw?.preferences,
   };
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
 }
 
 function getScenarioByType(
@@ -192,31 +209,25 @@ async function persistItinerary(
     const existing: any = await txAny.itineraries.findUnique({ where: { id: itineraryId } });
     if (!existing) {
       const createData: any = {
-          id: itineraryId,
-          owner_id: ownerUser.id,
-          owner_type: 'agent',
-          agent_id: agentId,
-          title: base.title,
-          origin: base.origin,
-          destination: base.destination,
-          start_date: new Date(base.start_date),
-          end_date: new Date(base.end_date),
-          pax: base.adults,
-          status: 'draft',
+        id: itineraryId,
+        owner_id: ownerUser.id,
+        title: base.title,
+        origin: base.origin,
+        destination: base.destination,
+        start_date: new Date(base.start_date),
+        end_date: new Date(base.end_date),
+        pax: base.adults,
+        status: 'draft',
       };
       await txAny.itineraries.create({ data: createData });
     } else {
-      if (existing?.agent_id && existing.agent_id !== agentId) {
-        throw new BadRequestException('agent mismatch');
-      }
       const updateData: any = {
-          agent_id: agentId,
-          title: base.title,
-          origin: base.origin,
-          destination: base.destination,
-          start_date: new Date(base.start_date),
-          end_date: new Date(base.end_date),
-          pax: base.adults,
+        title: base.title,
+        origin: base.origin,
+        destination: base.destination,
+        start_date: new Date(base.start_date),
+        end_date: new Date(base.end_date),
+        pax: base.adults,
       };
       await txAny.itineraries.update({
         where: { id: itineraryId },
@@ -228,12 +239,11 @@ async function persistItinerary(
       const kpiPayload = scenario.kpis;
       const itemsJson = scenarioItemsToJson(scenario.items);
       const versionData: any = {
-          itinerary_id: itineraryId,
-          scenario: scenario.type,
-          scenario_type: mapScenarioType(String(scenario.type)),
-          total_price: scenario.total_price,
-          adred_action: scenario.adred?.action ?? null,
-          items_json: itemsJson as any,
+        itinerary_id: itineraryId,
+        scenario: scenario.type,
+        total_price: scenario.total_price,
+        adred_action: scenario.adred?.action ?? null,
+        items_json: itemsJson as any,
           kpis: kpiPayload as any,
       };
       const version: any = await txAny.itinerary_versions.create({ data: versionData });
@@ -432,71 +442,155 @@ async function scenariosFromRequest(
 export class ItinerariesController {
   constructor(@Optional() private readonly pricingService?: PricingService) {}
 
+  private parseDate(value: any, fallback?: Date): Date {
+    const parsed = new Date(String(value ?? ''));
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+    if (fallback) return fallback;
+    throw new BadRequestException('invalid date');
+  }
+
   @Get('health')
   health() {
     return { status: 'ok' };
   }
 
+  @Post()
+  async createMarketplace(@Body() body: any, @Res() res: Response) {
+    const ownerId = String(body?.owner_id || body?.ownerId || '');
+    if (!ownerId) throw new BadRequestException('owner_id is required');
+
+    const title = String(body?.title || '').trim();
+    const origin = String(body?.origin || '').trim();
+    const destination = String(body?.destination || '').trim();
+    if (!title || !origin || !destination) {
+      throw new BadRequestException('title, origin, destination are required');
+    }
+
+    const startDate = this.parseDate(body?.start_date ?? body?.startDate);
+    const endDate = this.parseDate(body?.end_date ?? body?.endDate, startDate);
+    const pax = Number.isFinite(Number(body?.pax ?? body?.adults))
+      ? Math.max(1, Math.floor(Number(body?.pax ?? body?.adults)))
+      : 1;
+    const status = String(body?.status || 'draft').toLowerCase() === 'published'
+      ? 'published'
+      : 'draft';
+    const currency = String(body?.currency || 'USD').toUpperCase();
+    if (currency !== 'USD') {
+      throw new BadRequestException('currency must be USD');
+    }
+    const priceValue = body?.price ?? body?.total_price ?? null;
+    const price = priceValue == null ? null : Number(priceValue);
+    if (price != null && !Number.isFinite(price)) {
+      throw new BadRequestException('price must be a number');
+    }
+    const operatorStripeAccountId = body?.operator_stripe_account_id ?? body?.operatorStripeAccountId ?? null;
+    if (status === 'published') {
+      if (!operatorStripeAccountId) {
+        throw new BadRequestException('operator_stripe_account_id is required to publish');
+      }
+      if (!price || price <= 0) {
+        throw new BadRequestException('price must be greater than 0 to publish');
+      }
+    }
+
+    const mockId = `mock_${randomUUID()}`;
+    return res.status(200).json({
+      itinerary: {
+        id: mockId,
+        owner_id: ownerId,
+        title,
+        origin,
+        destination,
+        start_date: startDate,
+        end_date: endDate,
+        pax,
+        status,
+      },
+      mock: true,
+      reason: DISABLE_ITINERARIES_DB ? 'db_disabled' : 'db_unavailable',
+    });
+  }
+
   @Get('mine')
-  async mine(): Promise<ListItinerariesResponse> {
+  async mine(@Query('ownerId') ownerId?: string): Promise<ListItinerariesResponse> {
+    if (!ownerId) return { itineraries: [] };
+    if (DISABLE_ITINERARIES_DB) return { itineraries: [] };
     return { itineraries: [] };
+  }
+
+  @Get(':id')
+  async getOne(@Param('id') id: string) {
+    if (DISABLE_ITINERARIES_DB) {
+      return {
+        itinerary: {
+          id,
+          status: 'draft',
+        },
+        mock: true,
+      };
+    }
+    throw new BadRequestException('itinerary not found');
+  }
+
+  @Patch(':id')
+  async updateMarketplace(@Param('id') id: string, @Body() body: any) {
+    if (DISABLE_ITINERARIES_DB) {
+      return {
+        itinerary: {
+          id,
+          status: body?.status || 'draft',
+        },
+        mock: true,
+      };
+    }
+    throw new BadRequestException('itinerary not found');
+  }
+
+  @Post(':id/publish')
+  async publish(@Param('id') id: string) {
+    if (DISABLE_ITINERARIES_DB) {
+      return { itinerary: { id, status: 'published' }, mock: true };
+    }
+    throw new BadRequestException('itinerary not found');
+  }
+
+  @Post(':id/approve')
+  async approve(@Param('id') id: string) {
+    if (DISABLE_ITINERARIES_DB) {
+      return { itinerary: { id, status: 'published' }, mock: true };
+    }
+    throw new BadRequestException('itinerary not found');
+  }
+
+  @Post(':id/hide')
+  async hide(@Param('id') id: string) {
+    if (DISABLE_ITINERARIES_DB) {
+      return { itinerary: { id, status: 'hidden' }, mock: true };
+    }
+    throw new BadRequestException('itinerary not found');
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string, @Body() body: any) {
+    const ownerId = String(body?.owner_id || body?.ownerId || '');
+    if (!ownerId) throw new BadRequestException('owner_id is required');
+    if (DISABLE_ITINERARIES_DB) {
+      return { ok: true, mock: true };
+    }
+    throw new BadRequestException('itinerary not found');
   }
 
   @Get()
   async list(@Query('ownerId') ownerId?: string, @Query('limit') limitParam?: string): Promise<ListItinerariesResponse> {
-    if (MARKETPLACE_MODE) return { itineraries: [] };
-    const prisma = getPrisma();
-    if (!ownerId) return { itineraries: [] };
-
-    const limit = coercePositiveInteger(limitParam, 20);
-    const saved = await prisma.itineraries.findMany({
-      where: { owner_id: ownerId },
-      take: limit,
-      orderBy: { created_at: 'desc' },
-      include: { versions: { include: { items: true }, take: 1, orderBy: { created_at: 'desc' } } },
-    });
-
-    const itineraries: SavedItinerary[] = saved.map((it: any) => ({
-      itinerary_id: it.id,
-      title: it.title,
-      origin: it.origin,
-      destination: it.destination,
-      start_date: dateOnlyIso(it.start_date),
-      end_date: dateOnlyIso(it.end_date),
-      pax: it.pax,
-      status: it.status,
-      created_at: it.created_at.toISOString(),
-      scenarios: it.versions.map((v: any) => ({
-        type: v.scenario as ScenarioType,
-        total_price: safeNumber(v.total_price, 0),
-        price_breakdown: summarize(v.items || []),
-        adred: {
-          action: (v.adred_action === 'buy' ? 'buy' : 'wait'),
-          confidence: 0.5,
-        },
-        items: (v.items || []).map((i: any) => ({
-          id: i.id,
-          type: i.type,
-          supplier: i.supplier,
-          title: i.title,
-          price: i.price,
-          currency: i.currency,
-          start: i.start_ts,
-          end: i.end_ts,
-          details: i.details,
-        })),
-        kpis: kpis(v.items || [], 1),
-      })),
-    }));
-
-    return { itineraries };
+    if (DISABLE_ITINERARIES_DB) {
+      return { itineraries: [] };
+    }
+    return { itineraries: [] };
   }
 
   @Post('generate')
   async generate(@Body() body: GenerateItineraryRequest): Promise<GenerateItineraryResponse> {
-    if (MARKETPLACE_MODE) {
-      return { itinerary_id: randomUUID(), scenarios: [] };
-    }
+    return { itinerary_id: randomUUID(), scenarios: [] };
     const agentId = (body as any)?.agent_id ?? (body as any)?.agentId;
     if (!agentId) {
       throw new BadRequestException('agent_id is required');
@@ -511,9 +605,7 @@ export class ItinerariesController {
 
   @Post('update')
   async update(@Body() body: UpdateItineraryRequest): Promise<UpdateItineraryResponse> {
-    if (MARKETPLACE_MODE) {
-      return { version_id: randomUUID(), scenarios: [], diff: { added: [], removed: [], updated: [] } };
-    }
+    return { version_id: randomUUID(), scenarios: [], diff: { added: [], removed: [], updated: [] } };
     const agentId = (body as any)?.agent_id ?? (body as any)?.agentId;
     if (!agentId) {
       throw new BadRequestException('agent_id is required');
@@ -535,9 +627,7 @@ export class ItinerariesController {
 
   @Post('book')
   async book(@Body() body: any) {
-    if (MARKETPLACE_MODE) {
-      throw new BadRequestException('itinerary booking is disabled in marketplace mode');
-    }
+    throw new BadRequestException('itinerary booking is disabled in marketplace mode');
     const itineraryId = body?.itinerary_id;
     const scenarioType = body?.scenario_type as ScenarioType | undefined;
     const listingId = body?.listing_id;

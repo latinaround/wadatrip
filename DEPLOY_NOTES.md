@@ -30,6 +30,7 @@ Core:
 - MVP safety: hard timeouts (1.2s) + fallbacks for `/itineraries`, `/itineraries/mine`, `POST /itineraries`.
 - `POST /itineraries` returns mock payload if Prisma is unavailable.
 - `/health` responds immediately (no Prisma dependency).
+- TEMP: Prisma disabled for itineraries routes (DB-free), all CRUD returns mock/empty.
 
 ## Technical Status (MVP)
 - Start Command: `yarn start` (monolith).
