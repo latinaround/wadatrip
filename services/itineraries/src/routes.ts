@@ -52,7 +52,6 @@ type PricingAdvice = {
 const DEFAULT_PRICING_ADVICE: PricingAdvice = { action: 'wait', confidence: 0.5 };
 const PROVIDER_HUB_URL = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const MARKETPLACE_MODE = true;
-const DISABLE_ITINERARIES_DB = true;
 
 function safeNumber(n: any, def = 0): number {
   const x = Number(n);
@@ -456,6 +455,7 @@ export class ItinerariesController {
 
   @Post()
   async createMarketplace(@Body() body: any, @Res() res: Response) {
+    const prisma = getPrisma() as any;
     const ownerId = String(body?.owner_id || body?.ownerId || '');
     if (!ownerId) throw new BadRequestException('owner_id is required');
 
@@ -493,99 +493,232 @@ export class ItinerariesController {
       }
     }
 
-    const mockId = `mock_${randomUUID()}`;
-    return res.status(200).json({
-      itinerary: {
-        id: mockId,
-        owner_id: ownerId,
-        title,
-        origin,
-        destination,
-        start_date: startDate,
-        end_date: endDate,
-        pax,
-        status,
-      },
-      mock: true,
-      reason: DISABLE_ITINERARIES_DB ? 'db_disabled' : 'db_unavailable',
-    });
+    const data = {
+      owner_id: ownerId,
+      title,
+      origin,
+      destination,
+      start_date: startDate,
+      end_date: endDate,
+      pax,
+      price,
+      currency,
+      operator_stripe_account_id: operatorStripeAccountId,
+      status,
+    } as any;
+
+    try {
+      const created = await withTimeout(
+        prisma.itineraries.create({ data }),
+        1200,
+      );
+      return res.json({ itinerary: created });
+    } catch (err) {
+      const mockId = `mock_${randomUUID()}`;
+      return res.status(200).json({
+        itinerary: {
+          id: mockId,
+          owner_id: ownerId,
+          title,
+          origin,
+          destination,
+          start_date: startDate,
+          end_date: endDate,
+          pax,
+          status,
+        },
+        mock: true,
+        reason: 'db_unavailable',
+      });
+    }
   }
 
   @Get('mine')
   async mine(@Query('ownerId') ownerId?: string): Promise<ListItinerariesResponse> {
     if (!ownerId) return { itineraries: [] };
-    if (DISABLE_ITINERARIES_DB) return { itineraries: [] };
-    return { itineraries: [] };
+    const prisma = getPrisma() as any;
+    try {
+      const items = await withTimeout(
+        prisma.itineraries.findMany({
+          where: { owner_id: ownerId },
+          orderBy: { created_at: 'desc' },
+          take: 50,
+        }),
+        1200,
+      );
+      return { itineraries: items };
+    } catch {
+      return { itineraries: [] };
+    }
   }
 
   @Get(':id')
   async getOne(@Param('id') id: string) {
-    if (DISABLE_ITINERARIES_DB) {
-      return {
-        itinerary: {
-          id,
-          status: 'draft',
-        },
-        mock: true,
-      };
+    const prisma = getPrisma() as any;
+    try {
+      const itinerary = await withTimeout(
+        prisma.itineraries.findUnique({ where: { id } }),
+        1200,
+      );
+      if (!itinerary) throw new BadRequestException('itinerary not found');
+      return { itinerary };
+    } catch {
+      throw new BadRequestException('itinerary not found');
     }
-    throw new BadRequestException('itinerary not found');
   }
 
   @Patch(':id')
   async updateMarketplace(@Param('id') id: string, @Body() body: any) {
-    if (DISABLE_ITINERARIES_DB) {
-      return {
-        itinerary: {
-          id,
-          status: body?.status || 'draft',
-        },
-        mock: true,
-      };
+    const prisma = getPrisma() as any;
+    const existing = await withTimeout(
+      prisma.itineraries.findUnique({ where: { id } }),
+      1200,
+    );
+    if (!existing) throw new BadRequestException('itinerary not found');
+
+    const data: Record<string, any> = {};
+    if (body?.title) data.title = String(body.title);
+    if (body?.origin) data.origin = String(body.origin);
+    if (body?.destination) data.destination = String(body.destination);
+    if (body?.start_date || body?.startDate) {
+      data.start_date = this.parseDate(body?.start_date ?? body?.startDate);
     }
-    throw new BadRequestException('itinerary not found');
+    if (body?.end_date || body?.endDate) {
+      data.end_date = this.parseDate(body?.end_date ?? body?.endDate, existing.start_date);
+    }
+    if (body?.pax || body?.adults) {
+      const pax = Math.max(1, Math.floor(Number(body?.pax ?? body?.adults)));
+      if (Number.isFinite(pax)) data.pax = pax;
+    }
+    if (body?.price != null || body?.total_price != null) {
+      const priceValue = body?.price ?? body?.total_price;
+      const price = Number(priceValue);
+      if (!Number.isFinite(price)) throw new BadRequestException('price must be a number');
+      data.price = price;
+    }
+    if (body?.currency) {
+      const currency = String(body.currency).toUpperCase();
+      if (currency !== 'USD') throw new BadRequestException('currency must be USD');
+      data.currency = currency;
+    }
+    if (body?.operator_stripe_account_id || body?.operatorStripeAccountId) {
+      data.operator_stripe_account_id = body?.operator_stripe_account_id ?? body?.operatorStripeAccountId;
+    }
+    if (body?.status) {
+      const status = String(body.status).toLowerCase();
+      if (status === 'draft' || status === 'published' || status === 'hidden') data.status = status;
+    }
+
+    if (!Object.keys(data).length) {
+      throw new BadRequestException('no updatable fields');
+    }
+
+    const nextStatus = data.status ?? existing.status;
+    const nextPrice = data.price ?? existing.price;
+    const nextOperator = data.operator_stripe_account_id ?? existing.operator_stripe_account_id;
+    if (nextStatus === 'published') {
+      if (!nextOperator) {
+        throw new BadRequestException('operator_stripe_account_id is required to publish');
+      }
+      if (!nextPrice || Number(nextPrice) <= 0) {
+        throw new BadRequestException('price must be greater than 0 to publish');
+      }
+    }
+
+    try {
+      const updated = await withTimeout(
+        prisma.itineraries.update({ where: { id }, data }),
+        1200,
+      );
+      return { itinerary: updated };
+    } catch {
+      throw new BadRequestException('itinerary not found');
+    }
   }
 
   @Post(':id/publish')
   async publish(@Param('id') id: string) {
-    if (DISABLE_ITINERARIES_DB) {
-      return { itinerary: { id, status: 'published' }, mock: true };
+    const prisma = getPrisma() as any;
+    const existing = await withTimeout(
+      prisma.itineraries.findUnique({ where: { id } }),
+      1200,
+    );
+    if (!existing) throw new BadRequestException('itinerary not found');
+    if (!existing.operator_stripe_account_id) {
+      throw new BadRequestException('operator_stripe_account_id is required to publish');
     }
-    throw new BadRequestException('itinerary not found');
+    if (!existing.price || Number(existing.price) <= 0) {
+      throw new BadRequestException('price must be greater than 0 to publish');
+    }
+    const updated = await withTimeout(
+      prisma.itineraries.update({
+        where: { id },
+        data: { status: 'published' },
+      }),
+      1200,
+    );
+    return { itinerary: updated };
   }
 
   @Post(':id/approve')
   async approve(@Param('id') id: string) {
-    if (DISABLE_ITINERARIES_DB) {
-      return { itinerary: { id, status: 'published' }, mock: true };
-    }
-    throw new BadRequestException('itinerary not found');
+    const prisma = getPrisma() as any;
+    const updated = await withTimeout(
+      prisma.itineraries.update({
+        where: { id },
+        data: { status: 'published' },
+      }),
+      1200,
+    );
+    return { itinerary: updated };
   }
 
   @Post(':id/hide')
   async hide(@Param('id') id: string) {
-    if (DISABLE_ITINERARIES_DB) {
-      return { itinerary: { id, status: 'hidden' }, mock: true };
-    }
-    throw new BadRequestException('itinerary not found');
+    const prisma = getPrisma() as any;
+    const updated = await withTimeout(
+      prisma.itineraries.update({
+        where: { id },
+        data: { status: 'hidden' },
+      }),
+      1200,
+    );
+    return { itinerary: updated };
   }
 
   @Delete(':id')
   async remove(@Param('id') id: string, @Body() body: any) {
     const ownerId = String(body?.owner_id || body?.ownerId || '');
     if (!ownerId) throw new BadRequestException('owner_id is required');
-    if (DISABLE_ITINERARIES_DB) {
-      return { ok: true, mock: true };
-    }
-    throw new BadRequestException('itinerary not found');
+    const prisma = getPrisma() as any;
+    const existing = await withTimeout(
+      prisma.itineraries.findUnique({ where: { id } }),
+      1200,
+    );
+    if (!existing) throw new BadRequestException('itinerary not found');
+    if (existing.owner_id !== ownerId) throw new BadRequestException('not authorized');
+    await withTimeout(prisma.itineraries.delete({ where: { id } }), 1200);
+    return { ok: true };
   }
 
   @Get()
   async list(@Query('ownerId') ownerId?: string, @Query('limit') limitParam?: string): Promise<ListItinerariesResponse> {
-    if (DISABLE_ITINERARIES_DB) {
+    const prisma = getPrisma() as any;
+    const statusFilter = ownerId ? undefined : 'published';
+    const limit = coercePositiveInteger(limitParam, 20);
+    try {
+      const items = await withTimeout(
+        prisma.itineraries.findMany({
+          where: ownerId ? { owner_id: ownerId } : { status: statusFilter },
+          take: limit,
+          orderBy: { created_at: 'desc' },
+        }),
+        1200,
+      );
+      return { itineraries: items };
+    } catch {
       return { itineraries: [] };
     }
-    return { itineraries: [] };
   }
 
   @Post('generate')
