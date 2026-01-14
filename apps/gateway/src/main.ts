@@ -88,10 +88,10 @@ async function bootstrap() {
   });
 
   app.enableCors(corsOptions);
-  app.options('*', cors(corsOptions));
 
   app.useLogger(logger);
   const server = app.getHttpAdapter().getInstance();
+  server.options('*', cors(corsOptions));
 
   // Fast health response without touching other modules.
   server.get('/health', (_req: Request, res: Response) => {
