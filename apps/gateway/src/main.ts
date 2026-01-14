@@ -7,6 +7,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as express from 'express';
 import { EventEmitter } from 'events';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
+import cors from 'cors';
 import { createWriteStream, existsSync, mkdirSync, WriteStream } from 'fs';
 import { join } from 'path';
 import type { ClientRequest, IncomingMessage } from 'http';
@@ -73,15 +74,12 @@ async function bootstrap() {
   const logStream = createWriteStream(join(logsDir, 'gateway.log'), { flags: 'a' });
   const logger = new GatewayLogger(logStream);
 
-  // 🔐 CORS seguro para el front local
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    'https://wadatrip.com',
-    'https://www.wadatrip.com',
-    'https://wadatrip-web.vercel.app',
-  ];
+  const corsOptions = {
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  };
 
   // 🚀 Crear instancia Nest
   const app = await NestFactory.create(AppModule, {
@@ -89,18 +87,8 @@ async function bootstrap() {
     logger,
   });
 
-  app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS blocked for origin: ${origin}`));
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  });
+  app.enableCors(corsOptions);
+  app.options('*', cors(corsOptions));
 
   app.useLogger(logger);
   const server = app.getHttpAdapter().getInstance();
@@ -121,12 +109,12 @@ async function bootstrap() {
   // ✅ Middleware adicional para CORS manual
   server.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
@@ -142,10 +130,10 @@ async function bootstrap() {
 
     const sendPreflight = (req: Request, res: Response) => {
       const origin = req.headers.origin ?? '*';
-      const requestedHeaders = req.headers['access-control-request-headers'] ?? 'Content-Type, Authorization, Accept';
+      const requestedHeaders = req.headers['access-control-request-headers'] ?? 'Content-Type, Authorization';
       const requestedMethod = req.headers['access-control-request-method'] ?? 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
 
-      if (origin && allowedOrigins.includes(origin)) {
+      if (origin) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
       }
@@ -178,7 +166,7 @@ async function bootstrap() {
 
       onProxyRes: (proxyRes, req, res) => {
         const originHeader = req.headers.origin;
-        if (originHeader && allowedOrigins.includes(originHeader)) {
+        if (originHeader) {
           proxyRes.headers['access-control-allow-origin'] = originHeader;
           proxyRes.headers['access-control-allow-credentials'] = 'true';
           res.setHeader('Access-Control-Allow-Origin', originHeader);
@@ -189,11 +177,6 @@ async function bootstrap() {
           } else {
             res.setHeader('Vary', 'Origin');
           }
-        } else {
-          delete proxyRes.headers['access-control-allow-origin'];
-          delete proxyRes.headers['access-control-allow-credentials'];
-          res.removeHeader('Access-Control-Allow-Origin');
-          res.removeHeader('Access-Control-Allow-Credentials');
         }
         logger.log(`[Gateway Proxy] ${label}: ${req.method} ${req.originalUrl} <- ${proxyRes.statusCode}`, 'Proxy');
       },
