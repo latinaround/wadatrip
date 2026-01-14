@@ -1,13 +1,13 @@
 import { Body, Controller, Get, Patch, Post, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { getJwtSecret, getUserIdFromAuth } from '../utils/auth';
 
-const TOKEN_TTL = process.env.JWT_TTL || '7d';
+const TOKEN_TTL: jwt.SignOptions['expiresIn'] = process.env.JWT_TTL || '7d';
 
 function signToken(user: any) {
-  const secret: string = getJwtSecret();
+  const secret = getJwtSecret() as jwt.Secret;
   return jwt.sign(
     { sub: user.id, email: user.email, role: user.role },
     secret,
