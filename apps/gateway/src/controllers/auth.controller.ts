@@ -4,14 +4,14 @@ import bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import { getJwtSecret, getUserIdFromAuth } from '../utils/auth';
 
-const TOKEN_TTL: jwt.SignOptions['expiresIn'] = process.env.JWT_TTL || '7d';
+const TOKEN_TTL_SECONDS = Number(process.env.JWT_TTL_SECONDS) || 60 * 60 * 24 * 7;
 
 function signToken(user: any) {
   const secret = getJwtSecret() as jwt.Secret;
   return jwt.sign(
     { sub: user.id, email: user.email, role: user.role },
     secret,
-    { expiresIn: TOKEN_TTL },
+    { expiresIn: TOKEN_TTL_SECONDS },
   );
 }
 
