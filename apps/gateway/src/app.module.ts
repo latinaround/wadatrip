@@ -6,6 +6,7 @@ import { BookingsController } from './controllers/bookings.controller';
 import { ProvidersController } from './controllers/providers.controller';
 import { AlertsController } from './controllers/alerts.controller';
 import { AuthController } from './controllers/auth.controller';
+import { EventsGateway } from './events.gateway';
 
 @Module({
   imports: [
@@ -22,6 +23,6 @@ import { AuthController } from './controllers/auth.controller';
     AlertsController,
     AuthController,
   ],
-  providers: [],
+  providers: [EventsGateway],
 })
 export class AppModule {}
