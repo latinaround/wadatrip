@@ -1,17 +1,18 @@
 import {
   Controller,
+  Get,
   Post,
   Param,
   Body,
-  NotFoundException,
   BadRequestException,
+  UnauthorizedException,
+  Req,
 } from '@nestjs/common';
 import axios from 'axios';
+import { getPrisma } from '@wadatrip/db';
+import { getUserIdFromAuth } from '../utils/auth';
 
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
-function ensureEnabled() {
-  if (!ENABLED) throw new NotFoundException();
-}
 
 // Minimal Stripe wrapper (throws when Stripe is misconfigured)
 function requireStripe() {
@@ -29,12 +30,40 @@ function requireStripe() {
 
 @Controller('payments')
 export class PaymentsController {
+  @Get('user-history')
+  async userHistory(@Req() req: any) {
+    const userId = getUserIdFromAuth(req);
+    if (!userId) throw new UnauthorizedException('not authenticated');
+    const prisma = getPrisma() as any;
+
+    const bookings = await prisma.bookings.findMany({
+      where: { user_id: String(userId) },
+      select: { id: true },
+    });
+
+    const bookingIds = bookings.map((b: any) => b.id);
+    if (!bookingIds.length) return { items: [] };
+
+    const items = await prisma.paymentRecord.findMany({
+      where: { booking_id: { in: bookingIds } },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return { items };
+  }
   @Post('connect/:providerId/link')
   async connectLink(@Param('providerId') providerId: string) {
-    ensureEnabled();
     const stripe = requireStripe();
     const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
-    const { data: provider } = await axios.get(`${HUB}/providers/${providerId}`);
+    const prisma = getPrisma() as any;
+
+    const provider = ENABLED
+      ? (await axios.get(`${HUB}/providers/${providerId}`)).data
+      : await prisma.providers.findUnique({ where: { id: String(providerId) } });
+
+    if (!provider) {
+      throw new BadRequestException('provider not found');
+    }
 
     let accountId = provider.stripe_account_id;
     if (!accountId) {
@@ -45,13 +74,20 @@ export class PaymentsController {
       });
       accountId = acct.id;
 
-      await axios
-        .post(`${HUB}/providers/${providerId}/verify`, {
-          status: provider.status,
-          documents: [],
-          stripe_account_id: accountId,
-        })
-        .catch(() => {});
+      if (ENABLED) {
+        await axios
+          .post(`${HUB}/providers/${providerId}/verify`, {
+            status: provider.status,
+            documents: [],
+            stripe_account_id: accountId,
+          })
+          .catch(() => {});
+      } else {
+        await prisma.providers.update({
+          where: { id: String(providerId) },
+          data: { stripe_account_id: accountId },
+        });
+      }
     }
 
     const link = await stripe.accountLinks.create({
@@ -101,12 +137,18 @@ export class PaymentsController {
 
   @Post('bookings/:id/checkout')
   async checkout(@Param('id') bookingId: string) {
-    ensureEnabled();
     const stripe = requireStripe();
     const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
+    const prisma = getPrisma() as any;
 
     // Obtener booking real
-    const { data: booking } = await axios.get(`${HUB}/bookings/${bookingId}`);
+    const booking = ENABLED
+      ? (await axios.get(`${HUB}/bookings/${bookingId}`)).data
+      : await prisma.bookings.findUnique({
+          where: { id: bookingId },
+          include: { listing: true, provider: true },
+        });
+
     if (!booking) {
       throw new BadRequestException('Booking not found');
     }
@@ -117,7 +159,9 @@ export class PaymentsController {
       throw new BadRequestException('Booking has no provider assigned');
     }
 
-    const { data: provider } = await axios.get(`${HUB}/providers/${providerId}`);
+    const provider = ENABLED
+      ? (await axios.get(`${HUB}/providers/${providerId}`)).data
+      : await prisma.providers.findUnique({ where: { id: String(providerId) } });
 
     // Flags
     const allowNoConnect =
@@ -173,6 +217,72 @@ export class PaymentsController {
       throw new BadRequestException(
         'Stripe did not return a checkout session URL',
       );
+    }
+
+    return { url: session.url };
+  }
+
+  @Post('itineraries/:id/checkout')
+  async checkoutItinerary(@Param('id') itineraryId: string) {
+    const stripe = requireStripe();
+    const prisma = getPrisma() as any;
+    const itinerary = await prisma.itineraries.findUnique({ where: { id: itineraryId } });
+    if (!itinerary) {
+      throw new BadRequestException('Itinerary not found');
+    }
+
+    if (String(itinerary.status).toLowerCase() !== 'published') {
+      throw new BadRequestException('Itinerary is not published');
+    }
+
+    const operatorStripe = itinerary.operator_stripe_account_id;
+    if (!operatorStripe) {
+      throw new BadRequestException('Operator has no connected Stripe account');
+    }
+
+    const price = Number(itinerary.price);
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new BadRequestException('Invalid itinerary price');
+    }
+
+    const currency = String(itinerary.currency || 'USD').toLowerCase();
+    if (currency !== 'usd') {
+      throw new BadRequestException('Only USD is supported');
+    }
+
+    const amountCents = Math.max(50, Math.round(price * 100));
+    const feePct = Number(process.env.WADATRIP_FEE_PCT || 15);
+    const feeCents = Math.floor((amountCents * feePct) / 100);
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      success_url:
+        process.env.CHECKOUT_SUCCESS_URL ||
+        `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/success`,
+      cancel_url:
+        process.env.CHECKOUT_CANCEL_URL ||
+        `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/cancel`,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: 'usd',
+            unit_amount: amountCents,
+            product_data: {
+              name: itinerary.title || 'Wadatrip itinerary',
+            },
+          },
+        },
+      ],
+      payment_intent_data: {
+        application_fee_amount: feeCents,
+        transfer_data: { destination: operatorStripe },
+        metadata: { itinerary_id: itineraryId },
+      },
+    });
+
+    if (!session?.url) {
+      throw new BadRequestException('Stripe did not return a checkout session URL');
     }
 
     return { url: session.url };

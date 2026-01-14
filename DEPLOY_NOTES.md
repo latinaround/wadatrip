@@ -5,7 +5,7 @@
 - Gateway is the only public entry point.
 - Active in-process modules: Pricing (ADRED-lite), Itineraries (marketplace CRUD), Payments.
 - Inactive: Provider Hub, Alerts, WadAgent (no Redis required).
-- Frontend is **not** in this repo; it lives in `wadatrip-web`.
+- Frontend static snapshot is in `vercel-static/` (source: current wadatrip.com build).
 
 ## Render Blueprint
 - `render.yaml` is **disabled**: see `render.yaml.disabled`.
@@ -20,6 +20,7 @@
 Core:
 - `DATABASE_URL=...`
 - `NODE_ENV=production`
+- `JWT_SECRET=...` (required for `/auth/*` endpoints)
 
 ## Marketplace Itineraries (Phase 1)
 - CRUD runs directly against PostgreSQL via Prisma.
@@ -37,6 +38,16 @@ Core:
 - Active: Gateway, Pricing (ADRED-lite), Itineraries CRUD (marketplace), Payments (Stripe).
 - Inactive: Provider Hub, Alerts, WadAgent, Redis/queues.
 - Critical endpoints must respond fast (no >1.2s DB waits).
+ - Vercel config for 1:1 frontend match:
+   - Root Directory: `vercel-static`
+   - Build Command: (empty)
+   - Output Directory: `.`
+- Gateway now provides Provider-Hub-compatible endpoints in-process:
+  - `/providers`, `/providers/:id`, `/providers/:id/verify`, `/providers/:id/verification-status`, `/providers/:id/resubmit`
+  - `/listings`, `/listings/search`, `/listings/:id`, `/listings/:id/status`
+  - `/bookings`, `/bookings/simple`, `/bookings/:id`, `/bookings/:id/status`
+  - `/alerts/tours/create`, `/alerts/tours/list`, `/alerts/list`
+  - `/auth/register`, `/auth/login`, `/auth/me`, `/auth/update`
 
 ## Future Plan (Post-MVP)
 - Reactivate Provider Hub when volume justifies Redis + queues.
