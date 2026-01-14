@@ -6,8 +6,6 @@ import { BookingsController } from './controllers/bookings.controller';
 import { ProvidersController } from './controllers/providers.controller';
 import { AlertsController } from './controllers/alerts.controller';
 import { AuthController } from './controllers/auth.controller';
-import { ItinerariesModule } from '../../../services/itineraries/src/itineraries.module';
-import { PricingModule } from '../../../services/pricing/src/pricing.module';
 
 @Module({
   imports: [
@@ -15,8 +13,6 @@ import { PricingModule } from '../../../services/pricing/src/pricing.module';
       isGlobal: true,
       envFilePath: ['.env', '../../.env'], // ? busca el .env local y en la raiz del monorepo
     }),
-    ItinerariesModule,
-    PricingModule,
   ],
   controllers: [
     HealthController,

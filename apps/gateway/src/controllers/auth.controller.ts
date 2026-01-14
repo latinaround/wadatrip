@@ -7,9 +7,10 @@ import { getJwtSecret, getUserIdFromAuth } from '../utils/auth';
 const TOKEN_TTL = process.env.JWT_TTL || '7d';
 
 function signToken(user: any) {
+  const secret: string = getJwtSecret();
   return jwt.sign(
     { sub: user.id, email: user.email, role: user.role },
-    getJwtSecret(),
+    secret,
     { expiresIn: TOKEN_TTL },
   );
 }
