@@ -78,28 +78,37 @@ async function bootstrap() {
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
+    'https://wadatrip.com',
+    'https://www.wadatrip.com',
+    'https://wadatrip-web.vercel.app',
   ];
 
   // 🚀 Crear instancia Nest
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
-    cors: {
-      origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error(`CORS blocked for origin: ${origin}`));
-        }
-      },
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-    },
     logger,
+  });
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked for origin: ${origin}`));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   app.useLogger(logger);
   const server = app.getHttpAdapter().getInstance();
+
+  // Fast health response without touching other modules.
+  server.get('/health', (_req: Request, res: Response) => {
+    res.status(200).json({ status: 'ok' });
+  });
 
   const nestHandledPrefixes = ['/docs'];
   // 🚫 Excluir rutas internas del Gateway (como /wadagent)
@@ -219,12 +228,27 @@ async function bootstrap() {
   console.log('FF_PROVIDER_HUB =', process.env.FF_PROVIDER_HUB);
   console.log('PROVIDER_HUB_URL =', process.env.PROVIDER_HUB_URL);
 
-  // 🔗 Registrar proxies para microservicios
-  attachProxy('/itineraries', process.env.ITINERARIES_URL || 'http://localhost:3011', 'itineraries');
-  attachProxy('/pricing', process.env.PRICING_SERVICE_URL || 'http://localhost:3012', 'pricing');
-  attachProxy('/providers', process.env.PROVIDER_HUB_URL || 'http://localhost:3014', 'provider-hub');
-  attachProxy('/alerts', process.env.ALERTS_URL || 'http://localhost:3013', 'alerts');
-  attachProxy('/wadagent', process.env.WADAGENT_URL || 'http://localhost:3022', 'wadagent');
+  // ?? Registrar proxies solo para servicios inactivos cuando se habiliten
+  const enableAlertsProxy = (process.env.ENABLE_ALERTS_PROXY || 'false').toLowerCase() === 'true';
+  const enableProviderHubProxy = (process.env.ENABLE_PROVIDER_HUB_PROXY || 'false').toLowerCase() === 'true';
+  const enableWadagentProxy = (process.env.ENABLE_WADAGENT_PROXY || 'false').toLowerCase() === 'true';
+  const proxyPrefixes: string[] = [];
+
+  if (enableAlertsProxy) {
+    attachProxy('/alerts', process.env.ALERTS_URL || 'http://localhost:3013', 'alerts');
+    proxyPrefixes.push('/alerts');
+  }
+
+  if (enableProviderHubProxy) {
+    attachProxy('/providers', process.env.PROVIDER_HUB_URL || 'http://localhost:3014', 'provider-hub');
+    proxyPrefixes.push('/providers');
+  }
+
+  if (enableWadagentProxy) {
+    attachProxy('/wadagent', process.env.WADAGENT_URL || 'http://localhost:3022', 'wadagent');
+    proxyPrefixes.push('/wadagent');
+  }
+
 
   // ⚡ Webhook Stripe sin parseo JSON
   server.use('/webhooks/stripe', express.raw({ type: '*/*' }));
@@ -233,14 +257,7 @@ async function bootstrap() {
   const jsonParser = express.json({ limit: '5mb' });
   const urlParser = express.urlencoded({ extended: true, limit: '5mb' });
   server.use((req: any, res: any, next: any) => {
-
-    if (
-      req.url?.startsWith('/itineraries') ||
-      req.url?.startsWith('/alerts') ||
-      req.url?.startsWith('/providers') ||
-      req.url?.startsWith('/pricing') ||
-      req.url?.startsWith('/wadagent')
-    ) {
+    if (proxyPrefixes.some((prefix) => req.url?.startsWith(prefix))) {
       return next();
     }
     return jsonParser(req, res, (err: any) => {
@@ -276,8 +293,12 @@ if (httpServer && httpServer.keepAliveTimeout !== undefined) {
 }
 
 logger.log(`[gateway] listening on :${port}`, 'Bootstrap');
-logger.log('✅ Proxy routes loaded successfully: /pricing, /itineraries, /providers, /alerts', 'Bootstrap');
+const proxyLabel = proxyPrefixes.length ? proxyPrefixes.join(', ') : '(none)';
+logger.log('✅ Proxy routes loaded successfully: ' + proxyLabel, 'Bootstrap');
 
 }
 
 bootstrap();
+
+
+
