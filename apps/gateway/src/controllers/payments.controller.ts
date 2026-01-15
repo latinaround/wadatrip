@@ -168,11 +168,12 @@ export class PaymentsController {
       (process.env.ALLOW_NO_CONNECT_CHECKOUT || '').toLowerCase() === 'true';
 
     const hasConnectAccount = Boolean(provider?.stripe_account_id);
-
-    if (!hasConnectAccount && !allowNoConnect) {
-      throw new BadRequestException(
-        'Provider is missing a connected Stripe account',
-      );
+    if (!hasConnectAccount) {
+      if (!allowNoConnect) {
+        console.warn(
+          '[payments.checkout] Missing provider Stripe account, falling back to standard Stripe checkout.',
+        );
+      }
     }
 
     // Precio total
@@ -186,32 +187,42 @@ export class PaymentsController {
     const feeCents = Math.floor((amountCents * feePct) / 100);
 
     // Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      success_url: process.env.CHECKOUT_SUCCESS_URL || `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/success`,
-      cancel_url: process.env.CHECKOUT_CANCEL_URL || `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/cancel`,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: 'usd',
-            unit_amount: amountCents,
-            product_data: {
-              name: booking?.listing?.title || 'Tour booking',
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        success_url:
+          process.env.CHECKOUT_SUCCESS_URL ||
+          `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/success`,
+        cancel_url:
+          process.env.CHECKOUT_CANCEL_URL ||
+          `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/cancel`,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: 'usd',
+              unit_amount: amountCents,
+              product_data: {
+                name: booking?.listing?.title || 'Tour booking',
+              },
             },
           },
-        },
-      ],
-      payment_intent_data: hasConnectAccount
-        ? {
-            application_fee_amount: feeCents,
-            transfer_data: { destination: provider.stripe_account_id },
-            metadata: { booking_id: bookingId },
-          }
-        : {
-            metadata: { booking_id: bookingId, connect_fallback: 'true' },
-          },
-    });
+        ],
+        payment_intent_data: hasConnectAccount
+          ? {
+              application_fee_amount: feeCents,
+              transfer_data: { destination: provider.stripe_account_id },
+              metadata: { booking_id: bookingId },
+            }
+          : {
+              metadata: { booking_id: bookingId, connect_fallback: 'true' },
+            },
+      });
+    } catch (err: any) {
+      console.error('[payments.checkout] Stripe session error:', err?.message || err);
+      throw new BadRequestException('Stripe checkout failed');
+    }
 
     if (!session?.url) {
       throw new BadRequestException(
