@@ -1,10 +1,35 @@
-import { Controller, Post, Get, Param, Body, Query, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  Query,
+  BadRequestException,
+  ForbiddenException,
+  Req,
+} from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
 
 @Controller('bookings')
 export class BookingsController {
+  private requireInternalToken(req: any) {
+    const expected = process.env.INTERNAL_SERVICE_TOKEN;
+    if (!expected) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new ForbiddenException('internal token not configured');
+      }
+      return;
+    }
+    const token = String(req?.headers?.['x-internal-service-token'] || '');
+    if (!token || token !== expected) {
+      throw new ForbiddenException('invalid internal token');
+    }
+  }
+
   @Post()
-  async create(@Body() body: any) {
+  async create(@Req() req: any, @Body() body: any) {
+    this.requireInternalToken(req);
     const prisma = getPrisma();
     const required = ['listing_id', 'date', 'num_people'];
     for (const k of required) if (!body?.[k]) throw new BadRequestException(`missing ${k}`);
@@ -20,6 +45,12 @@ export class BookingsController {
     if (!Number.isFinite(num_people) || num_people <= 0) throw new BadRequestException('invalid num_people');
 
     const total_price = body.total_price != null ? String(body.total_price) : null;
+    const amount_cents =
+      body.amount_cents != null
+        ? Math.trunc(Number(body.amount_cents))
+        : total_price != null && Number.isFinite(Number(total_price))
+          ? Math.round(Number(total_price) * 100)
+          : null;
 
     // Resolver usuario
     let user_id: string | null = null;
@@ -42,6 +73,7 @@ export class BookingsController {
         date,
         num_people,
         total_price,
+        amount_cents,
         status: 'pending',
         payment_status: 'unpaid',
       },
@@ -52,7 +84,8 @@ export class BookingsController {
 
   // Lightweight booking path for quick reservations (defaults date=tomorrow, num_people=1)
   @Post('simple')
-  async createSimple(@Body() body: any) {
+  async createSimple(@Req() req: any, @Body() body: any) {
+    this.requireInternalToken(req);
     const today = new Date();
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
     const payload = {
@@ -60,6 +93,7 @@ export class BookingsController {
       date: body.date ?? tomorrow.toISOString(),
       num_people: body.num_people ?? 1,
       total_price: body.total_price,
+      amount_cents: body.amount_cents,
       user_name: body.customer_name,
       user_email: body.customer_email,
       user_id: body.user_id,
@@ -114,7 +148,8 @@ export class BookingsController {
   }
 
   @Post(':id/status')
-  async updateStatus(@Param('id') id: string, @Body() body: any) {
+  async updateStatus(@Req() req: any, @Param('id') id: string, @Body() body: any) {
+    this.requireInternalToken(req);
     const prisma = getPrisma();
 
     const allowedStatus = ['pending', 'confirmed', 'cancelled', 'completed'];

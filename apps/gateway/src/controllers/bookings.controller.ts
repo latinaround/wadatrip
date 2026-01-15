@@ -94,6 +94,12 @@ export class BookingsController {
     if (!Number.isFinite(num_people) || num_people <= 0) throw new BadRequestException('invalid num_people');
 
     const total_price = body.total_price != null ? String(body.total_price) : null;
+    const amount_cents =
+      body.amount_cents != null
+        ? Math.trunc(Number(body.amount_cents))
+        : total_price != null && Number.isFinite(Number(total_price))
+          ? Math.round(Number(total_price) * 100)
+          : null;
 
     let user_id: string | null = null;
     if (body.user_id) {
@@ -115,6 +121,7 @@ export class BookingsController {
         date,
         num_people,
         total_price,
+        amount_cents,
         status: 'pending',
         payment_status: 'unpaid',
       },
@@ -138,6 +145,7 @@ export class BookingsController {
       date: body.date ?? tomorrow.toISOString(),
       num_people: body.num_people ?? 1,
       total_price: body.total_price,
+      amount_cents: body.amount_cents,
       user_name: body.customer_name ?? body.name,
       user_email: body.customer_email ?? body.email,
       user_id: body.user_id,
