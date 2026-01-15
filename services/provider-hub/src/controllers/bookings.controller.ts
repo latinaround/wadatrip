@@ -98,7 +98,7 @@ export class BookingsController {
       user_email: body.customer_email,
       user_id: body.user_id,
     };
-    return this.create(payload);
+    return this.create(req, payload);
   }
 
   @Get()
