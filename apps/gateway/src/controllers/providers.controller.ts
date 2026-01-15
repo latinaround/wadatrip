@@ -158,8 +158,8 @@ export class ProvidersController {
   }
 
   @Post('providers/register')
-  async registerProvider(@Body() body: any) {
-    return this.createProvider(body);
+  async registerProvider(@Req() req: Request, @Body() body: any) {
+    return this.createProvider(req, body);
   }
 
   @Get('providers/:id/verification-status')
