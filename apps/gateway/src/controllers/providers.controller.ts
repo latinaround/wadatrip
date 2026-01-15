@@ -281,10 +281,12 @@ export class ProvidersController {
     }
     if (query.category) where.category = String(query.category);
     if (query.q) where.title = { contains: String(query.q), mode: 'insensitive' };
-    if (query.min_price || query.max_price) {
+    const minPrice = query.min_price ?? query.price_min;
+    const maxPrice = query.max_price ?? query.price_max;
+    if (minPrice || maxPrice) {
       where.price_from = {};
-      if (query.min_price) where.price_from.gte = String(query.min_price);
-      if (query.max_price) where.price_from.lte = String(query.max_price);
+      if (minPrice) where.price_from.gte = String(minPrice);
+      if (maxPrice) where.price_from.lte = String(maxPrice);
     }
 
     if (query.startDate || query.start_date) {
