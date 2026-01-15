@@ -1,61 +1,49 @@
-# Wadatrip Platform - Updated Overview (Oct 2025)
+# Wadatrip Platform - Overview (08 Jan 2026)
 
-## Structure
-- **apps/web** -> React + Vite + Tailwind + Shadcn UI (Frontend principal)
-- **apps/gateway** -> NestJS API Gateway
-- **services/provider-hub** -> Registro y gestion de operadores (con Prisma)
-- **libs/db** -> Prisma schema y conexion centralizada
-- **uploads/operators** -> Carpeta temporal para documentos
+## Repositorios
+- **wadatrip-platform** -> Backend monorepo (gateway + microservicios + libs)
+- **wadatrip-web** -> Frontend standalone (Vite). Es el frontend activo.
 
-## Core Flows
+## Estructura (wadatrip-platform)
+- **apps/gateway** -> NestJS API Gateway (solo proxy/orquestacion)
+- **services/itineraries** -> Itinerarios + persistencia
+- **services/pricing** -> ADRED pricing/predict
+- **services/provider-hub** -> Operadores, bookings, listings
+- **services/alerts** -> Alertas
+- **services/wadagent** -> WadaAgent MVP (Mistral, iframe)
+- **libs/common** -> DTOs compartidos
+- **libs/db** -> Prisma schema
 
-### 1. Registro de Operadores
-- Ruta publica: `/operator/register`
-- Tipos: Guide | Agency | Partner
-- Campos: name, email, phone, base_city, country_code, languages, social links, documento (PDF/imagen)
-- Endpoint: `POST ${getApiBase()}/providers/register`
-- Estado inicial: `pending`
-- Verificacion posterior: panel admin o IA
+## Frontend activo
+- **Repositorio:** `wadatrip-web`
+- **Notas:** `apps/web` dentro del monorepo es legado y no se usa para deploy.
 
-### 2. Panel de Administracion
-- Ruta protegida: `/admin/providers`
-- Autenticacion: Firebase Auth + whitelist (`VITE_FB_*`)
-- Funciones: listar, aprobar/rechazar operadores, verificacion IA
-- Columnas destacadas: tipo, estado, badge de verificacion
+## Servicios Render (backend)
+- `wadatrip-gateway`
+- `wadatrip-itineraries`
+- `wadatrip-pricing`
+- `wadatrip-provider-hub`
+- `wadatrip-alerts`
+- `wadatrip-wadagent`
 
-### 3. Creacion de Tours
-- Ruta: `/operator/tours/new`
-- Requiere operador verificado
-- Endpoint: `POST /listings`
-- Campos: titulo, descripcion, precio, pais, idioma, duracion, tipo, imagenes
-- Estado inicial: `pending` (publicable tras aprobacion)
+## WadaAgent MVP
+- Servicio: `services/wadagent`
+- Endpoints:
+  - `GET /wadagent` (UI iframe)
+  - `POST /wadagent/chat` (JSON estructurado)
+  - `GET /wadagent/health`
+- Env vars:
+  - `MISTRAL_API_KEY`
+  - `MISTRAL_MODEL=mistral-small-latest`
+  - `PRICING_SERVICE_URL`
+  - `WADAGENT_PORT=3022`
 
-### 4. Listado Publico de Tours
-- Ruta: `/tours`
-- Endpoint: `/listings/search?status=published`
-- Filtros: tipo de operador, pais
-- Banner final: CTA "Unete como operador" -> `/operator/register`
+## Comandos utiles (backend)
+- `yarn workspace @wadatrip/service-gateway build`
+- `yarn workspace @wadatrip/service-wadagent build`
+- `yarn workspace @wadatrip/service-wadagent start`
 
-## Variables Importantes (.env)
-```
-VITE_API_BASE_URL=http://localhost:3015
-VITE_STRIPE_PUBLIC_KEY=...
-VITE_APP_NAME=Wadatrip
-VITE_FB_API_KEY=...
-VITE_FB_AUTH_DOMAIN=...
-VITE_FB_PROJECT_ID=...
-VITE_ADMIN_WHITELIST=kiara@wadatrip.com
-```
-
-## Dev Commands
-- yarn workspace @wadatrip/web dev -> levantar frontend
-- yarn workspace @wadatrip/web build -> compilar
-- yarn workspace @wadatrip/service-gateway dev -> API Gateway
-- yarn workspace @wadatrip/service-provider-hub dev -> Provider Hub
-
-## Notes
-- Prisma controla la BD y validaciones de proveedores/tours.
-- Firebase gestiona login del panel admin.
-- HRM/IA verification pendiente de integracion futura.
-- Los avisos de JSX (>) se resolvieron utilizando {'->'}.
-- Flujo completo probado: registro -> aprobacion -> creacion de tour -> publicacion publica.
+## Notas
+- Gateway NO contiene logica de negocio, solo proxy.
+- DTOs se importan desde `@wadatrip/common/dtos`.
+- WadaAgent se incrusta en el Hero via iframe desde `wadatrip-web`.

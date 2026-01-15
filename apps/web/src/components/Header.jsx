@@ -15,6 +15,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
     { key: 'solutions', href: '/solutions' },
     { key: 'price_alerts', href: '/price-alerts' },
     { key: 'tour_alerts', href: '/enhanced-search', icon: Search },
+    { key: 'tours', href: '/tours' },
     { key: 'about_us', href: '/about-us' },
     { key: 'contact', href: '/contact' },
     { key: 'privacy_policy', href: '/privacy-policy' },
@@ -84,6 +85,14 @@ const Header = ({ user, onLoginClick, onLogout }) => {
             >
               <Link to="/request-demo">{t('nav.request_demo')}</Link>
             </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="hidden md:flex bg-white text-teal-700 hover:bg-teal-50"
+              asChild
+            >
+              <Link to="/operator/tours/new">Sube tu tour</Link>
+            </Button>
             {user ? (
               <div className="hidden md:flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="text-white" onClick={goToAccount}>
@@ -133,6 +142,15 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                 >
                   <Link to="/request-demo" onClick={() => setIsMenuOpen(false)}>
                     {t('nav.request_demo')}
+                  </Link>
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-white text-teal-600 hover:bg-teal-50"
+                  asChild
+                >
+                  <Link to="/operator/tours/new" onClick={() => setIsMenuOpen(false)}>
+                    Sube tu tour
                   </Link>
                 </Button>
                 {user ? (

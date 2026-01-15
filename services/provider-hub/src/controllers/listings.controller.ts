@@ -1,5 +1,16 @@
-import { Controller, Post, Get, Query, Body, BadRequestException, Patch, Param } from '@nestjs/common';
+import { Controller, Post, Get, Query, Body, BadRequestException, Patch, Param, Req } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
+import type { Request } from 'express';
+
+const ACCESS_CODE = process.env.OPERATOR_ACCESS_CODE || '';
+
+function hasValidAccessCode(req: Request, body: any) {
+  if (!ACCESS_CODE) return false;
+  const headerCode = req.headers['x-operator-access-code'];
+  const raw = headerCode ?? body?.access_code ?? body?.accessCode ?? '';
+  const provided = String(raw || '').trim();
+  return provided && provided === ACCESS_CODE;
+}
 
 @Controller('listings')
 export class ListingsController {
@@ -10,14 +21,15 @@ export class ListingsController {
   }
 
   @Post()
-  async create(@Body() body: any) {
+  async create(@Req() req: Request, @Body() body: any) {
     const prisma = getPrisma();
     const required = ['provider_id', 'title', 'category', 'city', 'country_code'];
     for (const k of required) if (!body?.[k]) throw new BadRequestException(`missing ${k}`);
 
     const provider = await prisma.providers.findUnique({ where: { id: String(body.provider_id) } });
     if (!provider) throw new BadRequestException('provider not found');
-    if (provider.verification_status !== 'verified' && provider.status !== 'verified')
+    const allowUnverified = hasValidAccessCode(req, body);
+    if (!allowUnverified && provider.verification_status !== 'verified' && provider.status !== 'verified')
       throw new BadRequestException('provider must be verified');
 
     const listing = await prisma.listings.create({

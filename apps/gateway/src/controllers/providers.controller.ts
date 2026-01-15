@@ -7,12 +7,16 @@ import {
   Query,
   Delete,
   BadRequestException,
+  UnauthorizedException,
+  Req,
 } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
+import type { Request } from 'express';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
+const ACCESS_CODE = process.env.OPERATOR_ACCESS_CODE || '';
 
 function normalizeTags(tags: any): string[] {
   if (Array.isArray(tags)) return tags.map((t) => String(t));
@@ -23,6 +27,16 @@ function normalizeTags(tags: any): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+function requireAccessCode(req: Request, body: any) {
+  if (!ACCESS_CODE) return;
+  const headerCode = req.headers['x-operator-access-code'];
+  const raw = headerCode ?? body?.access_code ?? body?.accessCode ?? '';
+  const provided = String(raw || '').trim();
+  if (!provided || provided !== ACCESS_CODE) {
+    throw new UnauthorizedException('invalid access code');
+  }
 }
 
 @Controller()
@@ -64,7 +78,8 @@ export class ProvidersController {
     return { items, total, page, limit };
   }
   @Post('providers')
-  async createProvider(@Body() body: any) {
+  async createProvider(@Req() req: Request, @Body() body: any) {
+    requireAccessCode(req, body);
     if (ENABLED) {
       const { data } = await axios.post(`${HUB}/providers`, body);
       return data;
@@ -198,7 +213,8 @@ export class ProvidersController {
   }
 
   @Post('listings')
-  async createListing(@Body() body: any) {
+  async createListing(@Req() req: Request, @Body() body: any) {
+    requireAccessCode(req, body);
     if (ENABLED) {
       const { data } = await axios.post(`${HUB}/listings`, body);
       return data;

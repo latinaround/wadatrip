@@ -30,7 +30,6 @@ COPY . .
 RUN yarn workspace @wadatrip/db build
 RUN yarn workspace @wadatrip/common build
 RUN yarn workspace @wadatrip/service-gateway build
-RUN yarn workspace @wadatrip/service-alerts build
 
 
 
@@ -54,4 +53,4 @@ COPY --from=builder /app/.yarnrc.yml ./.yarnrc.yml
 COPY --from=builder /app/.yarn ./.yarn
 
 EXPOSE 3000
-CMD ["node", "apps/gateway/dist/src/main.js"]
+CMD ["node", "apps/gateway/dist/main.js"]

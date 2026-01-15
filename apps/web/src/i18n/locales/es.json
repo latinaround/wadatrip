@@ -9,7 +9,8 @@
                 "request_demo":  "Solicitar Demo",
                 "login":  "Iniciar Sesión",
                 "privacy_policy":  "Política de Privacidad",
-                "tour_alerts":  "Alertas de Tours"
+                "tour_alerts":  "Alertas de Tours",
+                "tours":  "Tours"
             },
     "hero":  {
                  "title":  "Simplifica tu planificación de viajes",

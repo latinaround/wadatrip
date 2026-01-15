@@ -64,3 +64,20 @@ Stripe (if enabled):
 ## Things to Remember
 - Do **not** re-add `apps/web` to workspaces (causes duplicate workspace error).
 - If services don't respond, confirm `yarn start` is used (no Redis requirement).
+
+## Local Changes Pending (14 Jan 2026)
+- Gateway health now responds fast at `/health` with `{ status: "ok" }` (both controller and Express shortcut).
+- Gateway webhooks send `payment_status` and include `x-internal-service-token` when updating bookings.
+- Gateway proxies for `/alerts`, `/providers`, `/wadagent` now gated by env flags: `ENABLE_ALERTS_PROXY`, `ENABLE_PROVIDER_HUB_PROXY`, `ENABLE_WADAGENT_PROXY`.
+- Provider Hub bookings endpoints now require `INTERNAL_SERVICE_TOKEN` (header `x-internal-service-token`) to create/update bookings.
+- Provider Hub verification now maps `verified` to `approved` and updates `verification_status` + `status` accordingly.
+- Health endpoints simplified to `{ status: "ok" }` for gateway, itineraries, provider-hub.
+- `Dockerfile` stops building `service-alerts` and runs gateway from `apps/gateway/dist/main.js`.
+- `.env.example` adds WadaAgent vars and `WADAGENT_URL`.
+- `libs/common/src/index.ts` now re-exports `metrics` and `redis`; `libs/common/src/dtos.ts` was replaced by `export * from "./dtos"` (check for self-import conflict).
+
+Untracked additions:
+- `libs/db/prisma/migrations/20260106133000_add_agent_itineraries/` adds agent ownership fields + scenario metadata.
+- `services/itineraries/src/itineraries.module.ts` and `services/pricing/src/pricing.module.ts` add Nest modules.
+- `src/components/HeroVisual.jsx` adds hero UI with embedded WadaAgent.
+- `.dockerignore`, `baseline.sql`, `apps/web/.yarn/` (local tooling artifacts).

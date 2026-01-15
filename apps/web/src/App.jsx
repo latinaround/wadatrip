@@ -20,6 +20,9 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import RequestDemo from './pages/RequestDemo';
 import FlightAlerts from './pages/FlightAlerts';
 import Account from './pages/Account';
+import OperatorToursNew from './pages/OperatorToursNew.jsx';
+import Tours from './pages/Tours.jsx';
+import TourDetail from './pages/TourDetail.jsx';
 import AuthDialog from './components/AuthDialog.jsx';
 import CheckoutDialog from './components/payments/CheckoutDialog.jsx';
 import { useAuth } from './context/AuthContext.jsx';
@@ -286,6 +289,9 @@ function App() {
         <Route path="/enhanced-search" element={<EnhancedSearchForm />} />
         <Route path="/flight-notifications" element={<FlightPriceNotifications />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/tours" element={<Tours />} />
+        <Route path="/tours/:id" element={<TourDetail />} />
+        <Route path="/operator/tours/new" element={<OperatorToursNew />} />
       </Routes>
 
       {!isAdminRoute && (

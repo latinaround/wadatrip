@@ -121,7 +121,7 @@ export class ProvidersController {
       if (aiRes?.decision === 'verified') {
         await prisma.providers.update({
           where: { id: created.id },
-          data: { status: 'verified' },
+          data: { status: 'verified', verification_status: 'approved' },
         });
       }
     } catch (err) {
@@ -319,7 +319,7 @@ export class ProvidersController {
 
     const statusFromOcr =
       ocrResult.status === 'verified' || ocrResult.decision === 'verified'
-        ? 'verified'
+        ? 'approved'
         : ocrResult.status === 'rejected'
         ? 'rejected'
         : 'pending';
@@ -370,10 +370,10 @@ export class ProvidersController {
       data: {
         verification_status: status,
         verification_score: score,
-        risk_level: ocrResult.risk_level ?? (status === 'verified' ? 'low' : 'review'),
+        risk_level: ocrResult.risk_level ?? (status === 'approved' ? 'low' : 'review'),
         detected_name: ocrResult.detectedName ?? body.fullName ?? provider.name,
         document_valid: ocrResult.document_valid ?? false,
-        status: status === 'verified' ? 'verified' : 'review_required',
+        status: status === 'approved' ? 'verified' : 'review_required',
         extracted_country: ocrResult?.extracted_country ?? null,
         extracted_id_number: ocrResult?.extracted_id_number ?? null,
         match_faces: faceMatch,
@@ -446,15 +446,17 @@ export class ProvidersController {
 @Post(':id/verify')
   async verify(@Param('id') id: string, @Body() body: any) {
     const prisma = getPrisma();
-    const status = String(body?.status || '').toLowerCase();
+    const rawStatus = String(body?.status || '').toLowerCase();
+    const status = rawStatus === 'verified' ? 'approved' : rawStatus;
 
-    if (!['verified', 'rejected'].includes(status))
-      throw new BadRequestException('status must be verified|rejected');
+    if (!['approved', 'rejected'].includes(status))
+      throw new BadRequestException('status must be approved|rejected');
 
     await prisma.providers.update({
       where: { id },
       data: {
-        status,
+        verification_status: status,
+        status: status === 'approved' ? 'verified' : 'rejected',
         stripe_account_id: body.stripe_account_id ?? undefined,
       },
     });

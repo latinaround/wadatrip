@@ -59,16 +59,28 @@ export class WebhooksController {
     if (!bookingId) return { ok: true, ignored: true };
 
     const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
+    const INTERNAL_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
 
     try {
       if (type === 'checkout.session.completed' || type === 'payment_intent.succeeded') {
-        await axios.post(`${HUB}/bookings/${bookingId}/status`, { status: 'confirmed' });
+        await axios.post(
+          `${HUB}/bookings/${bookingId}/status`,
+          { status: 'confirmed', payment_status: 'paid' },
+          { headers: { 'x-internal-service-token': INTERNAL_TOKEN } },
+        );
       } else if (
         type === 'payment_intent.payment_failed' ||
         type === 'charge.refunded' ||
         type === 'refund.updated'
       ) {
-        await axios.post(`${HUB}/bookings/${bookingId}/status`, { status: 'cancelled' });
+        await axios.post(
+          `${HUB}/bookings/${bookingId}/status`,
+          {
+            status: 'cancelled',
+            payment_status: type === 'payment_intent.payment_failed' ? 'failed' : 'refunded',
+          },
+          { headers: { 'x-internal-service-token': INTERNAL_TOKEN } },
+        );
       }
     } catch (err: any) {
       console.error('❌ Error al actualizar booking en HUB:', err.message);

@@ -6,7 +6,7 @@ import { Controller, Get } from '@nestjs/common';
 export class HealthController {
   @Get('health')
   health() {
-    return { ok: true, service: 'itineraries', ts: new Date().toISOString() };
+    return { status: 'ok' };
   }
 }
 
