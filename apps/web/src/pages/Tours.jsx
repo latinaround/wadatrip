@@ -48,13 +48,25 @@ export default function Tours() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-emerald-50">
-      <div className="mx-auto max-w-6xl px-4 py-12 space-y-6">
-        <header className="space-y-2">
-          <h1 className="text-3xl font-bold text-emerald-200">Tours disponibles</h1>
-          <p className="text-emerald-100 text-sm">
+      <div className="mx-auto w-full max-w-7xl px-6 pb-16 pt-10 space-y-10">
+        <header className="space-y-3">
+          <h1 className="text-3xl font-semibold text-emerald-200 md:text-4xl">Tours disponibles</h1>
+          <p className="max-w-2xl text-sm text-emerald-100">
             Explora experiencias reales publicadas por operadores verificados.
           </p>
         </header>
+
+        <section className="rounded-2xl border border-emerald-400/10 bg-white/5 p-5">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/80">Filters</p>
+              <p className="text-sm text-emerald-100">Mostrando todos los tours publicados.</p>
+            </div>
+            <div className="text-xs text-emerald-200/70">
+              {items.length} experiencias
+            </div>
+          </div>
+        </section>
 
         {loading && <p className="text-emerald-100">Cargando tours...</p>}
         {error && <p className="text-rose-200">{error}</p>}
