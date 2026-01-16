@@ -24,7 +24,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
     }
   }, [open, initialMode]);
 
-  const title = useMemo(() => (mode === 'register' ? 'Crea tu cuenta' : 'Inicia sesión'), [mode]);
+  const title = useMemo(() => (mode === 'register' ? 'Create your account' : 'Sign in'), [mode]);
 
   const handleInput = (field) => (event) => {
     setForm(prev => ({ ...prev, [field]: event.target.value }));
@@ -42,7 +42,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
       }
       if (onClose) onClose();
     } catch (err) {
-      setError(err?.message || 'No se pudo completar la acción');
+      setError(err?.message || 'Action could not be completed');
     } finally {
       setSubmitting(false);
     }
@@ -54,19 +54,19 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {mode === 'register' ? 'Regístrate para guardar y pagar tus itinerarios.' : 'Ingresa para acceder a tus viajes guardados.'}
+            {mode === 'register' ? 'Create an account to save and pay for your itineraries.' : 'Sign in to access your saved trips.'}
           </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           {mode === 'register' && (
             <div className="space-y-2">
-              <Label htmlFor="auth-name">Nombre</Label>
+              <Label htmlFor="auth-name">Name</Label>
               <Input
                 id="auth-name"
                 value={form.name}
                 onChange={handleInput('name')}
-                placeholder="Nombre opcional"
+                placeholder="Optional name"
               />
             </div>
           )}
@@ -79,12 +79,12 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
               value={form.email}
               onChange={handleInput('email')}
               required
-              placeholder="tu@email.com"
+              placeholder="you@email.com"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="auth-password">Contraseña</Label>
+            <Label htmlFor="auth-password">Password</Label>
             <Input
               id="auth-password"
               type="password"
@@ -105,13 +105,17 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
             <Button
               type="button"
               variant="ghost"
-              className="text-sm"
+              className="text-sm text-teal-700"
               onClick={() => setMode(mode === 'register' ? 'login' : 'register')}
             >
-              {mode === 'register' ? '¿Ya tienes cuenta? Inicia sesión' : '¿Nuevo aquí? Crea una cuenta'}
+              {mode === 'register' ? 'Already have an account? Sign in' : 'New here? Create an account'}
             </Button>
-            <Button type="submit" disabled={submitting || authLoading}>
-              {submitting ? 'Procesando…' : mode === 'register' ? 'Registrarme' : 'Iniciar sesión'}
+            <Button
+              type="submit"
+              className="bg-teal-500 text-white hover:bg-teal-600"
+              disabled={submitting || authLoading}
+            >
+              {submitting ? 'Processing...' : mode === 'register' ? 'Create account' : 'Sign in'}
             </Button>
           </DialogFooter>
         </form>
@@ -121,3 +125,5 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
 };
 
 export default AuthDialog;
+
+

@@ -5,25 +5,25 @@ const AboutUs = () => {
 
   const teamMembers = [
     {
-      name: 'María Rodríguez',
+      name: 'Maria Rodriguez',
       position: t('about_us.ceo'),
       image: 'https://randomuser.me/api/portraits/women/1.jpg',
       bio: t('about_us.ceo_bio')
     },
     {
-      name: 'Carlos Sánchez',
+      name: 'Carlos Sanchez',
       position: t('about_us.cto'),
       image: 'https://randomuser.me/api/portraits/men/2.jpg',
       bio: t('about_us.cto_bio')
     },
     {
-      name: 'Ana López',
+      name: 'Ana Lopez',
       position: t('about_us.cmo'),
       image: 'https://randomuser.me/api/portraits/women/3.jpg',
       bio: t('about_us.cmo_bio')
     },
     {
-      name: 'Javier Martínez',
+      name: 'Javier Martinez',
       position: t('about_us.coo'),
       image: 'https://randomuser.me/api/portraits/men/4.jpg',
       bio: t('about_us.coo_bio')
@@ -31,8 +31,8 @@ const AboutUs = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <main className="flex-grow container mx-auto px-4 py-12">
+    <div className="page-shell flex flex-col">
+      <main className="flex-grow page-container">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
             {t('about_us.title')}
@@ -42,7 +42,7 @@ const AboutUs = () => {
           </p>
 
           {/* Our Story */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden mb-12">
+          <div className="page-card overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
             <div className="p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -57,7 +57,7 @@ const AboutUs = () => {
           </div>
 
           {/* Our Mission */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden mb-12">
+          <div className="page-card overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
             <div className="p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -71,7 +71,7 @@ const AboutUs = () => {
           </div>
 
           {/* Our Values */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden mb-12">
+          <div className="page-card overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
             <div className="p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -113,7 +113,7 @@ const AboutUs = () => {
           </div>
 
           {/* Our Team */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden mb-12">
+          <div className="page-card overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
             <div className="p-6">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -141,7 +141,7 @@ const AboutUs = () => {
           </div>
 
           {/* Join Us */}
-          <div className="bg-teal-50 rounded-lg p-8 text-center">
+          <div className="page-card p-8 text-center">
             <h3 className="text-2xl font-semibold text-gray-900 mb-4">
               {t('about_us.join_title')}
             </h3>
@@ -164,3 +164,5 @@ const AboutUs = () => {
 }
 
 export default AboutUs
+
+

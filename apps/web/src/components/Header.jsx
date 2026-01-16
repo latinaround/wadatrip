@@ -91,7 +91,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
               className="hidden md:flex bg-white text-teal-700 hover:bg-teal-50"
               asChild
             >
-              <Link to="/operator/tours/new">Sube tu tour</Link>
+              <Link to="/operator/tours/new">List your tour</Link>
             </Button>
             {user ? (
               <div className="hidden md:flex items-center gap-2">
@@ -150,7 +150,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   asChild
                 >
                   <Link to="/operator/tours/new" onClick={() => setIsMenuOpen(false)}>
-                    Sube tu tour
+                    List your tour
                   </Link>
                 </Button>
                 {user ? (

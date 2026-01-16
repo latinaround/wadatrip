@@ -10,7 +10,7 @@ const FlightPriceAlert = () => {
     destination: '',
     departureDate: '',
     budget: '',
-    maxWaitTime: '168', // 1 semana por defecto
+    maxWaitTime: '168', // 1 week default
     userEmail: ''
   });
   
@@ -157,7 +157,7 @@ const FlightPriceAlert = () => {
   return (
     <div className="flight-price-alert">
       <div className="alert-header">
-        <h2>🔔 {t('price_alerts.title')}</h2>
+        <h2> {t('price_alerts.title')}</h2>
         <p>{t('price_alerts.subtitle')}</p>
       </div>
 
@@ -181,22 +181,22 @@ const FlightPriceAlert = () => {
             className="notification-close"
             onClick={() => setNotification(null)}
           >
-            ×
+            
           </button>
         </div>
       )}
 
-      {/* Botón para mostrar formulario */}
+      {/* Botn para mostrar formulario */}
       <div className="create-alert-section">
         <button 
           className="create-alert-btn"
           onClick={() => setShowForm(!showForm)}
         >
-          {showForm ? `❌ ${t('price_alerts.cancel_btn')}` : `➕ ${t('price_alerts.create_alert_btn')}`}
+          {showForm ? ` ${t('price_alerts.cancel_btn')}` : ` ${t('price_alerts.create_alert_btn')}`}
         </button>
       </div>
 
-      {/* Formulario de creación */}
+      {/* Formulario de creacin */}
       {showForm && (
         <div className="alert-form-container">
           <form onSubmit={handleSubmit} className="alert-form">
@@ -292,7 +292,7 @@ const FlightPriceAlert = () => {
               className="submit-btn"
               disabled={isCreating}
             >
-              {isCreating ? `🔄 ${t('price_alerts.creating_btn')}` : `🚀 ${t('price_alerts.create_btn')}`}
+              {isCreating ? ` ${t('price_alerts.creating_btn')}` : ` ${t('price_alerts.create_btn')}`}
             </button>
           </form>
         </div>
@@ -312,12 +312,12 @@ const FlightPriceAlert = () => {
               <div key={alert.id} className="alert-card">
                 <div className="alert-header">
                   <div className="route">
-                    <span className="origin">{alert.id.split('_')[2] || 'Origen'}</span>
-                    <span className="arrow">✈️</span>
-                    <span className="destination">{alert.id.split('_')[3] || 'Destino'}</span>
+                    <span className="origin">{alert.id.split('_')[2] || 'Origin'}</span>
+                    <span className="arrow"></span>
+                    <span className="destination">{alert.id.split('_')[3] || 'Destination'}</span>
                   </div>
                   <span className={`status status-${alert.status}`}>
-                    {alert.status === 'active' ? `🟢 ${t('price_alerts.status_active')}` : `🔴 ${t('price_alerts.status_inactive')}`}
+                    {alert.status === 'active' ? ` ${t('price_alerts.status_active')}` : ` ${t('price_alerts.status_inactive')}`}
                   </span>
                 </div>
                 
@@ -361,7 +361,7 @@ const FlightPriceAlert = () => {
                     className="cancel-btn"
                     onClick={() => handleCancelAlert(alert.id)}
                   >
-                    🗑️ {t('price_alerts.cancel_alert_btn')}
+                     {t('price_alerts.cancel_alert_btn')}
                   </button>
                 </div>
               </div>

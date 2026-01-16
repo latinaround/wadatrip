@@ -3,8 +3,10 @@ import FlightPriceAlert from '../components/FlightPriceAlert'
 
 const FlightAlerts = () => {
   return (
-    <div className="flight-alerts-page">
-      <FlightPriceAlert />
+    <div className="page-shell">
+      <div className="page-container">
+        <FlightPriceAlert />
+      </div>
     </div>
   )
 }

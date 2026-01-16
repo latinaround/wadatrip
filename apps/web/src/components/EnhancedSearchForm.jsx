@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Validator } from '../utils/validator';
 import { AppColors } from '../utils/colors';
@@ -46,7 +46,7 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
       newErrors.budget = budgetValidation.error;
     }
 
-    // Validar preferencias (opcional, pero si se proporciona debe ser válido)
+    // Validar preferencias (opcional, pero si se proporciona debe ser vlido)
     if (formData.preferences.trim()) {
       const preferencesValidation = Validator.validatePreferences(formData.preferences);
       if (!preferencesValidation.isValid) {
@@ -54,7 +54,7 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
       }
     }
 
-    // Validar email (opcional, pero si se proporciona debe ser válido)
+    // Validar email (opcional, pero si se proporciona debe ser vlido)
     if (formData.email.trim()) {
       const emailValidation = Validator.validateEmail(formData.email);
       if (!emailValidation.isValid) {
@@ -70,10 +70,10 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
     e.preventDefault();
     
     if (!validateForm()) {
-      // Mostrar notificación de error
+      // Mostrar notificacin de error
       notificationService.showNotification({
-        title: 'Formulario Inválido',
-        body: 'Por favor, corrige los errores en el formulario',
+        title: 'Formulario Invlido',
+        body: 'Please fix the errors in the form.',
         icon: '/error-icon.png'
       });
       return;
@@ -94,15 +94,15 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
 
       await onSearch(processedData);
       
-      // Mostrar notificación de éxito
+      // Mostrar notificacin de xito
       notificationService.showNotification({
         title: t('search_form.search_started'),
-        body: `Buscando opciones para ${formData.destination}...`,
+        body: `Searching options for ${formData.destination}...`,
         icon: '/search-icon.png'
       });
       
     } catch (error) {
-      console.error('Error en búsqueda:', error);
+      console.error('Error en bsqueda:', error);
       notificationService.showNotification({
         title: t('search_form.search_error'),
         body: t('search_form.search_error_message'),
@@ -157,7 +157,7 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
             max="1000000"
             value={formData.budget}
             onChange={(e) => handleInputChange('budget', e.target.value)}
-            placeholder="Ej: 1500"
+            placeholder="e.g. 1500"
             className={errors.budget ? 'error' : ''}
           />
           {errors.budget && (
@@ -173,7 +173,7 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
             type="text"
             value={formData.preferences}
             onChange={(e) => handleInputChange('preferences', e.target.value)}
-            placeholder="{t('search_form.preferences_placeholder')}"
+            placeholder={t('search_form.preferences_placeholder')}
             className={errors.preferences ? 'error' : ''}
           />
           {errors.preferences && (
@@ -192,7 +192,7 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
             type="email"
             value={formData.email}
             onChange={(e) => handleInputChange('email', e.target.value)}
-            placeholder="{t('search_form.email_placeholder')}"
+            placeholder={t('search_form.email_placeholder')}
             className={errors.email ? 'error' : ''}
           />
           {errors.email && (
@@ -312,6 +312,7 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
     </form>
   );
 };
+
 
 
 

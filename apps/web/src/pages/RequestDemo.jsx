@@ -60,8 +60,8 @@ const RequestDemo = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <main className="flex-grow container mx-auto px-4 py-12">
+    <div className="page-shell flex flex-col">
+      <main className="flex-grow page-container">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
             {t('demo.title')}
@@ -73,7 +73,7 @@ const RequestDemo = () => {
           <div className="grid md:grid-cols-3 gap-8 mb-12">
             {/* Demo Form */}
             <div className="md:col-span-2">
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="page-card overflow-hidden">
                 <div className="bg-teal-600 h-3"></div>
                 <div className="p-6">
                   <h3 className="text-xl font-semibold text-gray-900 mb-6">
@@ -307,7 +307,7 @@ const RequestDemo = () => {
 
             {/* Demo Information */}
             <div className="md:col-span-1">
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="page-card overflow-hidden">
                 <div className="bg-teal-600 h-3"></div>
                 <div className="p-6">
                   <h3 className="text-xl font-semibold text-gray-900 mb-6">
@@ -384,3 +384,4 @@ const RequestDemo = () => {
 }
 
 export default RequestDemo
+

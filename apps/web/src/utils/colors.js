@@ -1,54 +1,53 @@
-﻿/**
- * Sistema de colores adaptado del proyecto Flutter wadatrip_web
- * Paleta de colores y gradientes para la aplicación
+/**
+ * Wadatrip brand palette and gradients.
  */
 
 export const AppColors = {
-  // Colores principales
-  azulMarino700: '#1e3a8a',
-  azulMarino600: '#1e40af',
-  azulMarino500: '#3b82f6',
-  orangeColor: '#f97316',
-  orangeLight: '#fb923c',
-  orangeDark: '#ea580c',
-  
-  // Colores neutros
-  oscureColor: '#1f2937',
-  grisOscuro: '#374151',
-  grisClaro: '#9ca3af',
+  // Primary colors
+  azulMarino700: '#0f172a',
+  azulMarino600: '#0f766e',
+  azulMarino500: '#009c9c',
+  orangeColor: '#ff7b00',
+  orangeLight: '#ff9a3c',
+  orangeDark: '#e65c00',
+
+  // Neutral colors
+  oscureColor: '#0f172a',
+  grisOscuro: '#334155',
+  grisClaro: '#cbd5e1',
   white: '#ffffff',
   white60: 'rgba(255, 255, 255, 0.6)',
   white80: 'rgba(255, 255, 255, 0.8)',
-  
-  // Colores de estado
+
+  // Status colors
   success: '#10b981',
-  warning: '#f59e0b',
+  warning: '#ff7b00',
   error: '#ef4444',
-  info: '#3b82f6',
-  
-  // Colores de fondo
+  info: '#009c9c',
+
+  // Background colors
   backgroundPrimary: '#ffffff',
   backgroundSecondary: '#f8fafc',
   backgroundDark: '#0f172a',
-  
-  // Gradientes CSS
+
+  // CSS gradients
   gradients: {
-    azul: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-    orange: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)',
-    blueDark: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
-    sunset: 'linear-gradient(135deg, #f97316 0%, #1e3a8a 100%)',
-    ocean: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)',
+    azul: 'linear-gradient(135deg, #009c9c 0%, #ff2d8f 60%, #ff7b00 100%)',
+    orange: 'linear-gradient(135deg, #ff7b00 0%, #ff9a3c 100%)',
+    blueDark: 'linear-gradient(135deg, #0f172a 0%, #0f766e 100%)',
+    sunset: 'linear-gradient(135deg, #ff7b00 0%, #009c9c 100%)',
+    ocean: 'linear-gradient(135deg, #009c9c 0%, #0f766e 100%)',
   },
-  
-  // Sombras
+
+  // Shadows
   shadows: {
     sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
     md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
     lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
     xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
   },
-  
-  // Función para obtener color con opacidad
+
+  // Helper to add opacity to a hex color.
   withOpacity: (color, opacity) => {
     const hex = color.replace('#', '');
     const r = parseInt(hex.substr(0, 2), 16);
@@ -56,14 +55,14 @@ export const AppColors = {
     const b = parseInt(hex.substr(4, 2), 16);
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   },
-  
-  // Función para obtener gradiente personalizado
+
+  // Helper to generate a custom gradient.
   customGradient: (color1, color2, direction = '135deg') => {
     return `linear-gradient(${direction}, ${color1} 0%, ${color2} 100%)`;
-  }
+  },
 };
 
-// Exportar colores individuales para fácil acceso
+// Export individual colors for quick access.
 export const {
   azulMarino700,
   azulMarino600,
@@ -83,10 +82,10 @@ export const {
   info,
   backgroundPrimary,
   backgroundSecondary,
-  backgroundDark
+  backgroundDark,
 } = AppColors;
 
-// Tema para componentes
+// Theme for components
 export const theme = {
   colors: AppColors,
   spacing: {
@@ -115,5 +114,5 @@ export const theme = {
     '2xl': '1.5rem',
     '3xl': '1.875rem',
     '4xl': '2.25rem',
-  }
+  },
 };

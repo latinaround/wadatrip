@@ -14,9 +14,9 @@
 .alert-header h2 {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1a202c;
+  color: #0f172a;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #009c9c 0%, #ff7b00 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -44,7 +44,7 @@
 }
 
 .notification-success {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  background: linear-gradient(135deg, #009c9c 0%, #00b3b3 100%);
   color: white;
 }
 
@@ -54,7 +54,7 @@
 }
 
 .notification-warning {
-  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+  background: linear-gradient(135deg, #ff7b00 0%, #ff9a3c 100%);
   color: white;
 }
 
@@ -102,7 +102,7 @@
 }
 
 .create-alert-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #009c9c 0%, #ff2d8f 55%, #ff7b00 100%);
   color: white;
   border: none;
   padding: 1rem 2rem;
@@ -111,12 +111,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 15px rgba(0, 156, 156, 0.35);
 }
 
 .create-alert-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  box-shadow: 0 6px 20px rgba(0, 156, 156, 0.45);
 }
 
 /* Form Container */
@@ -166,13 +166,13 @@
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #009c9c;
+  box-shadow: 0 0 0 3px rgba(0, 156, 156, 0.12);
 }
 
 .budget-group input {
   font-weight: 600;
-  color: #38a169;
+  color: #009c9c;
 }
 
 .email-group {
@@ -181,7 +181,7 @@
 
 .submit-btn {
   width: 100%;
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  background: linear-gradient(135deg, #009c9c 0%, #ff7b00 100%);
   color: white;
   border: none;
   padding: 1rem 2rem;
@@ -190,12 +190,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
+  box-shadow: 0 4px 15px rgba(0, 156, 156, 0.35);
 }
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(72, 187, 120, 0.6);
+  box-shadow: 0 6px 20px rgba(0, 156, 156, 0.45);
 }
 
 .submit-btn:disabled {
@@ -212,7 +212,7 @@
 .active-alerts-section h3 {
   font-size: 1.8rem;
   font-weight: 700;
-  color: #1a202c;
+  color: #0f172a;
   margin-bottom: 1.5rem;
   text-align: center;
 }
@@ -283,8 +283,8 @@
 }
 
 .status-active {
-  background: #c6f6d5;
-  color: #22543d;
+  background: #ccfbf1;
+  color: #0f766e;
 }
 
 .status-inactive {
@@ -321,7 +321,7 @@
 }
 
 .best-price {
-  color: #38a169;
+  color: #009c9c;
   font-size: 1rem;
 }
 

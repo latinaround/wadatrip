@@ -8,7 +8,7 @@ const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
 const formatPrice = (value, currency = 'USD') => {
   const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return 'Consultar';
+  if (!Number.isFinite(amount) || amount <= 0) return 'Contact us';
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency,
@@ -50,10 +50,10 @@ export default function TourDetail() {
           const items = Array.isArray(fallbackData?.items) ? fallbackData.items : [];
           data = items.find((item) => String(item.id) === String(id)) || null;
         }
-        if (!data) throw new Error('Tour no encontrado');
+        if (!data) throw new Error('Tour not found');
         if (mounted) setTour(data);
       } catch (err) {
-        if (mounted) setError(err?.message || 'Error cargando tour');
+        if (mounted) setError(err?.message || 'Error loading tour');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -108,85 +108,91 @@ export default function TourDetail() {
         throw new Error(message);
       }
 
-      setBookingSuccess('Reserva creada. Redirigiendo a Stripe...');
+      setBookingSuccess('Booking created. Redirecting to Stripe...');
       window.location.href = checkoutData.url;
     } catch (err) {
-      setBookingError(err?.message || 'Error creando la reserva');
+      setBookingError(err?.message || 'Error creating booking');
     } finally {
       setBookingLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-slate-900 text-white p-10">Cargando tour...</div>;
+    return (
+      <div className="page-shell">
+        <div className="page-container">Loading tour...</div>
+      </div>
+    );
   }
 
   if (error || !tour) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white p-10 space-y-4">
-        <p>{error || 'Tour no encontrado'}</p>
-        <Button variant="secondary" onClick={() => navigate(-1)}>Volver</Button>
+      <div className="page-shell">
+        <div className="page-container space-y-4">
+          <p>{error || 'Tour not found'}</p>
+          <Button variant="secondary" onClick={() => navigate(-1)}>Back</Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-900 via-orange-800 to-orange-700 text-white">
-      <div className="mx-auto max-w-5xl px-4 py-12 space-y-8">
-        <Button variant="secondary" onClick={() => navigate(-1)}>Volver</Button>
+    <div className="page-shell">
+      <div className="page-container space-y-8">
+        <Button variant="secondary" onClick={() => navigate(-1)}>Back</Button>
 
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-lg">
+        <div className="page-card p-6">
           <div className="space-y-3">
-            <p className="text-xs uppercase text-orange-100">{tour.city || '-'} {tour.country_code ? `(${tour.country_code})` : ''}</p>
-            <h1 className="text-3xl font-bold">{tour.title}</h1>
+            <p className="text-xs uppercase text-slate-500">{tour.city || '-'} {tour.country_code ? `(${tour.country_code})` : ''}</p>
+            <h1 className="text-3xl font-bold text-slate-900">{tour.title}</h1>
             {tour.provider_name && (
-              <p className="text-sm text-orange-100">
-                Operado por {tour.provider_name}
+              <p className="text-sm text-slate-600">
+                Operated by {tour.provider_name}
                 {tour.provider_country ? ` (${tour.provider_country})` : ''}
               </p>
             )}
-            <p className="text-orange-100">{tour.description || 'Experiencia operada por un partner local.'}</p>
-            <div className="text-2xl font-semibold">
+            <p className="text-slate-600">{tour.description || 'Experience hosted by a local partner.'}</p>
+            <div className="text-2xl font-semibold text-teal-700">
               {formatPrice(tour.price_from, tour.currency || 'USD')}
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-lg space-y-4">
-          <h2 className="text-xl font-semibold">Reservar ahora</h2>
+        <div className="page-card p-6 space-y-4">
+          <h2 className="text-xl font-semibold text-slate-900">Book now</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <Input
               value={bookingForm.name}
               onChange={(event) => handleBookingChange('name', event.target.value)}
-              placeholder="Nombre completo"
-              className="bg-white/20 text-white placeholder:text-white/60"
+              placeholder="Full name"
+              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
             />
             <Input
               type="email"
               value={bookingForm.email}
               onChange={(event) => handleBookingChange('email', event.target.value)}
               placeholder="Email"
-              className="bg-white/20 text-white placeholder:text-white/60"
+              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
             />
             <Input
               type="number"
               min="1"
               value={bookingForm.num_people}
               onChange={(event) => handleBookingChange('num_people', event.target.value)}
-              placeholder="Personas"
-              className="bg-white/20 text-white placeholder:text-white/60"
+              placeholder="Travelers"
+              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
             />
             <Input
               type="date"
               value={bookingForm.date}
               onChange={(event) => handleBookingChange('date', event.target.value)}
-              className="bg-white/20 text-white placeholder:text-white/60"
+              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
             />
           </div>
-          {bookingError && <p className="text-red-200">{bookingError}</p>}
-          {bookingSuccess && <p className="text-emerald-200">{bookingSuccess}</p>}
-          <Button onClick={handleBooking} disabled={bookingLoading}>
-            {bookingLoading ? 'Procesando...' : 'Reservar y pagar'}
+          {bookingError && <p className="text-rose-600">{bookingError}</p>}
+          {bookingSuccess && <p className="text-teal-700">{bookingSuccess}</p>}
+          <Button className="bg-orange-500 text-white hover:bg-orange-600" onClick={handleBooking} disabled={bookingLoading}>
+            {bookingLoading ? 'Processing...' : 'Book and pay'}
           </Button>
         </div>
       </div>

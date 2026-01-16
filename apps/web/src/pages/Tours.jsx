@@ -30,13 +30,13 @@ export default function Tours() {
         const response = await fetch(`${apiBase}/listings/search?status=published&limit=50`);
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          const message = data?.message || data?.error || response.statusText || 'Error cargando tours';
+          const message = data?.message || data?.error || response.statusText || 'Error loading tours';
           throw new Error(message);
         }
         const rows = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
         if (mounted) setItems(rows);
       } catch (err) {
-        if (mounted) setError(err?.message || 'Error cargando tours');
+        if (mounted) setError(err?.message || 'Error loading tours');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -47,32 +47,33 @@ export default function Tours() {
   }, [apiBase]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-emerald-50">
-      <div className="mx-auto w-full max-w-7xl px-6 pb-16 pt-10 space-y-10">
+    <div className="page-shell">
+      <div className="page-container space-y-10">
         <header className="space-y-3">
-          <h1 className="text-3xl font-semibold text-emerald-200 md:text-4xl">Tours disponibles</h1>
-          <p className="max-w-2xl text-sm text-emerald-100">
-            Explora experiencias reales publicadas por operadores verificados.
+          <p className="page-kicker">Tours</p>
+          <h1 className="text-3xl font-semibold text-slate-900 md:text-4xl">Tours ready to book</h1>
+          <p className="max-w-2xl text-sm text-slate-600">
+            Discover real experiences published by verified operators.
           </p>
         </header>
 
-        <section className="rounded-2xl border border-emerald-400/10 bg-white/5 p-5">
+        <section className="page-card p-5">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/80">Filters</p>
-              <p className="text-sm text-emerald-100">Mostrando todos los tours publicados.</p>
+              <p className="page-kicker">Filters</p>
+              <p className="text-sm text-slate-600">Showing all published tours.</p>
             </div>
-            <div className="text-xs text-emerald-200/70">
-              {items.length} experiencias
+            <div className="text-xs text-slate-500">
+              {items.length} experiences
             </div>
           </div>
         </section>
 
-        {loading && <p className="text-emerald-100">Cargando tours...</p>}
-        {error && <p className="text-rose-200">{error}</p>}
+        {loading && <p className="text-slate-600">Loading tours...</p>}
+        {error && <p className="text-rose-600">{error}</p>}
 
         {!loading && !error && items.length === 0 && (
-          <p className="text-emerald-100">Aun no hay tours publicados.</p>
+          <p className="text-slate-600">No tours have been published yet.</p>
         )}
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -80,23 +81,23 @@ export default function Tours() {
             <Link
               key={item.id}
               to={`/tours/${item.id}`}
-              className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-5 shadow-lg transition-transform hover:-translate-y-1"
+              className="page-card p-5 transition-transform hover:-translate-y-1"
             >
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs uppercase text-emerald-100/80">{item.city || '-'}</p>
-                  <h2 className="text-lg font-semibold text-emerald-50">{item.title}</h2>
+                  <p className="text-xs uppercase text-slate-500">{item.city || '-'}</p>
+                  <h2 className="text-lg font-semibold text-slate-900">{item.title}</h2>
                 </div>
                 {item.provider_name && (
-                  <p className="text-xs text-emerald-100">
-                    Operado por {item.provider_name}
+                  <p className="text-xs text-slate-500">
+                    Operated by {item.provider_name}
                     {item.provider_country ? ` (${item.provider_country})` : ''}
                   </p>
                 )}
-                <p className="text-sm text-emerald-100/90 line-clamp-3">
-                  {item.description || 'Experiencia operada por un partner local.'}
+                <p className="text-sm text-slate-600 line-clamp-3">
+                  {item.description || 'Experience hosted by a local partner.'}
                 </p>
-                <div className="text-base font-semibold text-emerald-200">
+                <div className="text-base font-semibold text-teal-700">
                   {formatPrice(item.price_from, item.currency || 'USD')}
                 </div>
               </div>
