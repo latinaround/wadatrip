@@ -108,7 +108,7 @@ const Hero = ({ onSearch }) => {
               <div className="space-y-2">
                 <Label className="text-white font-medium flex items-center gap-2">
                   <Timer className="w-4 h-4 text-purple-300" />
-                  {t('hero.length_label', 'Duraci�n (d�as)')}
+                  {t('hero.length_label', 'Duration (days)')}
                 </Label>
                 <Input
                   type="number"

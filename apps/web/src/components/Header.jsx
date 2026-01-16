@@ -41,11 +41,8 @@ const Header = ({ user, onLoginClick, onLogout }) => {
       <div className="w-full px-4">
         <div className="flex items-center h-16 gap-4 max-w-7xl mx-auto">
           <div className="flex-shrink-0">
-            <Link to="/" className="text-white text-lg font-bold">
-              <span className="flex items-center gap-2">
-                <img src="/wadatrip.png" alt="Wadatrip" className="h-4 w-4 object-contain" />
-                WADATRIP
-              </span>
+            <Link to="/" className="text-white text-lg font-semibold">
+              Wadatrip
             </Link>
           </div>
 

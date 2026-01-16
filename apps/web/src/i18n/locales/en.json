@@ -26,6 +26,7 @@
                  "interests_label":  "Interests (optional)",
                  "interests_placeholder":  "E.g: culture, adventure, gastronomy, beach...",
                  "generate_button":  "Generate Itinerary",
+                 "length_label":  "Duration (days)",
                  "unique_destinations":  "Unique Destinations",
                  "unique_destinations_desc":  "Discover incredible places adapted to your tastes",
                  "personalized":  "Personalized",

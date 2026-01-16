@@ -5654,9 +5654,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"wadatrip@workspace:.":
+"wadatrip-web@workspace:.":
   version: 0.0.0-use.local
-  resolution: "wadatrip@workspace:."
+  resolution: "wadatrip-web@workspace:."
   dependencies:
     "@eslint/js": ^9.25.0
     "@hookform/resolvers": ^5.0.1

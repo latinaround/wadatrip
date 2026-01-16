@@ -29,12 +29,12 @@ function ScenarioSummary({ scenario, itineraryMeta }) {
         </span>
       </div>
       <p className="text-sm text-muted-foreground">
-        {itineraryMeta?.origin} -> {itineraryMeta?.destination} - {itineraryMeta?.days || '?'} dias - {itineraryMeta?.travelers || 1} viajeros
+        {itineraryMeta?.origin} to {itineraryMeta?.destination} - {itineraryMeta?.days || '?'} days - {itineraryMeta?.travelers || 1} travelers
       </p>
       <div className="text-sm space-y-1">
-        <p><strong>Vuelo:</strong> {flight ? `${flight.title || 'Vuelo'} - ${flight.supplier || ''}` : 'Incluido en itinerario'}</p>
-        <p><strong>Alojamiento:</strong> {lodging ? lodging.title : 'Incluido en itinerario'}</p>
-        <p><strong>Actividades:</strong> {activities.length} planificadas</p>
+        <p><strong>Flight:</strong> {flight ? `${flight.title || 'Flight'} - ${flight.supplier || ''}` : 'Included in itinerary'}</p>
+        <p><strong>Lodging:</strong> {lodging ? lodging.title : 'Included in itinerary'}</p>
+        <p><strong>Activities:</strong> {activities.length} planned</p>
       </div>
     </div>
   );
@@ -58,12 +58,12 @@ function CheckoutForm({ clientSecret, amountCents, currency, onSuccess, onError 
         payment_method: { card },
       });
       if (result.error) {
-        onError?.(result.error.message || 'No se pudo confirmar el pago');
+        onError?.(result.error.message || 'Payment could not be confirmed');
       } else if (result.paymentIntent?.status === 'succeeded') {
         onSuccess?.(result.paymentIntent);
       }
     } catch (err) {
-      onError?.(err?.message || 'No se pudo completar el pago');
+      onError?.(err?.message || 'Payment could not be completed');
     } finally {
       setSubmitting(false);
     }
@@ -72,13 +72,13 @@ function CheckoutForm({ clientSecret, amountCents, currency, onSuccess, onError 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
       <div className="space-y-2">
-        <LabelComponent text="Tarjeta" />
+        <LabelComponent text="Card" />
         <div className="border rounded-md p-3 bg-white">
           <CardElement options={{ style: { base: { fontSize: '16px', color: '#1f2937' } } }} />
         </div>
       </div>
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? 'Procesando...' : `Pagar ${amountLabel(amountCents, currency)}`}
+        {submitting ? 'Processing...' : `Pay ${amountLabel(amountCents, currency)}`}
       </Button>
     </form>
   );
@@ -116,21 +116,21 @@ const CheckoutDialog = ({
   const mockMessage = useMemo(() => {
     if (!mock) return null;
     if (mockReason === 'stripe_disabled') {
-      return `Stripe no esta configurado (falta STRIPE_SECRET_KEY). Intent demo ${amountLabel(amountCents, currency)} sin cargo real.`;
+      return `Stripe is not configured (missing STRIPE_SECRET_KEY). Demo intent ${amountLabel(amountCents, currency)} with no real charge.`;
     }
     if (mockReason === 'provider_missing_connect') {
-      return `El proveedor no tiene cuenta conectada en Stripe. Intent demo ${amountLabel(amountCents, currency)} sin cargo real.`;
+      return `The provider does not have a connected Stripe account. Demo intent ${amountLabel(amountCents, currency)} with no real charge.`;
     }
-    return `Pagos en modo demo. Intent ${amountLabel(amountCents, currency)} sin cargo real.`;
+    return `Payments in demo mode. Intent ${amountLabel(amountCents, currency)} with no real charge.`;
   }, [mock, mockReason, amountCents, currency]);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose?.()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Confirmar reserva</DialogTitle>
+          <DialogTitle>Confirm booking</DialogTitle>
           <DialogDescription>
-            Revisa los detalles y completa el pago para bloquear este itinerario.
+            Review the details and complete payment to lock this itinerary.
           </DialogDescription>
         </DialogHeader>
 
@@ -155,12 +155,12 @@ const CheckoutDialog = ({
         )}
 
         {loading && (
-          <div className="py-6 text-center text-sm text-muted-foreground">Creando pago...</div>
+          <div className="py-6 text-center text-sm text-muted-foreground">Creating payment...</div>
         )}
 
         {!loading && !clientSecret && !mock && (
           <div className="py-6 text-center text-sm text-muted-foreground">
-            No se pudo inicializar el pago. <Button variant="link" onClick={onRetry}>Reintentar</Button>
+            Payment could not be initialized. <Button variant="link" onClick={onRetry}>Try again</Button>
           </div>
         )}
 
@@ -168,7 +168,7 @@ const CheckoutDialog = ({
           <div className="space-y-4">
             {mock ? (
               <Button className="w-full" onClick={() => { onPaymentSuccess?.({ status: 'succeeded', mock: true, mockReason }); }}>
-                Confirmar reserva (modo demo)
+                Confirm booking (demo mode)
               </Button>
             ) : stripePromise ? (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
@@ -186,7 +186,7 @@ const CheckoutDialog = ({
             ) : (
               <Alert variant="destructive">
                 <AlertDescription>
-                  Configura VITE_STRIPE_PUBLISHABLE_KEY para habilitar pagos.
+                  Configure VITE_STRIPE_PUBLISHABLE_KEY to enable payments.
                 </AlertDescription>
               </Alert>
             )}
@@ -194,7 +194,7 @@ const CheckoutDialog = ({
         )}
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onClose?.()}>Cerrar</Button>
+          <Button variant="ghost" onClick={() => onClose?.()}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

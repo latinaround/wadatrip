@@ -25,6 +25,7 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
+    lng: 'en',
     debug: false,
     
     interpolation: {
@@ -38,4 +39,3 @@ i18n
   })
 
 export default i18n
-
