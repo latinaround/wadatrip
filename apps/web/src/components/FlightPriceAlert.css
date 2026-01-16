@@ -102,7 +102,7 @@
 }
 
 .create-alert-btn {
-  background: linear-gradient(135deg, #009c9c 0%, #ff2d8f 55%, #ff7b00 100%);
+  background: linear-gradient(135deg, #ff7b00 0%, #ff9a3c 100%);
   color: white;
   border: none;
   padding: 1rem 2rem;
@@ -111,12 +111,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 156, 156, 0.35);
+  box-shadow: 0 4px 15px rgba(255, 123, 0, 0.3);
 }
 
 .create-alert-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 156, 156, 0.45);
+  box-shadow: 0 6px 20px rgba(255, 123, 0, 0.4);
 }
 
 /* Form Container */
@@ -181,7 +181,7 @@
 
 .submit-btn {
   width: 100%;
-  background: linear-gradient(135deg, #009c9c 0%, #ff7b00 100%);
+  background: linear-gradient(135deg, #ff7b00 0%, #ff9a3c 100%);
   color: white;
   border: none;
   padding: 1rem 2rem;
@@ -190,12 +190,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 156, 156, 0.35);
+  box-shadow: 0 4px 15px rgba(255, 123, 0, 0.3);
 }
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 156, 156, 0.45);
+  box-shadow: 0 6px 20px rgba(255, 123, 0, 0.4);
 }
 
 .submit-btn:disabled {

@@ -214,12 +214,12 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
 
       <style jsx>{`
         .enhanced-search-form {
-          background: ${AppColors.backgroundPrimary};
-          padding: 2rem;
-          border-radius: 1rem;
-          box-shadow: ${AppColors.shadows.lg};
-          max-width: 800px;
-          margin: 0 auto;
+          background: transparent;
+          padding: 0;
+          border-radius: 0;
+          box-shadow: none;
+          max-width: 100%;
+          margin: 0;
         }
 
         .form-grid {
@@ -278,7 +278,7 @@ export const EnhancedSearchForm = ({ onSearch, className = '' }) => {
         .submit-button {
           width: 100%;
           padding: 1rem 2rem;
-          background: ${AppColors.gradients.azul};
+          background: ${AppColors.gradients.orange};
           color: white;
           border: none;
           border-radius: 0.5rem;

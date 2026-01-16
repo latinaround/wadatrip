@@ -10,7 +10,7 @@ import FlightPricePredictor from './components/FlightPricePredictor';
 import FlightPriceAlert from './components/FlightPriceAlert';
 import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
-import { EnhancedSearchForm } from './components/EnhancedSearchForm';
+import TourAlerts from './pages/TourAlerts.jsx';
 import { FlightPriceNotifications } from './components/FlightPriceNotifications';
 import Products from './pages/Products';
 import Solutions from './pages/Solutions';
@@ -286,16 +286,7 @@ function App() {
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/request-demo" element={<RequestDemo />} />
         <Route path="/price-alerts" element={<FlightAlerts />} />
-        <Route
-          path="/enhanced-search"
-          element={
-            <div className="page-shell">
-              <div className="page-container">
-                <EnhancedSearchForm />
-              </div>
-            </div>
-          }
-        />
+        <Route path="/enhanced-search" element={<TourAlerts />} />
         <Route path="/flight-notifications" element={<FlightPriceNotifications />} />
         <Route path="/account" element={<Account />} />
         <Route path="/tours" element={<Tours />} />

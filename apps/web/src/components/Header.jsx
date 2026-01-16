@@ -37,11 +37,11 @@ const Header = ({ user, onLoginClick, onLogout }) => {
   };
 
   return (
-    <header className="bg-gradient-to-r from-teal-600 to-teal-700 shadow-lg sticky top-0 z-50">
+    <header className="bg-white/90 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-50">
       <div className="w-full px-4">
         <div className="flex items-center h-16 gap-4 max-w-7xl mx-auto">
           <div className="flex-shrink-0">
-            <Link to="/" className="text-white text-lg font-semibold">
+            <Link to="/" className="text-slate-900 text-lg font-semibold">
               Wadatrip
             </Link>
           </div>
@@ -54,7 +54,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   <Link
                     key={item.key}
                     to={item.href}
-                    className="text-white hover:text-teal-200 transition-colors px-2 py-1 whitespace-nowrap flex items-center gap-1"
+                    className="text-slate-600 hover:text-teal-600 transition-colors px-2 py-1 whitespace-nowrap flex items-center gap-1"
                   >
                     {IconComponent && <IconComponent size={16} />}
                     {t(`nav.${item.key}`)}
@@ -69,7 +69,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
               variant="ghost"
               size="sm"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-white hover:bg-teal-500"
+              className="text-slate-700 hover:bg-slate-100"
             >
               {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </Button>
@@ -80,7 +80,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
             <Button
               variant="outline"
               size="sm"
-              className="bg-transparent border-white text-white hover:bg-white hover:text-teal-600 text-xs hidden md:flex"
+              className="bg-transparent border-teal-200 text-teal-700 hover:bg-teal-50 text-xs hidden md:flex"
               asChild
             >
               <Link to="/request-demo">{t('nav.request_demo')}</Link>
@@ -88,18 +88,18 @@ const Header = ({ user, onLoginClick, onLogout }) => {
             <Button
               variant="secondary"
               size="sm"
-              className="hidden md:flex bg-white text-teal-700 hover:bg-teal-50"
+              className="hidden md:flex bg-orange-500 text-white hover:bg-orange-600"
               asChild
             >
               <Link to="/operator/tours/new">List your tour</Link>
             </Button>
             {user ? (
               <div className="hidden md:flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="text-white" onClick={goToAccount}>
+                <Button variant="ghost" size="sm" className="text-slate-700" onClick={goToAccount}>
                   <UserCircle className="w-4 h-4 mr-1" />
                   {user.name || user.email}
                 </Button>
-                <Button variant="outline" size="sm" className="bg-transparent border-white text-white hover:bg-white hover:text-teal-600" onClick={handleLogout}>
+                <Button variant="outline" size="sm" className="bg-transparent border-teal-200 text-teal-700 hover:bg-teal-50" onClick={handleLogout}>
                   {t('nav.logout') ?? 'Logout'}
                 </Button>
               </div>
@@ -107,7 +107,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
               <Button
                 variant="default"
                 size="sm"
-                className="bg-white text-teal-600 hover:bg-teal-50 hidden md:flex"
+                className="bg-teal-500 text-white hover:bg-teal-600 hidden md:flex"
                 onClick={handleLoginClick}
               >
                 {t('nav.login') ?? 'Login'}
@@ -117,7 +117,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
         </div>
 
         {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-teal-500">
+          <div className="lg:hidden py-4 border-t border-slate-200">
             <nav className="flex flex-col space-y-4">
               {navItems.map((item) => {
                 const IconComponent = item.icon;
@@ -125,7 +125,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   <Link
                     key={item.key}
                     to={item.href}
-                    className="text-white hover:text-teal-200 transition-colors duration-200 font-medium flex items-center gap-2"
+                    className="text-slate-700 hover:text-teal-600 transition-colors duration-200 font-medium flex items-center gap-2"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {IconComponent && <IconComponent size={16} />}
@@ -133,11 +133,11 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   </Link>
                 );
               })}
-              <div className="flex flex-col space-y-2 pt-4 border-t border-teal-500">
+              <div className="flex flex-col space-y-2 pt-4 border-t border-slate-200">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-transparent border-white text-white hover:bg-white hover:text-teal-600"
+                  className="bg-transparent border-teal-200 text-teal-700 hover:bg-teal-50"
                   asChild
                 >
                   <Link to="/request-demo" onClick={() => setIsMenuOpen(false)}>
@@ -146,7 +146,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                 </Button>
                 <Button
                   size="sm"
-                  className="bg-white text-teal-600 hover:bg-teal-50"
+                  className="bg-orange-500 text-white hover:bg-orange-600"
                   asChild
                 >
                   <Link to="/operator/tours/new" onClick={() => setIsMenuOpen(false)}>
@@ -155,20 +155,20 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                 </Button>
                 {user ? (
                   <>
-                    <Button size="sm" className="bg-white text-teal-600 hover:bg-teal-50" onClick={goToAccount}>
+                    <Button size="sm" className="bg-teal-500 text-white hover:bg-teal-600" onClick={goToAccount}>
                       {t('nav.my_trips') ?? 'My trips'}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="bg-transparent border-white text-white hover:bg-white hover:text-teal-600"
+                      className="bg-transparent border-teal-200 text-teal-700 hover:bg-teal-50"
                       onClick={handleLogout}
                     >
                       {t('nav.logout') ?? 'Logout'}
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" className="bg-white text-teal-600 hover:bg-teal-50" onClick={handleLoginClick}>
+                  <Button size="sm" className="bg-teal-500 text-white hover:bg-teal-600" onClick={handleLoginClick}>
                     {t('nav.login') ?? 'Login'}
                   </Button>
                 )}

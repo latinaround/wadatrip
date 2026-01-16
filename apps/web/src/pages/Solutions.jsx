@@ -35,7 +35,7 @@ const Solutions = () => {
             ].map(({ icon: Icon, title, copy }) => (
               <div
                 key={title}
-                className="page-card p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+                className="page-card px-8 py-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-teal-700">
                   <Icon className="h-5 w-5" />

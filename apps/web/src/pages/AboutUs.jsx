@@ -44,7 +44,7 @@ const AboutUs = () => {
           {/* Our Story */}
           <div className="page-card overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
-            <div className="p-6">
+            <div className="p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
                 {t('about_us.story_title')}
               </h2>
@@ -59,7 +59,7 @@ const AboutUs = () => {
           {/* Our Mission */}
           <div className="page-card overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
-            <div className="p-6">
+            <div className="p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
                 {t('about_us.mission_title')}
               </h2>
@@ -73,15 +73,15 @@ const AboutUs = () => {
           {/* Our Values */}
           <div className="page-card overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
-            <div className="p-6">
+            <div className="p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
                 {t('about_us.values_title')}
               </h2>
               
               <div className="grid md:grid-cols-3 gap-6 mt-6">
-                <div className="text-center">
+                <div className="flex flex-col items-center text-center">
                   <div className="bg-teal-50 rounded-full h-10 w-10 flex items-center justify-center mx-auto mb-4">
-                    <svg className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-8 w-8 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                   </div>
@@ -89,9 +89,9 @@ const AboutUs = () => {
                   <p className="text-gray-700">{t('about_us.value1_desc')}</p>
                 </div>
                 
-                <div className="text-center">
+                <div className="flex flex-col items-center text-center">
                   <div className="bg-teal-50 rounded-full h-10 w-10 flex items-center justify-center mx-auto mb-4">
-                    <svg className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-8 w-8 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                   </div>
@@ -99,9 +99,9 @@ const AboutUs = () => {
                   <p className="text-gray-700">{t('about_us.value2_desc')}</p>
                 </div>
                 
-                <div className="text-center">
+                <div className="flex flex-col items-center text-center">
                   <div className="bg-teal-50 rounded-full h-10 w-10 flex items-center justify-center mx-auto mb-4">
-                    <svg className="h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-8 w-8 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                     </svg>
                   </div>
@@ -115,7 +115,7 @@ const AboutUs = () => {
           {/* Our Team */}
           <div className="page-card overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
-            <div className="p-6">
+            <div className="p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
                 {t('about_us.team_title')}
               </h2>
@@ -164,5 +164,7 @@ const AboutUs = () => {
 }
 
 export default AboutUs
+
+
 
 

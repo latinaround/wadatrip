@@ -1,9 +1,9 @@
-﻿{
+{
     "nav":  {
                 "wadatrip":  "WADATRIP",
                 "products":  "Products",
                 "solutions":  "Solutions",
-                "price_alerts":  "Price Alerts",
+                "price_alerts":  "Flight Alerts",
                 "about_us":  "About Us",
                 "contact":  "Contact",
                 "request_demo":  "Request Demo",
@@ -315,7 +315,7 @@
                              "cabin_class_factor":  "Cabin Class"
                          },
     "price_alerts":  {
-                         "title":  "Flight Price Alerts",
+                         "title":  "Flight Alerts",
                          "subtitle":  "Set up smart alerts and get notified when we find flights within your budget",
                          "origin_label":  "From",
                          "origin_placeholder":  "Origin city",
@@ -541,3 +541,4 @@
                         "searching":  "Searching..."
                     }
 }
+

@@ -19,7 +19,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: var(--color-surface);
+  background-color: #f9fbfc;
   color: var(--color-brand-navy);
   font-family: "Inter", "Poppins", system-ui, sans-serif;
   line-height: 1.6;
@@ -96,11 +96,7 @@ button[data-wadagent] {
 
 .page-shell {
   min-height: 100vh;
-  background:
-    radial-gradient(1100px 500px at 10% -10%, rgba(0, 156, 156, 0.16), transparent 60%),
-    radial-gradient(900px 500px at 110% 10%, rgba(255, 123, 0, 0.16), transparent 60%),
-    radial-gradient(900px 500px at 50% 110%, rgba(255, 45, 143, 0.12), transparent 60%),
-    var(--color-surface);
+  background: #f9fbfc;
   color: var(--color-brand-navy);
 }
 
@@ -115,6 +111,10 @@ button[data-wadagent] {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.section-soft {
+  background: #e6f6f4;
 }
 
 .page-kicker {
