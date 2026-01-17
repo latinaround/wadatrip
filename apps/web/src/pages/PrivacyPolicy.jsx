@@ -9,7 +9,7 @@ const PrivacyPolicy = () => {
   return (
     <div className="page-shell">
       {/* Header */}
-      <div className="page-card shadow-sm">
+      <div className="page-card p-0 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <Link 
             to="/" 
@@ -29,7 +29,7 @@ const PrivacyPolicy = () => {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="page-card p-8">
+        <div className="page-card">
           {/* Introduction */}
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">

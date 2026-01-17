@@ -141,7 +141,7 @@ export default function TourDetail() {
       <div className="page-container space-y-8">
         <Button variant="secondary" onClick={() => navigate(-1)}>Back</Button>
 
-        <div className="page-card p-6">
+        <div className="page-card">
           <div className="space-y-3">
             <p className="text-xs uppercase text-slate-500">{tour.city || '-'} {tour.country_code ? `(${tour.country_code})` : ''}</p>
             <h1 className="text-3xl font-bold text-slate-900">{tour.title}</h1>
@@ -158,7 +158,7 @@ export default function TourDetail() {
           </div>
         </div>
 
-        <div className="page-card p-6 space-y-4">
+        <div className="page-card space-y-4">
           <h2 className="text-xl font-semibold text-slate-900">Book now</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <Input

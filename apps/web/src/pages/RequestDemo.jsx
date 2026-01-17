@@ -73,7 +73,7 @@ const RequestDemo = () => {
           <div className="grid md:grid-cols-3 gap-8 mb-12">
             {/* Demo Form */}
             <div className="md:col-span-2">
-              <div className="page-card overflow-hidden">
+              <div className="page-card p-0 overflow-hidden">
                 <div className="bg-teal-600 h-3"></div>
                 <div className="p-6">
                   <h3 className="text-xl font-semibold text-gray-900 mb-6">
@@ -307,7 +307,7 @@ const RequestDemo = () => {
 
             {/* Demo Information */}
             <div className="md:col-span-1">
-              <div className="page-card overflow-hidden">
+              <div className="page-card p-0 overflow-hidden">
                 <div className="bg-teal-600 h-3"></div>
                 <div className="p-6">
                   <h3 className="text-xl font-semibold text-gray-900 mb-6">

@@ -81,9 +81,9 @@ export default function Tours() {
             <Link
               key={item.id}
               to={`/tours/${item.id}`}
-              className="page-card p-5 transition-transform hover:-translate-y-1"
+              className="page-card flex flex-col gap-3 transition-transform hover:-translate-y-1"
             >
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 <div>
                   <p className="text-xs uppercase text-slate-500">{item.city || '-'}</p>
                   <h2 className="text-lg font-semibold text-slate-900">{item.title}</h2>
@@ -94,7 +94,7 @@ export default function Tours() {
                     {item.provider_country ? ` (${item.provider_country})` : ''}
                   </p>
                 )}
-                <p className="text-sm text-slate-600 line-clamp-3">
+                <p className="text-sm text-slate-600 leading-relaxed line-clamp-3">
                   {item.description || 'Experience hosted by a local partner.'}
                 </p>
                 <div className="text-base font-semibold text-teal-700">

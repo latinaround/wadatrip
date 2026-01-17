@@ -34,14 +34,14 @@ const AboutSection = () => {
             ].map(({ icon: Icon, label, desc }) => (
               <Card
                 key={label}
-                className="page-card p-8 text-slate-900 flex flex-col items-center"
+                className="page-card text-slate-900 flex flex-col items-center gap-4"
               >
                 <div className="flex items-center justify-center w-12 h-12 bg-[#e6f6f4] rounded-full shadow-sm mb-4 shrink-0">
                   <Icon className="w-8 h-8 text-teal-600" />
                 </div>
                 <CardContent className="p-0 text-center">
                   <h4 className="text-lg font-semibold mb-2">{label}</h4>
-                  <p className="text-sm text-slate-600 leading-snug">{desc}</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
                 </CardContent>
               </Card>
             ))}

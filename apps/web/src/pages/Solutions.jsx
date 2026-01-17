@@ -35,14 +35,14 @@ const Solutions = () => {
             ].map(({ icon: Icon, title, copy }) => (
               <div
                 key={title}
-                className="page-card px-8 py-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+                className="page-card flex flex-col gap-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-teal-700">
                   <Icon className="h-5 w-5" />
                 </div>
-                <div className="mt-4 space-y-2">
+                <div className="flex flex-col gap-2">
                   <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-                  <p className="text-sm text-gray-600">{copy}</p>
+                  <p className="text-sm text-gray-600 leading-relaxed">{copy}</p>
                 </div>
               </div>
             ))}

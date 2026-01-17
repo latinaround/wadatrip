@@ -35,14 +35,14 @@ const Products = () => {
             ].map(({ icon: Icon, title, copy }) => (
               <div
                 key={title}
-                className="page-card px-8 py-8 transition-transform duration-300 hover:-translate-y-1"
+                className="page-card flex flex-col justify-center gap-4 transition-transform duration-300 hover:-translate-y-1"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-400 via-fuchsia-500 to-orange-400 text-white shadow-md">
                   <Icon className="h-5 w-5" />
                 </div>
-                <div className="mt-4 space-y-2">
+                <div className="flex flex-col gap-3">
                   <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-                  <p className="text-sm text-slate-600">{copy}</p>
+                  <p className="text-sm text-slate-600 leading-relaxed">{copy}</p>
                 </div>
               </div>
             ))}

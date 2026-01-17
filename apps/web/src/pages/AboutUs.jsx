@@ -42,7 +42,7 @@ const AboutUs = () => {
           </p>
 
           {/* Our Story */}
-          <div className="page-card overflow-hidden mb-12">
+          <div className="page-card p-0 overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
             <div className="p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -57,7 +57,7 @@ const AboutUs = () => {
           </div>
 
           {/* Our Mission */}
-          <div className="page-card overflow-hidden mb-12">
+          <div className="page-card p-0 overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
             <div className="p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -71,7 +71,7 @@ const AboutUs = () => {
           </div>
 
           {/* Our Values */}
-          <div className="page-card overflow-hidden mb-12">
+          <div className="page-card p-0 overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
             <div className="p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -113,7 +113,7 @@ const AboutUs = () => {
           </div>
 
           {/* Our Team */}
-          <div className="page-card overflow-hidden mb-12">
+          <div className="page-card p-0 overflow-hidden mb-12">
             <div className="bg-teal-600 h-3"></div>
             <div className="p-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">
@@ -141,7 +141,7 @@ const AboutUs = () => {
           </div>
 
           {/* Join Us */}
-          <div className="page-card p-8 text-center">
+          <div className="page-card text-center">
             <h3 className="text-2xl font-semibold text-gray-900 mb-4">
               {t('about_us.join_title')}
             </h3>

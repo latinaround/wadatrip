@@ -207,7 +207,7 @@ export default function OperatorToursNew() {
           </p>
         </header>
 
-        <section className="page-card p-8">
+        <section className="page-card">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-teal-600">Step 1</p>
@@ -226,7 +226,7 @@ export default function OperatorToursNew() {
           </div>
         </section>
 
-        <section className="page-card p-8">
+        <section className="page-card">
           <div className="space-y-1">
             <p className="text-sm text-teal-600">Step 2 (optional)</p>
             <h2 className="text-xl font-semibold text-slate-900">Operator details</h2>
@@ -311,7 +311,7 @@ export default function OperatorToursNew() {
             </div>
           </form>
 
-          <div className="mt-6 page-card p-5">
+          <div className="mt-6 page-card">
             <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleLookupProvider}>
               <div className="flex-1">
                 <label className="text-sm text-slate-700">Verify operator by ID</label>
@@ -340,7 +340,7 @@ export default function OperatorToursNew() {
           </div>
         </section>
 
-        <section className="page-card p-8">
+        <section className="page-card">
           <div className="space-y-1">
             <p className="text-sm text-teal-600">Step 3</p>
             <h2 className="text-xl font-semibold text-slate-900">Tour details</h2>
