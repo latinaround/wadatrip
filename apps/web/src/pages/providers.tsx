@@ -105,7 +105,7 @@ export default function ProvidersPage() {
       <h1 className="text-2xl font-extrabold text-teal-700 mb-4">Providers</h1>
       <div className="flex flex-wrap items-end gap-2 mb-3">
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs text-gray-600">Search</label>
+          <label className="block text-xs text-[#a0a0a0]">Search</label>
           <input
             className="w-full border rounded px-2 py-1"
             placeholder="name, email, city"
@@ -114,7 +114,7 @@ export default function ProvidersPage() {
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-600">Status</label>
+          <label className="block text-xs text-[#a0a0a0]">Status</label>
           <select
             className="border rounded px-2 py-1"
             value={status}
@@ -127,7 +127,7 @@ export default function ProvidersPage() {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-600">Page size</label>
+          <label className="block text-xs text-[#a0a0a0]">Page size</label>
           <select
             className="border rounded px-2 py-1"
             value={limit}
@@ -146,9 +146,9 @@ export default function ProvidersPage() {
         <Button onClick={applyFilters}>Apply</Button>
       </div>
       {error && <div className="text-red-600 mb-2">{error}</div>}
-      <div className="bg-white border rounded-lg overflow-hidden">
+      <div className="bg-[#1a1f3a] border rounded-lg overflow-hidden">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-left">
+          <thead className="bg-[#0a0e27] text-left">
             <tr>
               <th className="px-3 py-2">ID</th>
               <th className="px-3 py-2">Name</th>
@@ -164,7 +164,7 @@ export default function ProvidersPage() {
             {loading ? (
               <tr>
                 <td className="px-3 py-3" colSpan={8}>
-                  Loading…
+                  Loading
                 </td>
               </tr>
             ) : rows.length ? (
@@ -179,7 +179,7 @@ export default function ProvidersPage() {
                     <StatusBadge status={p.status} />
                   </td>
                   <td className="px-3 py-2">
-                    {p.created_at ? new Date(p.created_at).toLocaleString() : '—'}
+                    {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
                   </td>
                   <td className="px-3 py-2 space-x-2">
                     <Button variant="outline" size="sm" onClick={() => setSelected(p)}>
@@ -206,7 +206,7 @@ export default function ProvidersPage() {
       </div>
       <div className="flex items-center justify-between mt-3 text-sm">
         <div>
-          Page {page} of {totalPages} · {total} results
+          Page {page} of {totalPages}  {total} results
         </div>
         <div className="space-x-2">
           <Button
@@ -230,7 +230,7 @@ export default function ProvidersPage() {
 
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
-          <div className="bg-white rounded-lg border max-w-2xl w-full p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[#1a1f3a] rounded-lg border max-w-2xl w-full p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-bold">Provider Details</h2>
               <Button variant="ghost" onClick={() => setSelected(null)}>Close</Button>
@@ -253,7 +253,7 @@ export default function ProvidersPage() {
                   ))}
                 </ul>
               ) : (
-                <div className="text-sm text-gray-500">No documents uploaded.</div>
+                <div className="text-sm text-[#a0a0a0]">No documents uploaded.</div>
               )}
             </div>
           </div>
@@ -262,3 +262,5 @@ export default function ProvidersPage() {
     </div>
   )
 }
+
+

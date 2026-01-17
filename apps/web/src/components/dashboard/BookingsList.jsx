@@ -1,4 +1,4 @@
-﻿import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import StatusBadge from './StatusBadge.jsx';
@@ -31,11 +31,11 @@ const skeleton = (className) => (
 );
 
 const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
-  <Card className="border border-slate-200/60 shadow-sm">
+  <Card className="border border-[#2d3548]/60 shadow-sm">
     <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <div>
-        <CardTitle className="text-lg font-semibold text-slate-900">Tus reservas</CardTitle>
-        <p className="text-sm text-slate-500">Resumen de las reservas creadas desde la web.</p>
+        <CardTitle className="text-lg font-semibold text-white">Tus reservas</CardTitle>
+        <p className="text-sm text-[#a0a0a0]">Resumen de las reservas creadas desde la web.</p>
       </div>
       <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
         {loading ? 'Actualizando...' : 'Actualizar'}
@@ -48,7 +48,7 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
         </div>
       )}
       {!loading && bookings.length === 0 ? (
-        <div className="py-8 text-center text-sm text-slate-500">
+        <div className="py-8 text-center text-sm text-[#a0a0a0]">
           Aun no tienes reservas confirmadas.
         </div>
       ) : (
@@ -69,7 +69,7 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
                 <TableCell className="max-w-[220px] truncate font-medium text-slate-800">
                   {booking.loading ? skeleton('w-32') : (booking.title || 'Reserva sin titulo')}
                   {booking.provider && !booking.loading && (
-                    <span className="block text-xs text-slate-500">{booking.provider}</span>
+                    <span className="block text-xs text-[#a0a0a0]">{booking.provider}</span>
                   )}
                 </TableCell>
                 <TableCell>{booking.loading ? skeleton('w-24') : formatDate(booking.date)}</TableCell>
@@ -87,3 +87,4 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
 );
 
 export default BookingsList;
+

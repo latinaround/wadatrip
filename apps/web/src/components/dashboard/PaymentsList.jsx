@@ -1,4 +1,4 @@
-﻿import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import StatusBadge from './StatusBadge.jsx';
 
@@ -28,10 +28,10 @@ const skeleton = (className) => (
 );
 
 const PaymentsList = ({ payments = [], loading, error }) => (
-  <Card className="border border-slate-200/60 shadow-sm">
+  <Card className="border border-[#2d3548]/60 shadow-sm">
     <CardHeader>
-      <CardTitle className="text-lg font-semibold text-slate-900">Pagos recientes</CardTitle>
-      <p className="text-sm text-slate-500">Historial de intents y cargos asociados a tus reservas.</p>
+      <CardTitle className="text-lg font-semibold text-white">Pagos recientes</CardTitle>
+      <p className="text-sm text-[#a0a0a0]">Historial de intents y cargos asociados a tus reservas.</p>
     </CardHeader>
     <CardContent>
       {error && (
@@ -40,7 +40,7 @@ const PaymentsList = ({ payments = [], loading, error }) => (
         </div>
       )}
       {!loading && payments.length === 0 ? (
-        <div className="py-8 text-center text-sm text-slate-500">
+        <div className="py-8 text-center text-sm text-[#a0a0a0]">
           No se encontraron pagos asociados a tu cuenta.
         </div>
       ) : (
@@ -76,3 +76,4 @@ const PaymentsList = ({ payments = [], loading, error }) => (
 );
 
 export default PaymentsList;
+

@@ -37,12 +37,15 @@ const Header = ({ user, onLoginClick, onLogout }) => {
   };
 
   return (
-    <header className="bg-white/90 backdrop-blur border-b border-slate-200 shadow-sm sticky top-0 z-50">
+    <header className="border-b border-[#2d3548] bg-[#0a0e27]/80 backdrop-blur-md sticky top-0 z-50">
       <div className="w-full px-4">
         <div className="flex items-center h-16 gap-4 max-w-7xl mx-auto">
           <div className="flex-shrink-0">
-            <Link to="/" className="text-slate-900 text-lg font-semibold">
-              Wadatrip
+            <Link to="/" className="flex items-center gap-3 text-lg font-black">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00D9FF] to-[#FF006E] flex items-center justify-center shadow-lg shadow-[#00D9FF]/50">
+                <span className="text-white text-lg font-black">W</span>
+              </span>
+              <span className="bg-gradient-to-r from-[#00D9FF] to-[#FF006E] bg-clip-text text-transparent">Wadatrip</span>
             </Link>
           </div>
 
@@ -54,7 +57,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   <Link
                     key={item.key}
                     to={item.href}
-                    className="text-slate-600 hover:text-teal-600 transition-colors px-2 py-1 whitespace-nowrap flex items-center gap-1"
+                    className="text-[#e0e0e0] hover:text-[#00D9FF] transition-colors px-2 py-1 whitespace-nowrap flex items-center gap-1"
                   >
                     {IconComponent && <IconComponent size={16} />}
                     {t(`nav.${item.key}`)}
@@ -69,7 +72,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
               variant="ghost"
               size="sm"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-slate-700 hover:bg-slate-100"
+              className="text-white hover:bg-white/10"
             >
               {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </Button>
@@ -80,7 +83,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
             <Button
               variant="outline"
               size="sm"
-              className="bg-transparent border-teal-200 text-teal-700 hover:bg-teal-50 text-xs hidden md:flex"
+              className="bg-transparent border-[#00D9FF]/30 text-[#00D9FF] hover:bg-white/5 text-xs hidden md:flex"
               asChild
             >
               <Link to="/request-demo">{t('nav.request_demo')}</Link>
@@ -88,18 +91,18 @@ const Header = ({ user, onLoginClick, onLogout }) => {
             <Button
               variant="secondary"
               size="sm"
-              className="hidden md:flex bg-orange-500 text-white hover:bg-orange-600"
+              className="hidden md:flex bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hover:scale-105 transition-all"
               asChild
             >
               <Link to="/operator/tours/new">List your tour</Link>
             </Button>
             {user ? (
               <div className="hidden md:flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="text-slate-700" onClick={goToAccount}>
+                <Button variant="ghost" size="sm" className="text-white" onClick={goToAccount}>
                   <UserCircle className="w-4 h-4 mr-1" />
                   {user.name || user.email}
                 </Button>
-                <Button variant="outline" size="sm" className="bg-transparent border-teal-200 text-teal-700 hover:bg-teal-50" onClick={handleLogout}>
+                <Button variant="outline" size="sm" className="bg-transparent border-[#00D9FF]/30 text-[#00D9FF] hover:bg-white/5" onClick={handleLogout}>
                   {t('nav.logout') ?? 'Logout'}
                 </Button>
               </div>
@@ -107,7 +110,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
               <Button
                 variant="default"
                 size="sm"
-                className="bg-teal-500 text-white hover:bg-teal-600 hidden md:flex"
+                className="bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hidden md:flex hover:scale-105 transition-all"
                 onClick={handleLoginClick}
               >
                 {t('nav.login') ?? 'Login'}
@@ -117,7 +120,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
         </div>
 
         {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-slate-200">
+          <div className="lg:hidden py-4 border-t border-[#2d3548]">
             <nav className="flex flex-col space-y-4">
               {navItems.map((item) => {
                 const IconComponent = item.icon;
@@ -125,7 +128,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   <Link
                     key={item.key}
                     to={item.href}
-                    className="text-slate-700 hover:text-teal-600 transition-colors duration-200 font-medium flex items-center gap-2"
+                    className="text-[#e0e0e0] hover:text-[#00D9FF] transition-colors duration-200 font-medium flex items-center gap-2"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {IconComponent && <IconComponent size={16} />}
@@ -133,11 +136,11 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   </Link>
                 );
               })}
-              <div className="flex flex-col space-y-2 pt-4 border-t border-slate-200">
+              <div className="flex flex-col space-y-2 pt-4 border-t border-[#2d3548]">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-transparent border-teal-200 text-teal-700 hover:bg-teal-50"
+                  className="bg-transparent border-[#00D9FF]/30 text-[#00D9FF] hover:bg-white/5"
                   asChild
                 >
                   <Link to="/request-demo" onClick={() => setIsMenuOpen(false)}>
@@ -146,7 +149,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                 </Button>
                 <Button
                   size="sm"
-                  className="bg-orange-500 text-white hover:bg-orange-600"
+                  className="bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hover:scale-105 transition-all"
                   asChild
                 >
                   <Link to="/operator/tours/new" onClick={() => setIsMenuOpen(false)}>
@@ -155,20 +158,20 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                 </Button>
                 {user ? (
                   <>
-                    <Button size="sm" className="bg-teal-500 text-white hover:bg-teal-600" onClick={goToAccount}>
+                    <Button size="sm" className="bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hover:scale-105 transition-all" onClick={goToAccount}>
                       {t('nav.my_trips') ?? 'My trips'}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="bg-transparent border-teal-200 text-teal-700 hover:bg-teal-50"
+                      className="bg-transparent border-[#00D9FF]/30 text-[#00D9FF] hover:bg-white/5"
                       onClick={handleLogout}
                     >
                       {t('nav.logout') ?? 'Logout'}
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" className="bg-teal-500 text-white hover:bg-teal-600" onClick={handleLoginClick}>
+                  <Button size="sm" className="bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hover:scale-105 transition-all" onClick={handleLoginClick}>
                     {t('nav.login') ?? 'Login'}
                   </Button>
                 )}

@@ -73,8 +73,8 @@ function CheckoutForm({ clientSecret, amountCents, currency, onSuccess, onError 
     <form className="space-y-4" onSubmit={handleSubmit}>
       <div className="space-y-2">
         <LabelComponent text="Card" />
-        <div className="border rounded-md p-3 bg-white">
-          <CardElement options={{ style: { base: { fontSize: '16px', color: '#1f2937' } } }} />
+        <div className="border border-[#00D9FF]/30 rounded-md p-3 bg-[#1a1f3a]">
+          <CardElement options={{ style: { base: { fontSize: '16px', color: '#ffffff' } } }} />
         </div>
       </div>
       <Button type="submit" disabled={submitting} className="w-full">
@@ -85,7 +85,7 @@ function CheckoutForm({ clientSecret, amountCents, currency, onSuccess, onError 
 }
 
 const LabelComponent = ({ text }) => (
-  <label className="text-sm font-medium text-slate-700">{text}</label>
+  <label className="text-sm font-medium text-[#e0e0e0]">{text}</label>
 );
 
 const CheckoutDialog = ({
@@ -201,4 +201,5 @@ const CheckoutDialog = ({
   );
 };
 export default CheckoutDialog;
+
 

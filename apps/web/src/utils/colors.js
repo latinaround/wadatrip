@@ -4,39 +4,39 @@
 
 export const AppColors = {
   // Primary colors
-  azulMarino700: '#0f172a',
-  azulMarino600: '#0f766e',
-  azulMarino500: '#009c9c',
-  orangeColor: '#ff7b00',
-  orangeLight: '#ff9a3c',
-  orangeDark: '#e65c00',
+  azulMarino700: '#0a0e27',
+  azulMarino600: '#1a1f3a',
+  azulMarino500: '#00d9ff',
+  orangeColor: '#ffb703',
+  orangeLight: '#ffc94a',
+  orangeDark: '#ff9900',
 
   // Neutral colors
-  oscureColor: '#0f172a',
-  grisOscuro: '#334155',
-  grisClaro: '#cbd5e1',
+  oscureColor: '#ffffff',
+  grisOscuro: '#e0e0e0',
+  grisClaro: '#a0a0a0',
   white: '#ffffff',
   white60: 'rgba(255, 255, 255, 0.6)',
   white80: 'rgba(255, 255, 255, 0.8)',
 
   // Status colors
   success: '#10b981',
-  warning: '#ff7b00',
+  warning: '#ffb703',
   error: '#ef4444',
-  info: '#009c9c',
+  info: '#00d9ff',
 
   // Background colors
-  backgroundPrimary: '#ffffff',
-  backgroundSecondary: '#f8fafc',
-  backgroundDark: '#0f172a',
+  backgroundPrimary: '#0a0e27',
+  backgroundSecondary: '#1a1f3a',
+  backgroundDark: '#0a0e27',
 
   // CSS gradients
   gradients: {
-    azul: 'linear-gradient(135deg, #009c9c 0%, #ff2d8f 60%, #ff7b00 100%)',
-    orange: 'linear-gradient(135deg, #ff7b00 0%, #ff9a3c 100%)',
-    blueDark: 'linear-gradient(135deg, #0f172a 0%, #0f766e 100%)',
-    sunset: 'linear-gradient(135deg, #ff7b00 0%, #009c9c 100%)',
-    ocean: 'linear-gradient(135deg, #009c9c 0%, #0f766e 100%)',
+    azul: 'linear-gradient(135deg, #00d9ff 0%, #ffb703 60%, #ff006e 100%)',
+    orange: 'linear-gradient(135deg, #ff006e 0%, #ffb703 60%, #00d9ff 100%)',
+    blueDark: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%)',
+    sunset: 'linear-gradient(135deg, #ff006e 0%, #00d9ff 100%)',
+    ocean: 'linear-gradient(135deg, #00d9ff 0%, #1a1f3a 100%)',
   },
 
   // Shadows

@@ -50,30 +50,30 @@ export default function Tours() {
     <div className="page-shell">
       <div className="page-container space-y-10">
         <header className="space-y-3">
-          <p className="page-kicker">Tours</p>
-          <h1 className="text-3xl font-semibold text-slate-900 md:text-4xl">Tours ready to book</h1>
-          <p className="max-w-2xl text-sm text-slate-600">
+          <p className="page-kicker text-[#00D9FF]">Tours</p>
+          <h1 className="text-3xl font-semibold neon-title md:text-4xl">Tours ready to book</h1>
+          <p className="max-w-2xl text-sm text-[#e0e0e0]">
             Discover real experiences published by verified operators.
           </p>
         </header>
 
-        <section className="page-card p-5">
+        <section className="page-card">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="page-kicker">Filters</p>
-              <p className="text-sm text-slate-600">Showing all published tours.</p>
+              <p className="page-kicker text-[#00D9FF]">Filters</p>
+              <p className="text-sm text-[#e0e0e0]">Showing all published tours.</p>
             </div>
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-[#a0a0a0]">
               {items.length} experiences
             </div>
           </div>
         </section>
 
-        {loading && <p className="text-slate-600">Loading tours...</p>}
-        {error && <p className="text-rose-600">{error}</p>}
+        {loading && <p className="text-[#e0e0e0]">Loading tours...</p>}
+        {error && <p className="text-[#ff006e]">{error}</p>}
 
         {!loading && !error && items.length === 0 && (
-          <p className="text-slate-600">No tours have been published yet.</p>
+          <p className="text-[#e0e0e0]">No tours have been published yet.</p>
         )}
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -85,19 +85,19 @@ export default function Tours() {
             >
               <div className="flex flex-col gap-3">
                 <div>
-                  <p className="text-xs uppercase text-slate-500">{item.city || '-'}</p>
-                  <h2 className="text-lg font-semibold text-slate-900">{item.title}</h2>
+                  <p className="text-xs uppercase text-[#a0a0a0]">{item.city || '-'}</p>
+                  <h2 className="text-lg font-semibold text-white">{item.title}</h2>
                 </div>
                 {item.provider_name && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[#a0a0a0]">
                     Operated by {item.provider_name}
                     {item.provider_country ? ` (${item.provider_country})` : ''}
                   </p>
                 )}
-                <p className="text-sm text-slate-600 leading-relaxed line-clamp-3">
+                <p className="text-sm text-[#e0e0e0] leading-relaxed line-clamp-3">
                   {item.description || 'Experience hosted by a local partner.'}
                 </p>
-                <div className="text-base font-semibold text-teal-700">
+                <div className="text-base font-semibold text-[#00D9FF]">
                   {formatPrice(item.price_from, item.currency || 'USD')}
                 </div>
               </div>

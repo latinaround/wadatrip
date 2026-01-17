@@ -5,7 +5,7 @@ const Footer = () => {
   const { t } = useTranslation()
 
   return (
-    <footer className="bg-slate-900 text-white">
+    <footer className="bg-[#0a0e27] text-white border-t border-[#2d3548]">
       <div className="container mx-auto px-4 py-12">
         <div className="grid md:grid-cols-4 gap-8">
           {/* Company Info */}
@@ -17,7 +17,7 @@ const Footer = () => {
                 className="h-10 w-auto"
               />
             </div>
-            <p className="text-gray-300 text-sm leading-relaxed">
+            <p className="text-[#a0a0a0] text-sm leading-relaxed">
               {t('footer.description')}
             </p>
           </div>
@@ -26,9 +26,9 @@ const Footer = () => {
           <div>
             <h4 className="text-lg font-semibold mb-4">{t('footer.products')}</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/products" className="text-gray-300 hover:text-white transition-colors">{t('footer.mobile_app')}</Link></li>
-              <li><Link to="/products" className="text-gray-300 hover:text-white transition-colors">{t('footer.api')}</Link></li>
-              <li><Link to="/products" className="text-gray-300 hover:text-white transition-colors">{t('footer.integrations')}</Link></li>
+              <li><Link to="/products" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.mobile_app')}</Link></li>
+              <li><Link to="/products" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.api')}</Link></li>
+              <li><Link to="/products" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.integrations')}</Link></li>
             </ul>
           </div>
 
@@ -36,9 +36,9 @@ const Footer = () => {
           <div>
             <h4 className="text-lg font-semibold mb-4">{t('footer.solutions')}</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/solutions" className="text-gray-300 hover:text-white transition-colors">{t('footer.business')}</Link></li>
-              <li><Link to="/solutions" className="text-gray-300 hover:text-white transition-colors">{t('footer.agencies')}</Link></li>
-              <li><Link to="/solutions" className="text-gray-300 hover:text-white transition-colors">{t('footer.enterprise')}</Link></li>
+              <li><Link to="/solutions" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.business')}</Link></li>
+              <li><Link to="/solutions" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.agencies')}</Link></li>
+              <li><Link to="/solutions" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.enterprise')}</Link></li>
             </ul>
           </div>
 
@@ -46,24 +46,24 @@ const Footer = () => {
           <div>
             <h4 className="text-lg font-semibold mb-4">{t('footer.company')}</h4>
             <ul className="space-y-2 text-sm mb-6">
-              <li><Link to="/about-us" className="text-gray-300 hover:text-white transition-colors">{t('footer.about')}</Link></li>
-              <li><Link to="/about-us" className="text-gray-300 hover:text-white transition-colors">{t('footer.careers')}</Link></li>
-              <li><Link to="/about-us" className="text-gray-300 hover:text-white transition-colors">{t('footer.blog')}</Link></li>
+              <li><Link to="/about-us" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.about')}</Link></li>
+              <li><Link to="/about-us" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.careers')}</Link></li>
+              <li><Link to="/about-us" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.blog')}</Link></li>
             </ul>
             
             <h4 className="text-lg font-semibold mb-4">{t('footer.support')}</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/contact" className="text-gray-300 hover:text-white transition-colors">{t('footer.help')}</Link></li>
-              <li><Link to="/contact" className="text-gray-300 hover:text-white transition-colors">{t('footer.contact')}</Link></li>
-              <li><Link to="/privacy-policy" className="text-gray-300 hover:text-white transition-colors">{t('footer.documentation')}</Link></li>
+              <li><Link to="/contact" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.help')}</Link></li>
+              <li><Link to="/contact" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.contact')}</Link></li>
+              <li><Link to="/privacy-policy" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('footer.documentation')}</Link></li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-gray-700 mt-8 pt-8 text-center">
-          <p className="text-gray-400 text-sm">
-            © 2025 WadaTrip. {t('footer.rights')} <Link to="/privacy-policy" className="text-gray-400 hover:text-white transition-colors">{t('nav.privacy_policy')}</Link>
+        <div className="border-t border-[#2d3548] mt-8 pt-8 text-center">
+          <p className="text-[#a0a0a0] text-sm">
+            © 2025 WadaTrip. {t('footer.rights')} <Link to="/privacy-policy" className="text-[#a0a0a0] hover:text-[#00D9FF] transition-colors">{t('nav.privacy_policy')}</Link>
           </p>
         </div>
       </div>
@@ -72,4 +72,5 @@ const Footer = () => {
 }
 
 export default Footer
+
 

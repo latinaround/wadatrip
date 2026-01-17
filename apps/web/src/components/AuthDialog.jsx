@@ -50,7 +50,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose?.()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-[#1a1f3a] border border-[#2d3548] text-white">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
@@ -67,6 +67,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
                 value={form.name}
                 onChange={handleInput('name')}
                 placeholder="Optional name"
+                className="neon-input"
               />
             </div>
           )}
@@ -80,6 +81,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
               onChange={handleInput('email')}
               required
               placeholder="you@email.com"
+              className="neon-input"
             />
           </div>
 
@@ -92,6 +94,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
               onChange={handleInput('password')}
               required
               minLength={8}
+              className="neon-input"
             />
           </div>
 
@@ -105,14 +108,14 @@ const AuthDialog = ({ open, onClose, initialMode = 'login' }) => {
             <Button
               type="button"
               variant="ghost"
-              className="text-sm text-teal-700"
+              className="text-sm text-[#00D9FF]"
               onClick={() => setMode(mode === 'register' ? 'login' : 'register')}
             >
               {mode === 'register' ? 'Already have an account? Sign in' : 'New here? Create an account'}
             </Button>
             <Button
               type="submit"
-              className="bg-teal-500 text-white hover:bg-teal-600"
+              className="neon-cta font-black hover:scale-105 transition-all"
               disabled={submitting || authLoading}
             >
               {submitting ? 'Processing...' : mode === 'register' ? 'Create account' : 'Sign in'}

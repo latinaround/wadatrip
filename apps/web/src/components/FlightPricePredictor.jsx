@@ -106,8 +106,8 @@ const FlightPricePredictor = () => {
     <section className="py-20 bg-gradient-to-br from-blue-50 to-indigo-50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('flight_predictor.title')}</h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <h2 className="text-4xl font-bold text-white mb-4">{t('flight_predictor.title')}</h2>
+          <p className="text-xl text-[#a0a0a0] max-w-3xl mx-auto">
             {t('flight_predictor.description')}
           </p>
           <p className="text-md text-indigo-600 mt-2 font-medium">
@@ -272,19 +272,19 @@ const FlightPricePredictor = () => {
                 {isLoading && (
                   <div className="flex flex-col items-center justify-center py-12">
                     <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mb-4" />
-                    <p className="text-gray-600">{t('flight_predictor.loading_message')}</p>
+                    <p className="text-[#a0a0a0]">{t('flight_predictor.loading_message')}</p>
                   </div>
                 )}
 
                 {error && (
-                  <div className="bg-red-50 text-red-600 p-4 rounded-lg">
+                  <div className="bg-[#1a1f3a] text-[#FF006E] p-4 rounded-lg">
                     {error}
                   </div>
                 )}
 
                 {!isLoading && !error && !prediction && (
-                  <div className="text-center py-12 text-gray-500">
-                    <Plane className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <div className="text-center py-12 text-[#a0a0a0]">
+                    <Plane className="h-12 w-12 mx-auto mb-4 text-[#a0a0a0]" />
                     <p>{t('flight_predictor.no_prediction_yet')}</p>
                   </div>
                 )}
@@ -307,9 +307,9 @@ const FlightPricePredictor = () => {
                       <p className="text-xl font-semibold">{prediction.bestTimeToBook} {t('flight_predictor.days_before')}</p>
                     </div>
 
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">{t('flight_predictor.price_confidence')}</p>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className="bg-[#0a0e27] p-4 rounded-lg">
+                      <p className="text-sm text-[#a0a0a0] mb-1">{t('flight_predictor.price_confidence')}</p>
+                      <div className="w-full bg-[#2d3548] rounded-full h-2.5">
                         <div
                           className="bg-green-600 h-2.5 rounded-full"
                           style={{ width: `${prediction.priceConfidence}%` }}
@@ -323,19 +323,19 @@ const FlightPricePredictor = () => {
                         <p className="text-sm font-medium text-amber-700 mb-2">{t('flight_predictor.price_factors')}</p>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-gray-600">{t('flight_predictor.seasonality_factor')}:</span>
+                            <span className="text-[#a0a0a0]">{t('flight_predictor.seasonality_factor')}:</span>
                             <span className="font-medium">{prediction.factors.seasonality}x</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">{t('flight_predictor.advance_booking_factor')}:</span>
+                            <span className="text-[#a0a0a0]">{t('flight_predictor.advance_booking_factor')}:</span>
                             <span className="font-medium">{prediction.factors.advanceBooking}x</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">{t('flight_predictor.route_factor')}:</span>
+                            <span className="text-[#a0a0a0]">{t('flight_predictor.route_factor')}:</span>
                             <span className="font-medium">{prediction.factors.route}x</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">{t('flight_predictor.cabin_class_factor')}:</span>
+                            <span className="text-[#a0a0a0]">{t('flight_predictor.cabin_class_factor')}:</span>
                             <span className="font-medium">{prediction.factors.cabinClass}x</span>
                           </div>
                         </div>
@@ -343,7 +343,7 @@ const FlightPricePredictor = () => {
                     )}
 
                     <div className="pt-4">
-                      <p className="text-sm font-medium text-gray-700 mb-2">{t('flight_predictor.price_history')}</p>
+                      <p className="text-sm font-medium text-[#e0e0e0] mb-2">{t('flight_predictor.price_history')}</p>
                       <div className="flex items-end justify-between h-32 mt-2">
                         {prediction.priceHistory.map((item, index) => {
                           const height = (item.price / 600) * 100
@@ -353,7 +353,7 @@ const FlightPricePredictor = () => {
                                 className="w-6 bg-gradient-to-t from-blue-500 to-indigo-600 rounded-t"
                                 style={{ height: `${height}%` }}
                               ></div>
-                              <span className="text-xs mt-1 text-gray-600">{item.month}</span>
+                              <span className="text-xs mt-1 text-[#a0a0a0]">{item.month}</span>
                             </div>
                           )
                         })}
@@ -364,13 +364,13 @@ const FlightPricePredictor = () => {
 
                 <div className="mt-8 border-t pt-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-indigo-500" />
                       Gateway (beta)
                     </h3>
                     {gatewayPrediction?.next_check_at && (
-                      <span className="text-xs text-gray-500">
-                        Próximo check: {new Date(gatewayPrediction.next_check_at).toLocaleString()}
+                      <span className="text-xs text-[#a0a0a0]">
+                        Prximo check: {new Date(gatewayPrediction.next_check_at).toLocaleString()}
                       </span>
                     )}
                   </div>
@@ -383,38 +383,38 @@ const FlightPricePredictor = () => {
                   )}
 
                   {gatewayError && (
-                    <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-4">
+                    <div className="bg-[#1a1f3a] text-[#FF006E] p-4 rounded-lg mb-4">
                       {gatewayError}
                     </div>
                   )}
 
                   {!isGatewayLoading && !gatewayError && !gatewayPrediction && (
-                    <p className="text-sm text-gray-500">Aún no consultas el gateway.</p>
+                    <p className="text-sm text-[#a0a0a0]">An no consultas el gateway.</p>
                   )}
 
                   {gatewayPrediction && (
                     <div className="space-y-3">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-sm text-gray-600">Precio estimado</span>
-                        <span className="text-2xl font-semibold text-gray-900">
+                        <span className="text-sm text-[#a0a0a0]">Precio estimado</span>
+                        <span className="text-2xl font-semibold text-white">
                           ${gatewayPrediction.current_price ?? '--'}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                      <div className="grid grid-cols-2 gap-4 text-sm text-[#a0a0a0]">
                         <div>
-                          <p className="font-medium text-gray-700">Acción sugerida</p>
+                          <p className="font-medium text-[#e0e0e0]">Accin sugerida</p>
                           <p className="capitalize">{gatewayPrediction.action}</p>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-700">Confianza</p>
+                          <p className="font-medium text-[#e0e0e0]">Confianza</p>
                           <p>{confidencePercent(gatewayPrediction.confidence)}</p>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-700">Origen</p>
+                          <p className="font-medium text-[#e0e0e0]">Origen</p>
                           <p>{gatewayPrediction.origin}</p>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-700">Destino</p>
+                          <p className="font-medium text-[#e0e0e0]">Destino</p>
                           <p>{gatewayPrediction.destination}</p>
                         </div>
                       </div>
@@ -422,7 +422,7 @@ const FlightPricePredictor = () => {
                   )}
                 </div>
               </CardContent>
-              <CardFooter className="text-xs text-gray-500 italic">
+              <CardFooter className="text-xs text-[#a0a0a0] italic">
                 {t('flight_predictor.disclaimer')}
               </CardFooter>
             </Card>
@@ -434,3 +434,5 @@ const FlightPricePredictor = () => {
 }
 
 export default FlightPricePredictor
+
+

@@ -23,10 +23,10 @@ function formatDateRange(meta) {
 function ItemRow({ icon: Icon, title, subtitle }) {
   return (
     <div className="flex items-start gap-3 text-sm">
-      <div className="mt-0.5 text-teal-600"><Icon size={16} /></div>
+      <div className="mt-0.5 text-[#00D9FF]"><Icon size={16} /></div>
       <div>
-        <p className="font-medium text-slate-800">{title}</p>
-        {subtitle && <p className="text-muted-foreground text-xs">{subtitle}</p>}
+        <p className="font-medium text-white">{title}</p>
+        {subtitle && <p className="text-[#a0a0a0] text-xs">{subtitle}</p>}
       </div>
     </div>
   );
@@ -42,15 +42,15 @@ const ItineraryCard = ({ scenario, itineraryId, itineraryMeta, onSelect, disable
   const dateRange = formatDateRange(itineraryMeta);
 
   return (
-    <Card className="flex flex-col shadow-sm hover:shadow-md transition-shadow h-full">
+    <Card className="page-card flex flex-col transition-shadow h-full">
       <CardHeader className="space-y-2">
         <div className="flex items-center justify-between">
           <Badge className="uppercase tracking-wide" variant="secondary">{ucfirst(scenario.type)}</Badge>
-          <span className="text-2xl font-semibold text-teal-600">
+          <span className="text-2xl font-semibold text-[#00D9FF]">
             {currencyFormatter(scenario.total_price, currency)}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-[#a0a0a0]">
           <MapPin size={16} />
           <span>
             {itineraryMeta?.origin} -> {itineraryMeta?.destination}
@@ -58,24 +58,24 @@ const ItineraryCard = ({ scenario, itineraryId, itineraryMeta, onSelect, disable
           </span>
         </div>
         {dateRange && (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2 text-xs text-[#a0a0a0]">
             <CalendarRange size={14} /> {dateRange}
           </div>
         )}
       </CardHeader>
 
       <CardContent className="flex-1 space-y-4">
-        <div className="grid grid-cols-3 gap-3 text-xs text-muted-foreground">
+        <div className="grid grid-cols-3 gap-3 text-xs text-[#a0a0a0]">
           <div>
-            <p className="font-semibold text-slate-700">Vuelo</p>
+            <p className="font-semibold text-white">Vuelo</p>
             <p>{currencyFormatter(breakdown.flight, currency)}</p>
           </div>
           <div>
-            <p className="font-semibold text-slate-700">Hospedaje</p>
+            <p className="font-semibold text-white">Hospedaje</p>
             <p>{currencyFormatter(breakdown.lodging, currency)}</p>
           </div>
           <div>
-            <p className="font-semibold text-slate-700">Actividades</p>
+            <p className="font-semibold text-white">Actividades</p>
             <p>{currencyFormatter(breakdown.activities, currency)}</p>
           </div>
         </div>
@@ -106,28 +106,28 @@ const ItineraryCard = ({ scenario, itineraryId, itineraryMeta, onSelect, disable
             />
           ))}
           {activities.length > 3 && (
-            <p className="text-xs text-slate-500">+{activities.length - 3} actividades adicionales</p>
+            <p className="text-xs text-[#a0a0a0]">+{activities.length - 3} actividades adicionales</p>
           )}
         </div>
       </CardContent>
 
       <CardFooter className="flex flex-col gap-3">
-        <div className="w-full grid grid-cols-3 text-center text-xs text-muted-foreground">
+        <div className="w-full grid grid-cols-3 text-center text-xs text-[#a0a0a0]">
           <div>
-            <p className="font-semibold text-slate-700">Costo/dia</p>
+            <p className="font-semibold text-white">Costo/dia</p>
             <p>{currencyFormatter(scenario.kpis?.cost_per_day || 0, currency)}</p>
           </div>
           <div>
-            <p className="font-semibold text-slate-700">Tiempo libre</p>
+            <p className="font-semibold text-white">Tiempo libre</p>
             <p>{scenario.kpis?.free_time_hours || 0} h</p>
           </div>
           <div>
-            <p className="font-semibold text-slate-700">Caminata</p>
+            <p className="font-semibold text-white">Caminata</p>
             <p>{scenario.kpis?.walk_distance_km || 0} km</p>
           </div>
         </div>
         {onSelect && !disableSelect && (
-          <Button className="w-full" onClick={() => onSelect({ scenario, itineraryId, itineraryMeta })}>
+          <Button className="w-full neon-cta font-black hover:scale-105 transition-all" onClick={() => onSelect({ scenario, itineraryId, itineraryMeta })}>
             Reservar este plan
           </Button>
         )}
@@ -137,3 +137,4 @@ const ItineraryCard = ({ scenario, itineraryId, itineraryMeta, onSelect, disable
 };
 
 export default ItineraryCard;
+

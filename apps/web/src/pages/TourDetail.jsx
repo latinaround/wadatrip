@@ -120,7 +120,7 @@ export default function TourDetail() {
   if (loading) {
     return (
       <div className="page-shell">
-        <div className="page-container">Loading tour...</div>
+        <div className="page-container text-[#e0e0e0]">Loading tour...</div>
       </div>
     );
   }
@@ -129,7 +129,7 @@ export default function TourDetail() {
     return (
       <div className="page-shell">
         <div className="page-container space-y-4">
-          <p>{error || 'Tour not found'}</p>
+          <p className="text-[#e0e0e0]">{error || 'Tour not found'}</p>
           <Button variant="secondary" onClick={() => navigate(-1)}>Back</Button>
         </div>
       </div>
@@ -143,36 +143,36 @@ export default function TourDetail() {
 
         <div className="page-card">
           <div className="space-y-3">
-            <p className="text-xs uppercase text-slate-500">{tour.city || '-'} {tour.country_code ? `(${tour.country_code})` : ''}</p>
-            <h1 className="text-3xl font-bold text-slate-900">{tour.title}</h1>
+            <p className="text-xs uppercase text-[#a0a0a0]">{tour.city || '-'} {tour.country_code ? `(${tour.country_code})` : ''}</p>
+            <h1 className="text-3xl font-bold text-white">{tour.title}</h1>
             {tour.provider_name && (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-[#a0a0a0]">
                 Operated by {tour.provider_name}
                 {tour.provider_country ? ` (${tour.provider_country})` : ''}
               </p>
             )}
-            <p className="text-slate-600">{tour.description || 'Experience hosted by a local partner.'}</p>
-            <div className="text-2xl font-semibold text-teal-700">
+            <p className="text-[#e0e0e0]">{tour.description || 'Experience hosted by a local partner.'}</p>
+            <div className="text-2xl font-semibold text-[#00D9FF]">
               {formatPrice(tour.price_from, tour.currency || 'USD')}
             </div>
           </div>
         </div>
 
         <div className="page-card space-y-4">
-          <h2 className="text-xl font-semibold text-slate-900">Book now</h2>
+          <h2 className="text-xl font-semibold text-white">Book now</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <Input
               value={bookingForm.name}
               onChange={(event) => handleBookingChange('name', event.target.value)}
               placeholder="Full name"
-              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
+              className="neon-input"
             />
             <Input
               type="email"
               value={bookingForm.email}
               onChange={(event) => handleBookingChange('email', event.target.value)}
               placeholder="Email"
-              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
+              className="neon-input"
             />
             <Input
               type="number"
@@ -180,18 +180,18 @@ export default function TourDetail() {
               value={bookingForm.num_people}
               onChange={(event) => handleBookingChange('num_people', event.target.value)}
               placeholder="Travelers"
-              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
+              className="neon-input"
             />
             <Input
               type="date"
               value={bookingForm.date}
               onChange={(event) => handleBookingChange('date', event.target.value)}
-              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400"
+              className="neon-input"
             />
           </div>
-          {bookingError && <p className="text-rose-600">{bookingError}</p>}
-          {bookingSuccess && <p className="text-teal-700">{bookingSuccess}</p>}
-          <Button className="bg-orange-500 text-white hover:bg-orange-600" onClick={handleBooking} disabled={bookingLoading}>
+          {bookingError && <p className="text-[#ff006e]">{bookingError}</p>}
+          {bookingSuccess && <p className="text-[#00D9FF]">{bookingSuccess}</p>}
+          <Button className="neon-cta font-black hover:scale-105 transition-all" onClick={handleBooking} disabled={bookingLoading}>
             {bookingLoading ? 'Processing...' : 'Book and pay'}
           </Button>
         </div>

@@ -40,15 +40,15 @@ export default function WadaAgent() {
             tabIndex={0}
             aria-label="Close WadaAgent"
           />
-          <div className="wadagent-fade-slide relative w-full max-w-md overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+          <div className="wadagent-fade-slide relative w-full max-w-md overflow-hidden rounded-2xl bg-[#1a1f3a] text-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#2d3548] px-4 py-3">
               <div>
                 <p className="text-sm font-semibold">WadaAgent</p>
-                <p className="text-xs text-slate-500">AI travel concierge</p>
+                <p className="text-xs text-[#a0a0a0]">AI travel concierge</p>
               </div>
               <button
                 type="button"
-                className="rounded-full border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                className="rounded-full border border-[#2d3548] px-2 py-1 text-xs font-semibold text-[#a0a0a0] hover:bg-white/5"
                 onClick={() => setOpen(false)}
               >
                 Close
@@ -65,7 +65,7 @@ export default function WadaAgent() {
             ) : (
               <div className="space-y-4 px-5 py-6">
                 <p className="text-base font-semibold">WadaAgent is being trained.</p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-[#a0a0a0]">
                   Our AI concierge is warming up. In the meantime, reach us directly for a custom trip plan.
                 </p>
                 <a
@@ -84,3 +84,4 @@ export default function WadaAgent() {
     </>
   );
 }
+

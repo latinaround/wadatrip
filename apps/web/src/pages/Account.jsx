@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -262,21 +262,21 @@ const Account = () => {
 
   if (!user) {
     return (
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-[#0a0e27]">
         <div className="container mx-auto px-4 text-center max-w-xl">
-          <h1 className="text-3xl font-bold mb-4 text-gray-900">Inicia sesion para ver tus viajes</h1>
-          <p className="text-gray-600">Guarda itinerarios personalizados y retomalos cuando quieras.</p>
+          <h1 className="text-3xl font-bold mb-4 text-white">Inicia sesion para ver tus viajes</h1>
+          <p className="text-[#a0a0a0]">Guarda itinerarios personalizados y retomalos cuando quieras.</p>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="bg-gray-50 py-16">
+    <section className="bg-[#0a0e27] py-16">
       <div className="container mx-auto px-4 space-y-10">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-slate-900">Hola, {user.name || user.email}</h1>
-          <p className="text-slate-600">Gestiona tus itinerarios generados, reservas y pagos recientes.</p>
+          <h1 className="text-3xl font-bold text-white">Hola, {user.name || user.email}</h1>
+          <p className="text-[#a0a0a0]">Gestiona tus itinerarios generados, reservas y pagos recientes.</p>
         </div>
 
         <SummaryCards stats={stats} />
@@ -290,11 +290,11 @@ const Account = () => {
               onRefresh={loadBookings}
             />
 
-            <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
               <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Itinerarios generados</h2>
-                  <p className="text-sm text-slate-500">Todos los planes que guardaste desde el generador.</p>
+                  <h2 className="text-lg font-semibold text-white">Itinerarios generados</h2>
+                  <p className="text-sm text-[#a0a0a0]">Todos los planes que guardaste desde el generador.</p>
                 </div>
                 <Button size="sm" variant="outline" asChild>
                   <Link to="/">Buscar nuevo viaje</Link>
@@ -310,11 +310,11 @@ const Account = () => {
               {itinerariesLoading ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className="h-60 rounded-xl border border-slate-200 bg-slate-100/60 animate-pulse" />
+                    <div key={index} className="h-60 rounded-xl border border-[#2d3548] bg-[#1a1f3a]/60 animate-pulse" />
                   ))}
                 </div>
               ) : itineraries.length === 0 ? (
-                <div className="py-8 text-center text-sm text-slate-500">
+                <div className="py-8 text-center text-sm text-[#a0a0a0]">
                   Cuando generes itinerarios con proveedores reales apareceran aqui.
                 </div>
               ) : (
@@ -346,15 +346,15 @@ const Account = () => {
               error={paymentsError}
             />
 
-            <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Siguiente paso</h2>
-              <p className="mt-2 text-sm text-slate-500">
+            <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-white">Siguiente paso</h2>
+              <p className="mt-2 text-sm text-[#a0a0a0]">
                 Usa el generador para crear un nuevo itinerario, confirma la reserva y veras la informacion consolidada aqui.
               </p>
-              <ul className="mt-4 space-y-2 text-sm text-slate-600">
-                <li>• Genera un itinerario desde la pagina principal.</li>
-                <li>• Selecciona un plan y procesa el pago.</li>
-                <li>• Revisa el estado de la reserva y los cobros en este panel.</li>
+              <ul className="mt-4 space-y-2 text-sm text-[#a0a0a0]">
+                <li> Genera un itinerario desde la pagina principal.</li>
+                <li> Selecciona un plan y procesa el pago.</li>
+                <li> Revisa el estado de la reserva y los cobros en este panel.</li>
               </ul>
             </div>
           </div>
@@ -365,3 +365,5 @@ const Account = () => {
 };
 
 export default Account;
+
+

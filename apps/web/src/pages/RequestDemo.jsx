@@ -63,10 +63,10 @@ const RequestDemo = () => {
     <div className="page-shell flex flex-col">
       <main className="flex-grow page-container">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+          <h1 className="text-3xl md:text-4xl font-bold neon-title mb-6">
             {t('demo.title')}
           </h1>
-          <p className="text-lg text-gray-700 mb-8">
+          <p className="text-lg text-[#e0e0e0] mb-8">
             {t('demo.description')}
           </p>
 
@@ -74,9 +74,9 @@ const RequestDemo = () => {
             {/* Demo Form */}
             <div className="md:col-span-2">
               <div className="page-card p-0 overflow-hidden">
-                <div className="bg-teal-600 h-3"></div>
+                <div className="bg-[#00D9FF] h-3"></div>
                 <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                  <h3 className="text-xl font-semibold text-white mb-6">
                     {t('demo.form_title')}
                   </h3>
                   
@@ -84,7 +84,7 @@ const RequestDemo = () => {
                     <div className="grid md:grid-cols-2 gap-6 mb-6">
                       {/* Name */}
                       <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="name" className="block text-sm font-medium text-[#e0e0e0] mb-1">
                           {t('demo.name_label')}
                         </label>
                         <input
@@ -93,14 +93,14 @@ const RequestDemo = () => {
                           name="name"
                           value={formData.name}
                           onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-[#00D9FF]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/50 focus:border-[#00D9FF]"
                           required
                         />
                       </div>
                       
                       {/* Email */}
                       <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="email" className="block text-sm font-medium text-[#e0e0e0] mb-1">
                           {t('demo.email_label')}
                         </label>
                         <input
@@ -109,7 +109,7 @@ const RequestDemo = () => {
                           name="email"
                           value={formData.email}
                           onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-[#00D9FF]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/50 focus:border-[#00D9FF]"
                           required
                         />
                       </div>
@@ -118,7 +118,7 @@ const RequestDemo = () => {
                     <div className="grid md:grid-cols-2 gap-6 mb-6">
                       {/* Company */}
                       <div>
-                        <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="company" className="block text-sm font-medium text-[#e0e0e0] mb-1">
                           {t('demo.company_label')}
                         </label>
                         <input
@@ -127,14 +127,14 @@ const RequestDemo = () => {
                           name="company"
                           value={formData.company}
                           onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-[#00D9FF]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/50 focus:border-[#00D9FF]"
                           required
                         />
                       </div>
                       
                       {/* Position */}
                       <div>
-                        <label htmlFor="position" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="position" className="block text-sm font-medium text-[#e0e0e0] mb-1">
                           {t('demo.position_label')}
                         </label>
                         <input
@@ -143,7 +143,7 @@ const RequestDemo = () => {
                           name="position"
                           value={formData.position}
                           onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-[#00D9FF]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/50 focus:border-[#00D9FF]"
                           required
                         />
                       </div>
@@ -152,7 +152,7 @@ const RequestDemo = () => {
                     <div className="grid md:grid-cols-2 gap-6 mb-6">
                       {/* Phone */}
                       <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="phone" className="block text-sm font-medium text-[#e0e0e0] mb-1">
                           {t('demo.phone_label')}
                         </label>
                         <input
@@ -161,14 +161,14 @@ const RequestDemo = () => {
                           name="phone"
                           value={formData.phone}
                           onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-[#00D9FF]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/50 focus:border-[#00D9FF]"
                           required
                         />
                       </div>
                       
                       {/* Company Size */}
                       <div>
-                        <label htmlFor="employees" className="block text-sm font-medium text-gray-700 mb-1">
+                        <label htmlFor="employees" className="block text-sm font-medium text-[#e0e0e0] mb-1">
                           {t('demo.employees_label')}
                         </label>
                         <select
@@ -176,7 +176,7 @@ const RequestDemo = () => {
                           name="employees"
                           value={formData.employees}
                           onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-[#00D9FF]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/50 focus:border-[#00D9FF]"
                           required
                         >
                           <option value="">{t('demo.employees_placeholder')}</option>
@@ -191,7 +191,7 @@ const RequestDemo = () => {
                     
                     {/* Interests */}
                     <div className="mb-6">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-[#e0e0e0] mb-2">
                         {t('demo.interests_label')}
                       </label>
                       <div className="grid md:grid-cols-2 gap-3">
@@ -205,7 +205,7 @@ const RequestDemo = () => {
                             onChange={handleCheckboxChange}
                             className="mt-1 mr-2"
                           />
-                          <label htmlFor="interest-mobile" className="text-gray-700">
+                          <label htmlFor="interest-mobile" className="text-[#e0e0e0]">
                             {t('demo.interest_mobile')}
                           </label>
                         </div>
@@ -219,7 +219,7 @@ const RequestDemo = () => {
                             onChange={handleCheckboxChange}
                             className="mt-1 mr-2"
                           />
-                          <label htmlFor="interest-api" className="text-gray-700">
+                          <label htmlFor="interest-api" className="text-[#e0e0e0]">
                             {t('demo.interest_api')}
                           </label>
                         </div>
@@ -233,7 +233,7 @@ const RequestDemo = () => {
                             onChange={handleCheckboxChange}
                             className="mt-1 mr-2"
                           />
-                          <label htmlFor="interest-integrations" className="text-gray-700">
+                          <label htmlFor="interest-integrations" className="text-[#e0e0e0]">
                             {t('demo.interest_integrations')}
                           </label>
                         </div>
@@ -247,7 +247,7 @@ const RequestDemo = () => {
                             onChange={handleCheckboxChange}
                             className="mt-1 mr-2"
                           />
-                          <label htmlFor="interest-enterprise" className="text-gray-700">
+                          <label htmlFor="interest-enterprise" className="text-[#e0e0e0]">
                             {t('demo.interest_enterprise')}
                           </label>
                         </div>
@@ -261,7 +261,7 @@ const RequestDemo = () => {
                             onChange={handleCheckboxChange}
                             className="mt-1 mr-2"
                           />
-                          <label htmlFor="interest-flight" className="text-gray-700">
+                          <label htmlFor="interest-flight" className="text-[#e0e0e0]">
                             {t('flight_predictor.title')}
                           </label>
                         </div>
@@ -270,7 +270,7 @@ const RequestDemo = () => {
                     
                     {/* Message */}
                     <div className="mb-6">
-                      <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="message" className="block text-sm font-medium text-[#e0e0e0] mb-1">
                         {t('demo.message_label')}
                       </label>
                       <textarea
@@ -279,7 +279,7 @@ const RequestDemo = () => {
                         value={formData.message}
                         onChange={handleChange}
                         rows="4"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-[#00D9FF]/30 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00D9FF]/50 focus:border-[#00D9FF]"
                       ></textarea>
                     </div>
                     
@@ -288,7 +288,7 @@ const RequestDemo = () => {
                       <button
                         type="submit"
                         disabled={formStatus === 'loading'}
-                        className="bg-teal-600 text-white px-6 py-3 rounded-md font-medium hover:bg-teal-700 transition-colors disabled:opacity-70"
+                        className="neon-cta font-black px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105 disabled:opacity-70"
                       >
                         {formStatus === 'loading' ? t('demo.submitting') : t('demo.submit_button')}
                       </button>
@@ -308,18 +308,18 @@ const RequestDemo = () => {
             {/* Demo Information */}
             <div className="md:col-span-1">
               <div className="page-card p-0 overflow-hidden">
-                <div className="bg-teal-600 h-3"></div>
+                <div className="bg-[#00D9FF] h-3"></div>
                 <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                  <h3 className="text-xl font-semibold text-white mb-6">
                     {t('demo.info_title')}
                   </h3>
                   
                   <div className="space-y-6">
                     <div>
-                      <h4 className="text-base font-medium text-gray-900 mb-2">
+                      <h4 className="text-base font-medium text-white mb-2">
                         {t('demo.what_included')}
                       </h4>
-                      <ul className="space-y-2 text-gray-700">
+                      <ul className="space-y-2 text-[#e0e0e0]">
                         <li className="flex items-start">
                           <svg className="h-3 w-3 text-teal-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -348,27 +348,27 @@ const RequestDemo = () => {
                     </div>
                     
                     <div>
-                      <h4 className="text-base font-medium text-gray-900 mb-2">
+                      <h4 className="text-base font-medium text-white mb-2">
                         {t('demo.testimonial_title')}
                       </h4>
-                      <div className="bg-gray-50 p-4 rounded-md">
-                        <p className="text-gray-700 italic mb-3">"{t('demo.testimonial_quote')}"</p>
+                      <div className="bg-[#0a0e27] p-4 rounded-md">
+                        <p className="text-[#e0e0e0] italic mb-3">"{t('demo.testimonial_quote')}"</p>
                         <div className="flex items-center">
-                          <div className="h-10 w-10 rounded-full bg-gray-300 mr-3"></div>
+                          <div className="h-10 w-10 rounded-full bg-[#2d3548] mr-3"></div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{t('demo.testimonial_name')}</p>
-                            <p className="text-xs text-gray-500">{t('demo.testimonial_position')}</p>
+                            <p className="text-sm font-medium text-white">{t('demo.testimonial_name')}</p>
+                            <p className="text-xs text-[#a0a0a0]">{t('demo.testimonial_position')}</p>
                           </div>
                         </div>
                       </div>
                     </div>
                     
                     <div>
-                      <h4 className="text-base font-medium text-gray-900 mb-2">
+                      <h4 className="text-base font-medium text-white mb-2">
                         {t('demo.questions_title')}
                       </h4>
-                      <p className="text-gray-700 mb-2">{t('demo.questions_text')}</p>
-                      <a href="#" className="text-teal-600 hover:text-teal-700 font-medium">
+                      <p className="text-[#e0e0e0] mb-2">{t('demo.questions_text')}</p>
+                      <a href="#" className="text-[#00D9FF] hover:text-[#00D9FF] font-medium">
                         {t('demo.questions_link')} →
                       </a>
                     </div>
@@ -384,4 +384,7 @@ const RequestDemo = () => {
 }
 
 export default RequestDemo
+
+
+
 

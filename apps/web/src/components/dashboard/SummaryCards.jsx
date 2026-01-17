@@ -1,4 +1,4 @@
-﻿import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarClock, CreditCard, Plane, TrendingUp } from 'lucide-react';
 
 const defaultStats = {
@@ -54,15 +54,15 @@ const SummaryCards = ({ stats = defaultStats }) => {
       {cards.map(({ id, label, icon, accent, formatter }) => {
         const IconComponent = icon;
         return (
-          <Card key={id} className="border border-slate-200/60 shadow-sm">
+          <Card key={id} className="border border-[#2d3548]/60 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">{label}</CardTitle>
+              <CardTitle className="text-sm font-medium text-[#a0a0a0]">{label}</CardTitle>
               <div className={`flex h-10 w-10 items-center justify-center rounded-full ${accent}`}>
                 <IconComponent className="h-5 w-5" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-semibold text-slate-900">
+              <div className="text-3xl font-semibold text-white">
                 {formatter(merged[id], merged.currency)}
               </div>
             </CardContent>
@@ -74,3 +74,4 @@ const SummaryCards = ({ stats = defaultStats }) => {
 };
 
 export default SummaryCards;
+

@@ -31,7 +31,7 @@ const Hero = ({ onSearch }) => {
   };
 
   return (
-    <section className="relative min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 flex items-center pt-16">
+    <section className="relative min-h-screen bg-[#0a0e27] flex items-center pt-16">
       <div className="absolute inset-0 opacity-40">
         <div
           className="absolute inset-0"
@@ -46,21 +46,21 @@ const Hero = ({ onSearch }) => {
           <h1 className="text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
             {t('hero.title')}
             <br />
-            <span className="bg-gradient-to-r from-teal-400 to-orange-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#00D9FF] via-[#FFB703] to-[#FF006E] bg-clip-text text-transparent">
               {t('hero.subtitle')}
             </span>
           </h1>
-          <p className="text-xl text-gray-300 mb-8 leading-relaxed max-w-3xl mx-auto">
+          <p className="text-xl text-[#a0a0a0] mb-8 leading-relaxed max-w-3xl mx-auto">
             {t('hero.description')}
           </p>
         </div>
 
         <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-white/20">
+          <form onSubmit={handleSubmit} className="bg-[#1a1f3a]/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-[#00D9FF]/20">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               <div className="space-y-2">
                 <Label htmlFor="origin" className="text-white font-medium flex items-center gap-2">
-                  <Navigation className="w-4 h-4 text-teal-300" />
+                  <Navigation className="w-4 h-4 text-[#00D9FF]" />
                   {t('hero.origin_label', 'Origen')}
                 </Label>
                 <Input
@@ -69,14 +69,14 @@ const Hero = ({ onSearch }) => {
                   placeholder={t('hero.origin_placeholder', 'Ciudad de salida')}
                   value={searchData.origin}
                   onChange={(e) => handleInputChange('origin', e.target.value)}
-                  className="bg-white/20 border-white/30 text-white placeholder:text-gray-300 focus:border-teal-400 focus:ring-teal-400"
+                  className="neon-input"
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="destination" className="text-white font-medium flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-teal-400" />
+                  <MapPin className="w-4 h-4 text-[#00D9FF]" />
                   {t('hero.destination_label')}
                 </Label>
                 <Input
@@ -85,14 +85,14 @@ const Hero = ({ onSearch }) => {
                   placeholder={t('hero.destination_placeholder')}
                   value={searchData.destination}
                   onChange={(e) => handleInputChange('destination', e.target.value)}
-                  className="bg-white/20 border-white/30 text-white placeholder:text-gray-300 focus:border-teal-400 focus:ring-teal-400"
+                  className="neon-input"
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="startDate" className="text-white font-medium flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-blue-400" />
+                  <Calendar className="w-4 h-4 text-[#FFB703]" />
                   {t('hero.dates_label')}
                 </Label>
                 <Input
@@ -100,14 +100,14 @@ const Hero = ({ onSearch }) => {
                   type="date"
                   value={searchData.startDate}
                   onChange={(e) => handleInputChange('startDate', e.target.value)}
-                  className="bg-white/20 border-white/30 text-white focus:border-blue-400 focus:ring-blue-400"
+                  className="neon-input"
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-white font-medium flex items-center gap-2">
-                  <Timer className="w-4 h-4 text-purple-300" />
+                  <Timer className="w-4 h-4 text-[#FF006E]" />
                   {t('hero.length_label', 'Duration (days)')}
                 </Label>
                 <Input
@@ -116,17 +116,17 @@ const Hero = ({ onSearch }) => {
                   max="21"
                   value={searchData.tripLength}
                   onChange={(e) => handleInputChange('tripLength', e.target.value)}
-                  className="bg-white/20 border-white/30 text-white focus:border-purple-400 focus:ring-purple-400"
+                  className="neon-input"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-white font-medium flex items-center">
-                  <Users className="w-4 h-4 mr-2 text-green-400" />
+                  <Users className="w-4 h-4 mr-2 text-[#00D9FF]" />
                   {t('hero.travelers_label')}
                 </Label>
                 <Select value={searchData.travelers} onValueChange={(value) => handleInputChange('travelers', value)}>
-                  <SelectTrigger className="bg-white/20 border-white/30 text-white focus:border-green-400 focus:ring-green-400">
+                  <SelectTrigger className="neon-input">
                     <SelectValue placeholder={t('hero.travelers_select')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -141,11 +141,11 @@ const Hero = ({ onSearch }) => {
 
               <div className="space-y-2">
                 <Label className="text-white font-medium flex items-center">
-                  <DollarSign className="w-4 h-4 mr-2 text-yellow-400" />
+                  <DollarSign className="w-4 h-4 mr-2 text-[#FFB703]" />
                   {t('hero.budget_label')}
                 </Label>
                 <Select value={searchData.budget} onValueChange={(value) => handleInputChange('budget', value)}>
-                  <SelectTrigger className="bg-white/20 border-white/30 text-white focus:border-yellow-400 focus:ring-yellow-400">
+                  <SelectTrigger className="neon-input">
                     <SelectValue placeholder={t('hero.budget_select')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -167,7 +167,7 @@ const Hero = ({ onSearch }) => {
                   placeholder={t('hero.interests_placeholder')}
                   value={searchData.interests}
                   onChange={(e) => handleInputChange('interests', e.target.value)}
-                  className="bg-white/20 border-white/30 text-white placeholder:text-gray-300 focus:border-purple-400 focus:ring-purple-400"
+                  className="neon-input"
                 />
               </div>
             </div>
@@ -176,7 +176,7 @@ const Hero = ({ onSearch }) => {
               <Button
                 type="submit"
                 size="lg"
-                className="bg-gradient-to-r from-teal-500 to-orange-500 hover:from-teal-600 hover:to-orange-600 text-white px-12 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                className="neon-cta font-black px-12 py-4 text-lg rounded-xl shadow-2xl shadow-[#FF006E]/50 transition-all duration-300 transform hover:scale-105"
               >
                 <SearchIcon className="w-5 h-5 mr-2" />
                 {t('hero.generate_button')}
