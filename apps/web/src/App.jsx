@@ -106,12 +106,6 @@ function App() {
     setSearchData(formData);
     setPaymentNotice(null);
 
-    if (!token) {
-      setAuthDialogOpen(true);
-      setSearchError(t('auth.login_required', 'Inicia sesión para generar itinerarios con datos reales.'));
-      return;
-    }
-
     const { payload, meta } = buildGeneratePayload(formData);
     setIsLoading(true);
     setSearchError(null);
@@ -121,7 +115,7 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -177,7 +171,7 @@ function App() {
       }
 
       if (!data?.clientSecret) {
-        throw new Error('Stripe no devolvió un clientSecret válido');
+        throw new Error('Stripe no devolvi un clientSecret vlido');
       }
 
       setCheckoutState(prev => ({
@@ -233,7 +227,7 @@ function App() {
   };
 
   const handlePaymentSuccess = () => {
-    setPaymentNotice('Pago confirmado. El itinerario quedó reservado en tu cuenta.');
+    setPaymentNotice('Pago confirmado. El itinerario qued reservado en tu cuenta.');
     setCheckoutState(() => ({ ...initialCheckoutState }));
   };
 
@@ -327,3 +321,4 @@ function App() {
 }
 
 export default App;
+
