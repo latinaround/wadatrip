@@ -242,6 +242,11 @@ function App() {
     );
   };
 
+  const handleOpenWadaAgent = () => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('wadagent:open'));
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {!isAdminRoute && (
@@ -268,6 +273,30 @@ function App() {
                 onStartNewSearch={handleStartNewSearch}
                 onSelectScenario={handleSelectScenario}
               />
+              <section className="page-shell">
+                <div className="page-container">
+                  <div className="page-card grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+                    <div className="space-y-3">
+                      <p className="page-kicker text-[#00D9FF]">WadaAgent</p>
+                      <h2 className="text-2xl md:text-3xl font-semibold neon-title">
+                        Your AI travel assistant
+                      </h2>
+                      <p className="text-sm md:text-base text-[#e0e0e0] leading-relaxed">
+                        Ask WadaAgent to check operators, tours, and prices so you can book with confidence.
+                      </p>
+                    </div>
+                    <div className="flex md:justify-end">
+                      <button
+                        type="button"
+                        onClick={handleOpenWadaAgent}
+                        className="neon-cta w-full md:w-auto"
+                      >
+                        Open WadaAgent
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
               <FlightPricePredictor />
               <AboutSection />
             </>
