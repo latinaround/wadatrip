@@ -56,7 +56,11 @@ const Hero = ({ onSearch }) => {
         </div>
 
         <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="bg-[#1a1f3a]/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-[#00D9FF]/20">
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="bg-[#1a1f3a]/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-[#00D9FF]/20"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               <div className="space-y-2">
                 <Label htmlFor="origin" className="text-white font-medium flex items-center gap-2">
