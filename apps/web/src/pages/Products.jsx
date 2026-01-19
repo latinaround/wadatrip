@@ -1,6 +1,11 @@
-import { Brain, Compass, Plane } from 'lucide-react'
+import { Bot, Brain, Compass, Plane } from 'lucide-react'
 
 const Products = () => {
+  const handleOpenWadaAgent = () => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('wadagent:open'));
+  };
+
   return (
     <div className="page-shell flex flex-col">
       <main className="flex-grow page-container">
@@ -15,7 +20,7 @@ const Products = () => {
             </p>
           </header>
 
-          <div className="grid gap-8 md:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 icon: Brain,
@@ -32,7 +37,13 @@ const Products = () => {
                 title: 'Flight insights',
                 copy: 'Get smarter timing and pricing guidance before you book.',
               },
-            ].map(({ icon: Icon, title, copy }) => (
+              {
+                icon: Bot,
+                title: 'WadaAgent',
+                copy: 'AI assistant that checks operators, tours, and pricing for you.',
+                action: 'Open WadaAgent',
+              },
+            ].map(({ icon: Icon, title, copy, action }) => (
               <div
                 key={title}
                 className="page-card flex flex-col justify-center gap-4 transition-transform duration-300 hover:-translate-y-1"
@@ -43,6 +54,15 @@ const Products = () => {
                 <div className="flex flex-col gap-3">
                   <h3 className="text-lg font-semibold text-white">{title}</h3>
                   <p className="text-sm text-[#a0a0a0] leading-relaxed">{copy}</p>
+                  {action && (
+                    <button
+                      type="button"
+                      onClick={handleOpenWadaAgent}
+                      className="mt-2 inline-flex items-center justify-center rounded-lg border border-[#00D9FF]/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#00D9FF] transition hover:border-[#00D9FF] hover:text-white"
+                    >
+                      {action}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

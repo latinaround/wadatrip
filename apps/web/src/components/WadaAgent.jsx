@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AppConfig } from '../config/appConfig';
 
 const DEFAULT_CTA_URL = 'https://wa.me/0000000000';
 
@@ -9,13 +10,22 @@ function normalizeUrl(value) {
 }
 
 export default function WadaAgent() {
-  const enabled = String(import.meta.env.VITE_WADAAGENT_ENABLED || '').toLowerCase() === 'true';
   const [open, setOpen] = useState(false);
-  const agentUrl = useMemo(
-    () => normalizeUrl(import.meta.env.VITE_WADAAGENT_URL),
-    [],
-  );
+  const apiBase = useMemo(() => normalizeUrl(AppConfig.api.baseUrl), []);
+  const agentUrl = useMemo(() => {
+    const envUrl = normalizeUrl(import.meta.env.VITE_WADAAGENT_URL);
+    if (envUrl) return envUrl;
+    return apiBase ? `${apiBase}/wadagent` : '';
+  }, [apiBase]);
+  const enabledFlag = String(import.meta.env.VITE_WADAAGENT_ENABLED || '').toLowerCase();
+  const enabled = enabledFlag ? enabledFlag === 'true' : Boolean(agentUrl);
   const ctaUrl = normalizeUrl(import.meta.env.VITE_WADAAGENT_CTA_URL) || DEFAULT_CTA_URL;
+
+  useEffect(() => {
+    const handleOpen = () => setOpen(true);
+    window.addEventListener('wadagent:open', handleOpen);
+    return () => window.removeEventListener('wadagent:open', handleOpen);
+  }, []);
 
   if (!enabled) return null;
 
@@ -64,9 +74,9 @@ export default function WadaAgent() {
               />
             ) : (
               <div className="space-y-4 px-5 py-6">
-                <p className="text-base font-semibold">WadaAgent is being trained.</p>
+                <p className="text-base font-semibold">WadaAgent is temporarily unavailable.</p>
                 <p className="text-sm text-[#a0a0a0]">
-                  Our AI concierge is warming up. In the meantime, reach us directly for a custom trip plan.
+                  Reach our team directly while we reconnect the AI assistant.
                 </p>
                 <a
                   href={ctaUrl}
