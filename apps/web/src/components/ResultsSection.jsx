@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Alert, AlertDescription } from './ui/alert';
 import { Search } from 'lucide-react';
@@ -46,6 +47,14 @@ const ResultsSection = ({ searchData, itinerary, isLoading, error, notice, onSta
           <p className="text-xl text-[#a0a0a0]">
             {t('results.description', { count: scenarios.length })}
           </p>
+          <p className="mt-4 text-sm text-[#a0a0a0]">
+            This is an AI-generated travel plan. Real tours and experiences are available in the Tours section.
+          </p>
+          <div className="mt-6">
+            <Button asChild variant="secondary" className="border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
+              <Link to="/tours">Explore real tours from local operators</Link>
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -63,6 +72,11 @@ const ResultsSection = ({ searchData, itinerary, isLoading, error, notice, onSta
         {scenarios.length === 0 ? (
           <div className="text-center text-[#a0a0a0]">
             {t('results.no_real_data') ?? 'No encontramos itinerarios para los filtros seleccionados. Ajusta tu bsqueda e intenta nuevamente.'}
+            <div className="mt-4">
+              <Button asChild variant="secondary" className="border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
+                <Link to="/tours">Explore real tours from local operators</Link>
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">

@@ -263,7 +263,7 @@ function App() {
           path="/"
           element={
             <>
-              <Hero onSearch={handleSearch} />
+              <Hero onSubmit={handleSearch} />
               <ResultsSection
                 searchData={searchData}
                 itinerary={currentItinerary}
@@ -273,8 +273,8 @@ function App() {
                 onStartNewSearch={handleStartNewSearch}
                 onSelectScenario={handleSelectScenario}
               />
-              <section className="page-shell">
-                <div className="page-container">
+              <section className="page-shell min-h-0 py-10 md:py-12">
+                <div className="page-container py-8 md:py-10">
                   <div className="page-card grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-center">
                     <div className="space-y-3">
                       <p className="page-kicker text-[#00D9FF]">WadaAgent</p>

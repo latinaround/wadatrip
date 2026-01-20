@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const Hero = ({ onSearch }) => {
+const Hero = ({ onSubmit }) => {
   const { t } = useTranslation();
   const [searchData, setSearchData] = useState({
     origin: '',
@@ -27,7 +27,7 @@ const Hero = ({ onSearch }) => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    onSearch?.(searchData);
+    onSubmit?.(searchData);
   };
 
   return (
@@ -52,6 +52,9 @@ const Hero = ({ onSearch }) => {
           </h1>
           <p className="text-xl text-[#a0a0a0] mb-8 leading-relaxed max-w-3xl mx-auto">
             {t('hero.description')}
+          </p>
+          <p className="text-sm text-[#a0a0a0] max-w-2xl mx-auto">
+            This tool generates AI travel plans. You can explore real tours from local operators in the Tours section.
           </p>
         </div>
 
