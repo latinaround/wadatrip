@@ -98,21 +98,29 @@ export class ProvidersController {
           ? body.languages
           : [];
 
-    const created = await prisma.providers.create({
-      data: {
-        type: String(body.type),
-        name: String(body.name),
-        email: String(body.email).toLowerCase(),
-        phone: body.phone ?? null,
-        languages,
-        base_city: String(body.base_city),
-        country_code: String(body.country_code),
-        status: 'pending',
-      },
-      include: { documents: true, listings: true },
-    });
+    try {
+      const created = await prisma.providers.create({
+        data: {
+          type: String(body.type),
+          name: String(body.name),
+          email: String(body.email).toLowerCase(),
+          phone: body.phone ?? null,
+          languages,
+          base_city: String(body.base_city),
+          country_code: String(body.country_code),
+          status: 'pending',
+        },
+        include: { documents: true, listings: true },
+      });
 
-    return created;
+      return created;
+    } catch (error: any) {
+      const code = error?.code ?? error?.meta?.code;
+      if (code === 'P2002') {
+        throw new BadRequestException('email already registered');
+      }
+      throw error;
+    }
   }
 
   @Get('providers/:id')

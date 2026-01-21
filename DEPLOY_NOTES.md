@@ -56,6 +56,9 @@ Core:
 - Enable WadAgent (AI assistant) only after core marketplace stabilizes.
 - Reintroduce AI itinerary drafts for operators (HRM-assisted), not public auto-publish.
 - Add scaling/observability once traffic grows (DB tuning, background jobs, retries).
+- Flight Price History chart:
+  - Current chart is synthetic/seasonality (not real data or route/date specific).
+  - Planned: add clear copy "Simulated trend based on seasonality" or hide until real data is available.
 
 Stripe (if enabled):
 - `STRIPE_SECRET_KEY=...`
