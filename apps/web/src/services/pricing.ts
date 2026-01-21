@@ -14,18 +14,20 @@ export interface PricingPredictionResponse {
   date: string
   current_price: number
   trend: 'up' | 'down' | 'flat'
-  action: 'buy' | 'wait'
+  action: 'buy' | 'wait' | 'alert'
   confidence: number
   horizon_days: number
   next_check_at?: string
   currency?: string
+  estimated_price_range?: [number, number]
+  probability_under_budget?: number
 }
 
 export interface PricingGatewayResponse {
   predictions: PricingPredictionResponse[]
 }
 
-export async function requestPricingPrediction(payload: PricingRoutePayload): Promise<PricingGatewayResponse> {
+export async function requestPricingPrediction(payload: PricingRoutePayload & { budget?: string | number }): Promise<PricingGatewayResponse> {
   if (!payload.origin || !payload.destination || !payload.date) {
     throw new Error('Origin, destination and date are required to request pricing prediction.')
   }

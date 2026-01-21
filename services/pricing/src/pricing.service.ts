@@ -5,6 +5,7 @@ type NormalizedRoute = {
   destination: string;
   date: string;
   providedPrice?: number;
+  budgetTotal?: number;
 };
 
 @Injectable()
@@ -68,13 +69,20 @@ export class PricingService {
             {
               origin: body?.origin,
               destination: body?.destination,
-              date: body?.date,
-              current_price: body?.current_price,
-            },
-          ];
+          date: body?.date,
+          current_price: body?.current_price,
+        },
+      ];
 
     return baseRoutes.map((candidate: any, idx: number) => {
       const plain = this.toPlainRoute(candidate);
+      const budgetTotal = this.normalizeBudgetTotal(
+        plain.budget_total ??
+          plain.budgetTotal ??
+          plain.budget ??
+          body?.budget_total ??
+          body?.budget,
+      );
       const origin = this.normalizeAirportCode(
         plain.origin ?? plain.Origin ?? plain.from ?? plain.departure ?? `UNK${idx}`,
       );
@@ -90,7 +98,7 @@ export class PricingService {
         today,
       );
       const providedPrice = this.normalizePrice(plain.current_price ?? plain.price);
-      return { origin, destination, date, providedPrice };
+      return { origin, destination, date, providedPrice, budgetTotal };
     });
   }
 
@@ -102,12 +110,15 @@ export class PricingService {
     const confidence = 0.55;
     const horizon_days = 5;
     const next_check_at = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+    const budgetInsights = this.buildBudgetInsights(avg_price, route.budgetTotal);
     return {
       origin: route.origin,
       destination: route.destination,
       date: route.date,
       current_price,
       avg_price,
+      estimated_price_range: budgetInsights.estimated_price_range,
+      probability_under_budget: budgetInsights.probability_under_budget,
       trend: 'flat',
       action: 'wait',
       confidence,
@@ -137,6 +148,7 @@ export class PricingService {
     const avg_price = Math.round(
       this.clamp(seasonalBase * 0.65 + current_price * 0.35, 120, 1800),
     );
+    const budgetInsights = this.buildBudgetInsights(avg_price, route.budgetTotal);
     const trend =
       current_price > avg_price * 1.05 ? 'up' : current_price < avg_price * 0.95 ? 'down' : 'flat';
     const discountSignal = (avg_price - current_price) / avg_price;
@@ -175,6 +187,8 @@ export class PricingService {
       date: route.date,
       current_price,
       avg_price,
+      estimated_price_range: budgetInsights.estimated_price_range,
+      probability_under_budget: budgetInsights.probability_under_budget,
       trend,
       action,
       confidence,
@@ -209,6 +223,16 @@ export class PricingService {
   private normalizePrice(value: any): number | undefined {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : undefined;
+  }
+
+  private normalizeBudgetTotal(value: any): number | undefined {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+    const key = String(value || '').trim().toLowerCase();
+    if (key === 'low') return 500;
+    if (key === 'medium') return 650;
+    if (key === 'high') return 800;
+    return undefined;
   }
 
   private toPlainRoute(route: any): any {
@@ -247,5 +271,17 @@ export class PricingService {
 
   private clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
+  }
+
+  private buildBudgetInsights(avgPrice: number, budgetTotal?: number) {
+    const budget = Number.isFinite(Number(budgetTotal)) ? Number(budgetTotal) : 650;
+    const min = Math.round(avgPrice * 0.92);
+    const max = Math.round(avgPrice * 1.08);
+    const diff = budget - avgPrice;
+    const probability = this.clamp(0.15 + diff / Math.max(1, avgPrice), 0, 0.95);
+    return {
+      estimated_price_range: [min, max] as [number, number],
+      probability_under_budget: Number(probability.toFixed(2)),
+    };
   }
 }

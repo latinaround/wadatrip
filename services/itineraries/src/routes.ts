@@ -37,6 +37,11 @@ const BUDGET_PRESETS: Record<string, number> = {
   premium: 3900,
   luxury: 5800,
 };
+const BUDGET_PRICE_PRESETS: Record<string, number> = {
+  low: 500,
+  medium: 650,
+  high: 800,
+};
 
 type Store = {
   itineraries: Map<string, { base: GenerateItineraryRequest; scenarios: Scenario[] }>;
@@ -67,6 +72,16 @@ function coercePositiveInteger(value: any, fallback: number): number {
   if (!Number.isFinite(numeric)) return fallback;
   const coerced = Math.floor(numeric);
   return coerced > 0 ? coerced : fallback;
+}
+
+function resolveBudgetTotal(raw: any): number {
+  const direct = Number(raw?.budget_total ?? raw?.budgetTotal ?? raw?.budget);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const budgetKey = String(raw?.budget || '').toLowerCase().trim();
+  if (budgetKey && BUDGET_PRICE_PRESETS[budgetKey]) {
+    return BUDGET_PRICE_PRESETS[budgetKey];
+  }
+  return DEFAULT_BUDGET_TOTAL;
 }
 
 function summarize(items: ItineraryItem[]) {
@@ -105,7 +120,7 @@ function normalizeGenerateRequestPayload(raw: any): GenerateItineraryRequest {
 
   const endDate = new Date(raw?.end_date ?? raw?.endDate ?? startDate.getTime() + DEFAULT_TRIP_DAYS * DAY_MS);
   const adults = coercePositiveInteger(raw?.adults ?? 1, 1);
-  const budget_total = raw?.budget_total ?? DEFAULT_BUDGET_TOTAL;
+  const budget_total = resolveBudgetTotal(raw);
 
   return {
     title: raw?.title ?? `${destination} trip`,
@@ -288,9 +303,10 @@ async function getPricingAdvice(
   destination: string,
   date: string,
   pricingService?: PricingService,
+  budget_total?: number,
 ): Promise<PricingAdvice> {
   if (!pricingService) return { ...DEFAULT_PRICING_ADVICE };
-  const payload = { origin, destination, start_date: date };
+  const payload = { origin, destination, start_date: date, budget_total };
   try {
     const resp = await pricingService.predict(payload);
     const advice = resp?.predictions?.[0];
@@ -346,7 +362,7 @@ async function scenariosFromRequest(
 ): Promise<Scenario[]> {
   const [flights, hotels, acts] = await Promise.all([fetchFlights(req), fetchHotels(req), fetchActivities(req)]);
 
-  const pricing = await getPricingAdvice(req.origin, req.destination, req.start_date, pricingService);
+  const pricing = await getPricingAdvice(req.origin, req.destination, req.start_date, pricingService, req.budget_total);
   const days = Math.max(1, Math.ceil((Date.parse(req.end_date) - Date.parse(req.start_date)) / DAY_MS));
 
   const build = (type: ScenarioType): Scenario => {

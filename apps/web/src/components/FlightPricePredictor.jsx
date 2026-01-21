@@ -28,6 +28,7 @@ const defaultForm = {
   returnDate: '',
   passengers: '1',
   cabinClass: 'economy',
+  budget: 'medium',
 }
 
 const FlightPricePredictor = () => {
@@ -82,6 +83,7 @@ const FlightPricePredictor = () => {
         origin: formData.origin.trim(),
         destination: formData.destination.trim(),
         date: formData.departureDate,
+        budget: formData.budget,
       })
       const first = response?.predictions?.[0]
       if (first) {
@@ -100,6 +102,17 @@ const FlightPricePredictor = () => {
   const confidencePercent = (value) => {
     if (value == null) return '--'
     return `${Math.round(value * 100)}%`
+  }
+
+  const formatRange = (range) => {
+    if (!Array.isArray(range) || range.length !== 2) return '--'
+    const [min, max] = range
+    return `$${Math.round(min)} - $${Math.round(max)}`
+  }
+
+  const actionLabel = (value) => {
+    if (!value) return '--'
+    return value === 'alert' ? 'optimize' : value
   }
 
   return (
@@ -212,6 +225,22 @@ const FlightPricePredictor = () => {
                           <SelectItem value="premium_economy">{t('flight_predictor.premium_economy')}</SelectItem>
                           <SelectItem value="business">{t('flight_predictor.business')}</SelectItem>
                           <SelectItem value="first">{t('flight_predictor.first')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="budget">Budget</Label>
+                      <Select
+                        value={formData.budget}
+                        onValueChange={(value) => handleInputChange('budget', value)}
+                      >
+                        <SelectTrigger id="budget">
+                          <SelectValue placeholder="Select budget" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -395,19 +424,27 @@ const FlightPricePredictor = () => {
                   {gatewayPrediction && (
                     <div className="space-y-3">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-sm text-[#a0a0a0]">Precio estimado</span>
+                        <span className="text-sm text-[#a0a0a0]">Estimated market range</span>
                         <span className="text-2xl font-semibold text-white">
-                          ${gatewayPrediction.current_price ?? '--'}
+                          {formatRange(gatewayPrediction.estimated_price_range)}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm text-[#a0a0a0]">
                         <div>
-                          <p className="font-medium text-[#e0e0e0]">Accin sugerida</p>
-                          <p className="capitalize">{gatewayPrediction.action}</p>
+                          <p className="font-medium text-[#e0e0e0]">WadaAgent recommendation</p>
+                          <p className="capitalize">{actionLabel(gatewayPrediction.action)}</p>
                         </div>
                         <div>
                           <p className="font-medium text-[#e0e0e0]">Confianza</p>
                           <p>{confidencePercent(gatewayPrediction.confidence)}</p>
+                        </div>
+                        <div>
+                          <p className="font-medium text-[#e0e0e0]">Probability of flying within your budget</p>
+                          <p>{confidencePercent(gatewayPrediction.probability_under_budget)}</p>
+                        </div>
+                        <div>
+                          <p className="font-medium text-[#e0e0e0]">Trend</p>
+                          <p className="capitalize">{gatewayPrediction.trend || '--'}</p>
                         </div>
                         <div>
                           <p className="font-medium text-[#e0e0e0]">Origen</p>
