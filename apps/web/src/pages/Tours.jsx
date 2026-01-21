@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
+import { buildTourSlug } from '../utils/tourSlug';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -80,7 +81,7 @@ export default function Tours() {
           {items.map((item) => (
             <Link
               key={item.id}
-              to={`/tours/${item.id}`}
+              to={`/tours/${buildTourSlug({ title: item.title, city: item.city, id: item.id })}`}
               className="page-card flex flex-col gap-3 transition-transform hover:-translate-y-1"
             >
               <div className="flex flex-col gap-3">
@@ -90,7 +91,7 @@ export default function Tours() {
                 </div>
                 {item.provider_name && (
                   <p className="text-xs text-[#a0a0a0]">
-                    Operated by {item.provider_name}
+                    Hosted by local guide {item.provider_name}
                     {item.provider_country ? ` (${item.provider_country})` : ''}
                   </p>
                 )}

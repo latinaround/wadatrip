@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
+import { findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 
@@ -41,17 +42,25 @@ export default function TourDetail() {
       setError(null);
       try {
         let data = null;
-        const response = await fetch(`${apiBase}/listings/${encodeURIComponent(id)}`);
-        if (response.ok) {
-          data = await response.json().catch(() => null);
-        } else {
-          const fallback = await fetch(`${apiBase}/listings/search?limit=50`);
+        const isId = isLikelyListingId(id);
+        let listingId = id;
+        if (!isId) {
+          const fallback = await fetch(`${apiBase}/listings/search?status=published&limit=100`);
           const fallbackData = await fallback.json().catch(() => null);
           const items = Array.isArray(fallbackData?.items) ? fallbackData.items : [];
-          data = items.find((item) => String(item.id) === String(id)) || null;
+          listingId = findListingIdFromSlug(id, items);
+          data = items.find((item) => String(item.id) === String(listingId)) || null;
+        }
+        if (!data && listingId) {
+          const response = await fetch(`${apiBase}/listings/${encodeURIComponent(listingId)}`);
+          if (response.ok) {
+            data = await response.json().catch(() => null);
+          }
         }
         if (!data) throw new Error('Tour not found');
-        if (mounted) setTour(data);
+        if (mounted) {
+          setTour(data);
+        }
       } catch (err) {
         if (mounted) setError(err?.message || 'Error loading tour');
       } finally {
@@ -147,7 +156,7 @@ export default function TourDetail() {
             <h1 className="text-3xl font-bold text-white">{tour.title}</h1>
             {tour.provider_name && (
               <p className="text-sm text-[#a0a0a0]">
-                Operated by {tour.provider_name}
+                Hosted by local guide {tour.provider_name}
                 {tour.provider_country ? ` (${tour.provider_country})` : ''}
               </p>
             )}

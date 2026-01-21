@@ -3,6 +3,7 @@ import { AppConfig } from '../config/appConfig';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
+import { buildTourCode, buildTourSlug } from '../utils/tourSlug';
 
 const emptyProvider = {
   type: 'operator',
@@ -34,6 +35,7 @@ const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
 export default function OperatorToursNew() {
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
+  const siteOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const [accessCode, setAccessCode] = useState('');
   const [providerForm, setProviderForm] = useState(emptyProvider);
   const [providerStatus, setProviderStatus] = useState(null);
@@ -43,6 +45,7 @@ export default function OperatorToursNew() {
   const [providerLoading, setProviderLoading] = useState(false);
   const [tourLoading, setTourLoading] = useState(false);
   const [providerLookupId, setProviderLookupId] = useState('');
+  const [createdTour, setCreatedTour] = useState(null);
 
   const accessCodeTrimmed = accessCode.trim();
 
@@ -185,7 +188,9 @@ export default function OperatorToursNew() {
         throw new Error(message);
       }
 
-      setTourMessage(`Tour created: ${data?.title || payload.title}`);
+      const created = data?.listing || data;
+      setCreatedTour(created);
+      setTourMessage(`Tour created: ${created?.title || payload.title}`);
       setTourForm((prev) => ({ ...emptyTour, provider_id: prev.provider_id }));
     } catch (err) {
       setTourMessage(err?.message || 'Error creating tour.');
@@ -477,6 +482,37 @@ export default function OperatorToursNew() {
             </Button>
           </form>
           {tourMessage && <p className="mt-4 text-sm text-[#00D9FF]">{tourMessage}</p>}
+          {createdTour?.id && (
+            <div className="mt-4 space-y-2 text-sm text-[#a0a0a0]">
+              <p>Shareable link (no internal ID):</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                  readOnly
+                  value={`${siteOrigin}/tours/${buildTourSlug({
+                    title: createdTour.title,
+                    city: createdTour.city,
+                    id: createdTour.id,
+                  })}`}
+                  className="h-12 neon-input"
+                />
+                <Button
+                  type="button"
+                  className="h-12 neon-cta font-black hover:scale-105 transition-all"
+                  onClick={() => {
+                    const url = `${siteOrigin}/tours/${buildTourSlug({
+                      title: createdTour.title,
+                      city: createdTour.city,
+                      id: createdTour.id,
+                    })}`;
+                    navigator.clipboard?.writeText(url);
+                  }}
+                >
+                  Copy tour link
+                </Button>
+              </div>
+              <p>Tour code: {buildTourCode({ city: createdTour.city, id: createdTour.id })}</p>
+            </div>
+          )}
         </section>
       </div>
     </div>
