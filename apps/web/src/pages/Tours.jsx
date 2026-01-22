@@ -21,6 +21,8 @@ export default function Tours() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({ city: '', country: '' });
+  const [geoStatus, setGeoStatus] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -28,7 +30,14 @@ export default function Tours() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${apiBase}/listings/search?status=published&limit=50`);
+        const params = new URLSearchParams({
+          status: 'published',
+          limit: '50',
+        });
+        if (filters.city.trim()) params.set('city', filters.city.trim());
+        if (filters.country.trim()) params.set('country_code', filters.country.trim().toUpperCase());
+
+        const response = await fetch(`${apiBase}/listings/search?${params.toString()}`);
         const data = await response.json().catch(() => null);
         if (!response.ok) {
           const message = data?.message || data?.error || response.statusText || 'Error loading tours';
@@ -45,7 +54,44 @@ export default function Tours() {
     return () => {
       mounted = false;
     };
-  }, [apiBase]);
+  }, [apiBase, filters.city, filters.country]);
+
+  const handleFilterChange = (field, value) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const applyGeolocation = () => {
+    setGeoStatus('');
+    if (!navigator.geolocation) {
+      setGeoStatus('Geolocation is not supported on this device.');
+      return;
+    }
+    setGeoStatus('Detecting your location...');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+          );
+          const data = await response.json().catch(() => null);
+          const address = data?.address || {};
+          const city = address.city || address.town || address.village || address.state || '';
+          const countryCode = address.country_code ? String(address.country_code).toUpperCase() : '';
+          setFilters((prev) => ({
+            ...prev,
+            city: city || prev.city,
+            country: countryCode || prev.country,
+          }));
+          setGeoStatus(city ? `Using ${city}${countryCode ? `, ${countryCode}` : ''}` : 'Location detected.');
+        } catch (err) {
+          setGeoStatus('Unable to resolve your city. Please enter it manually.');
+        }
+      },
+      () => setGeoStatus('Location permission denied. Enter your city manually.'),
+      { timeout: 10000 },
+    );
+  };
 
   return (
     <div className="page-shell">
@@ -59,15 +105,41 @@ export default function Tours() {
         </header>
 
         <section className="page-card">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
               <p className="page-kicker text-[#00D9FF]">Filters</p>
-              <p className="text-sm text-[#e0e0e0]">Showing all published tours.</p>
+              <p className="text-sm text-[#e0e0e0]">Find tours by city or country.</p>
             </div>
-            <div className="text-xs text-[#a0a0a0]">
-              {items.length} experiences
-            </div>
+            <div className="text-xs text-[#a0a0a0]">{items.length} experiences</div>
           </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-[1.5fr_1fr_auto] md:items-end">
+            <div>
+              <label className="text-xs text-[#a0a0a0]">City</label>
+              <input
+                value={filters.city}
+                onChange={(event) => handleFilterChange('city', event.target.value)}
+                placeholder="Lima"
+                className="mt-2 w-full rounded-md border border-[#00D9FF]/30 bg-[#1a1f3a] px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-[#a0a0a0]">Country (ISO2)</label>
+              <input
+                value={filters.country}
+                onChange={(event) => handleFilterChange('country', event.target.value)}
+                placeholder="PE"
+                className="mt-2 w-full rounded-md border border-[#00D9FF]/30 bg-[#1a1f3a] px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={applyGeolocation}
+              className="h-10 rounded-md border border-[#00D9FF]/40 px-4 text-xs font-semibold uppercase tracking-wide text-[#00D9FF] hover:text-white"
+            >
+              Use my location
+            </button>
+          </div>
+          {geoStatus && <p className="mt-3 text-xs text-[#a0a0a0]">{geoStatus}</p>}
         </section>
 
         {loading && <p className="text-[#e0e0e0]">Loading tours...</p>}
