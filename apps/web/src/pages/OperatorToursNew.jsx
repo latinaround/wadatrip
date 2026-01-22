@@ -145,6 +145,10 @@ export default function OperatorToursNew() {
   const handleCreateTour = async (event) => {
     event.preventDefault();
     setTourMessage(null);
+    if (editingId) {
+      setTourMessage('Use "Update tour" to save changes to an existing tour.');
+      return;
+    }
     if (!ensureAccessCode()) return;
     if (!tourForm.provider_id.trim()) {
       setTourMessage('Provider ID is required.');
@@ -221,6 +225,10 @@ export default function OperatorToursNew() {
   const handleLoadTour = async (event) => {
     event.preventDefault();
     setEditMessage(null);
+    if (!accessCodeTrimmed) {
+      setEditMessage('Access code is required to load a tour.');
+      return;
+    }
     if (!editLookup.trim()) {
       setEditMessage('Enter a tour link or ID.');
       return;
@@ -539,7 +547,13 @@ export default function OperatorToursNew() {
                 onChange={(event) => handleTourChange('provider_id', event.target.value)}
                 placeholder="provider_id"
                 className="mt-2 h-12 neon-input"
+                readOnly={Boolean(editingId)}
               />
+              {editingId && (
+                <p className="mt-2 text-xs text-[#a0a0a0]">
+                  Provider ID is locked while editing.
+                </p>
+              )}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
