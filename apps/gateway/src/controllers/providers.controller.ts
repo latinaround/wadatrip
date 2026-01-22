@@ -5,6 +5,7 @@ import {
   Param,
   Body,
   Query,
+  Patch,
   Delete,
   BadRequestException,
   UnauthorizedException,
@@ -388,6 +389,55 @@ export class ProvidersController {
     if (!exists) throw new BadRequestException('listing not found');
     const updated = await prisma.listings.update({ where: { id: String(id) }, data: { status } });
     return updated;
+  }
+
+  @Patch('listings/:id')
+  async updateListing(@Req() req: Request, @Param('id') id: string, @Body() body: any) {
+    requireAccessCode(req, body);
+    if (ENABLED) {
+      const { data } = await axios.patch(`${HUB}/listings/${id}`, body);
+      return data;
+    }
+
+    const prisma = getPrisma();
+    const updateData: any = {};
+    if (body?.title != null) updateData.title = String(body.title);
+    if (body?.description != null) updateData.description = body.description === '' ? null : String(body.description);
+    if (body?.category != null) updateData.category = String(body.category);
+    if (body?.city != null) updateData.city = String(body.city);
+    if (body?.country_code != null) updateData.country_code = String(body.country_code).toUpperCase();
+    if (body?.duration_minutes != null) updateData.duration_minutes = Number(body.duration_minutes);
+    if (body?.price_from != null) updateData.price_from = Number(body.price_from);
+    if (body?.currency != null) updateData.currency = String(body.currency);
+    if (body?.start_date != null) updateData.start_date = body.start_date ? new Date(String(body.start_date)) : null;
+    if (body?.end_date != null) updateData.end_date = body.end_date ? new Date(String(body.end_date)) : null;
+    if (body?.tags != null) updateData.tags = normalizeTags(body.tags);
+
+    if (!Object.keys(updateData).length) {
+      throw new BadRequestException('no editable fields provided');
+    }
+
+    const exists = await prisma.listings.findUnique({ where: { id: String(id) } });
+    if (!exists) throw new BadRequestException('listing not found');
+
+    const updated = await prisma.listings.update({ where: { id: String(id) }, data: updateData });
+    return updated;
+  }
+
+  @Delete('listings/:id')
+  async deleteListing(@Req() req: Request, @Param('id') id: string) {
+    requireAccessCode(req, {});
+    if (ENABLED) {
+      const { data } = await axios.delete(`${HUB}/listings/${id}`);
+      return data;
+    }
+
+    const prisma = getPrisma();
+    const exists = await prisma.listings.findUnique({ where: { id: String(id) } });
+    if (!exists) throw new BadRequestException('listing not found');
+
+    await prisma.listings.delete({ where: { id: String(id) } });
+    return { ok: true };
   }
 
   @Post('alerts/tours/create')

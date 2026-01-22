@@ -3,7 +3,7 @@ import { AppConfig } from '../config/appConfig';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { buildTourCode, buildTourSlug } from '../utils/tourSlug';
+import { buildTourCode, buildTourSlug, findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
 
 const emptyProvider = {
   type: 'operator',
@@ -46,6 +46,9 @@ export default function OperatorToursNew() {
   const [tourLoading, setTourLoading] = useState(false);
   const [providerLookupId, setProviderLookupId] = useState('');
   const [createdTour, setCreatedTour] = useState(null);
+  const [editLookup, setEditLookup] = useState('');
+  const [editMessage, setEditMessage] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   const accessCodeTrimmed = accessCode.trim();
 
@@ -194,6 +197,149 @@ export default function OperatorToursNew() {
       setTourForm((prev) => ({ ...emptyTour, provider_id: prev.provider_id }));
     } catch (err) {
       setTourMessage(err?.message || 'Error creating tour.');
+    } finally {
+      setTourLoading(false);
+    }
+  };
+
+  const resolveEditId = async () => {
+    const raw = editLookup.trim();
+    if (!raw) return null;
+    let slugOrId = raw;
+    if (raw.includes('/tours/')) {
+      slugOrId = raw.split('/tours/')[1] || raw;
+    }
+    slugOrId = slugOrId.split('?')[0].split('#')[0];
+    if (isLikelyListingId(slugOrId)) return slugOrId;
+
+    const response = await fetch(`${apiBase}/listings/search?status=published&limit=200`);
+    const data = await response.json().catch(() => null);
+    const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+    return findListingIdFromSlug(slugOrId, items);
+  };
+
+  const handleLoadTour = async (event) => {
+    event.preventDefault();
+    setEditMessage(null);
+    if (!editLookup.trim()) {
+      setEditMessage('Enter a tour link or ID.');
+      return;
+    }
+    setTourLoading(true);
+    try {
+      const listingId = await resolveEditId();
+      if (!listingId) {
+        throw new Error('Tour not found. Check the link or ID.');
+      }
+      const response = await fetch(`${apiBase}/listings/${encodeURIComponent(listingId)}`);
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message || data?.error || 'Tour could not be loaded.');
+      }
+      setEditingId(listingId);
+      setCreatedTour(data);
+      setTourForm({
+        provider_id: data?.provider_id || '',
+        title: data?.title || '',
+        category: data?.category || 'tour',
+        description: data?.description || '',
+        city: data?.city || '',
+        country_code: data?.country_code || '',
+        duration_minutes: data?.duration_minutes ?? '',
+        price_from: data?.price_from ?? '',
+        currency: data?.currency || 'USD',
+        start_date: data?.start_date ? String(data.start_date).slice(0, 10) : '',
+        end_date: data?.end_date ? String(data.end_date).slice(0, 10) : '',
+        tags: Array.isArray(data?.tags) ? data.tags.join(', ') : '',
+        publish_now: data?.status ? String(data.status).toLowerCase() === 'published' : true,
+      });
+      setEditMessage('Tour loaded. Update the fields and save.');
+    } catch (err) {
+      setEditMessage(err?.message || 'Error loading tour.');
+    } finally {
+      setTourLoading(false);
+    }
+  };
+
+  const handleUpdateTour = async () => {
+    setTourMessage(null);
+    setEditMessage(null);
+    if (!ensureAccessCode()) return;
+    if (!editingId) {
+      setEditMessage('Load a tour before updating.');
+      return;
+    }
+    setTourLoading(true);
+    try {
+      const payload = {
+        title: tourForm.title.trim(),
+        category: tourForm.category.trim(),
+        description: tourForm.description.trim() || null,
+        city: tourForm.city.trim(),
+        country_code: tourForm.country_code.trim().toUpperCase(),
+        duration_minutes: tourForm.duration_minutes ? Number(tourForm.duration_minutes) : undefined,
+        price_from: tourForm.price_from ? Number(tourForm.price_from) : undefined,
+        currency: tourForm.currency || undefined,
+        start_date: tourForm.start_date || null,
+        end_date: tourForm.end_date || null,
+        tags: tourForm.tags
+          ? tourForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+          : [],
+        access_code: accessCodeTrimmed,
+      };
+
+      const response = await fetch(`${apiBase}/listings/${encodeURIComponent(editingId)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-operator-access-code': accessCodeTrimmed,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message || data?.error || 'Tour could not be updated.');
+      }
+
+      setCreatedTour(data);
+      setTourMessage('Tour updated successfully.');
+    } catch (err) {
+      setTourMessage(err?.message || 'Error updating tour.');
+    } finally {
+      setTourLoading(false);
+    }
+  };
+
+  const handleDeleteTour = async () => {
+    setTourMessage(null);
+    setEditMessage(null);
+    if (!ensureAccessCode()) return;
+    if (!editingId) {
+      setEditMessage('Load a tour before deleting.');
+      return;
+    }
+    const confirmed = window.confirm('Delete this tour? This cannot be undone.');
+    if (!confirmed) return;
+    setTourLoading(true);
+    try {
+      const response = await fetch(`${apiBase}/listings/${encodeURIComponent(editingId)}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-operator-access-code': accessCodeTrimmed,
+        },
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message || data?.error || 'Tour could not be deleted.');
+      }
+      setTourMessage('Tour deleted.');
+      setEditingId(null);
+      setCreatedTour(null);
+      setTourForm((prev) => ({ ...emptyTour, provider_id: prev.provider_id }));
+    } catch (err) {
+      setTourMessage(err?.message || 'Error deleting tour.');
     } finally {
       setTourLoading(false);
     }
@@ -361,6 +507,29 @@ export default function OperatorToursNew() {
             <p className="text-sm text-[#a0a0a0]">Publish the experience you want to sell.</p>
           </div>
 
+          <form className="mt-6 grid gap-4 md:grid-cols-[2fr_1fr]" onSubmit={handleLoadTour}>
+            <div>
+              <label htmlFor="tour-edit-lookup" className="text-sm text-[#e0e0e0]">Tour link or ID</label>
+              <Input
+                id="tour-edit-lookup"
+                value={editLookup}
+                onChange={(event) => setEditLookup(event.target.value)}
+                placeholder="https://wadatrip.com/tours/..."
+                className="mt-2 h-12 neon-input"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="submit"
+                className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
+                disabled={tourLoading}
+              >
+                {tourLoading ? 'Loading...' : 'Load tour'}
+              </Button>
+            </div>
+          </form>
+          {editMessage && <p className="mt-3 text-sm text-[#00D9FF]">{editMessage}</p>}
+
           <form className="mt-6 grid gap-5" onSubmit={handleCreateTour}>
             <div>
               <label htmlFor="tour-provider-id" className="text-sm text-[#e0e0e0]">Provider ID</label>
@@ -501,6 +670,24 @@ export default function OperatorToursNew() {
               disabled={tourLoading}
             >
               {tourLoading ? 'Publishing...' : 'Publish tour'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 w-full border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white md:w-auto"
+              onClick={handleUpdateTour}
+              disabled={tourLoading || !editingId}
+            >
+              {tourLoading ? 'Saving...' : 'Update tour'}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-12 w-full md:w-auto"
+              onClick={handleDeleteTour}
+              disabled={tourLoading || !editingId}
+            >
+              {tourLoading ? 'Deleting...' : 'Delete tour'}
             </Button>
           </form>
           {tourMessage && <p className="mt-4 text-sm text-[#00D9FF]">{tourMessage}</p>}
