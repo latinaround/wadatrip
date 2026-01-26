@@ -301,6 +301,7 @@ export class ProvidersController {
     }
 
     if (query.city) where.city = String(query.city);
+    if (query.provider_id) where.provider_id = String(query.provider_id);
     if (query.country || query.country_code) {
       where.country_code = String(query.country || query.country_code);
     }
