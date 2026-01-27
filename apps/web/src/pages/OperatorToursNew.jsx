@@ -461,6 +461,28 @@ export default function OperatorToursNew() {
         </section>
 
         <section className="page-card">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                {t('operator.edit_kicker', 'Edit your tour')}
+              </h2>
+              <p className="text-sm text-[#a0a0a0]">
+                {t('operator.edit_kicker_help', 'Already published? Jump to the edit section.')}
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="h-12 neon-cta font-black hover:scale-105 transition-all md:w-auto"
+              onClick={() => {
+                document.getElementById('edit-tour')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              {t('operator.edit_kicker_cta', 'Edit a tour')}
+            </Button>
+          </div>
+        </section>
+
+        <section className="page-card" id="edit-tour">
           <div className="space-y-1">
             <p className="text-sm text-[#00D9FF]">{t('operator.step2_label', 'Step 2 (optional)')}</p>
             <h2 className="text-xl font-semibold text-white">
