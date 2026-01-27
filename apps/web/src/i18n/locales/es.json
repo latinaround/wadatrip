@@ -1,4 +1,4 @@
-﻿{
+{
     "nav":  {
                 "wadatrip":  "WADATRIP",
                 "products":  "Productos",
@@ -14,7 +14,7 @@
             },
     "hero":  {
                  "title":  "Simplifica tu planificación de viajes",
-                 "subtitle":  "con IA personalizada",
+                 "subtitle":  "con IA personalizada",\r\n                 "list_tour_cta":  "Publica tu tour",
                  "description":  "Descubre itinerarios únicos creados especialmente para ti. Ingresa tu destino, fechas, intereses y presupuesto, y obtén recomendaciones personalizadas para tu próxima aventura.",
                  "destination_label":  "A dónde quieres ir?",
                  "destination_placeholder":  "Ej: París, Tokio, Bali...",
@@ -99,3 +99,4 @@
                         "searching":  "Buscando..."
                     }
 }
+

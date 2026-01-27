@@ -1,4 +1,4 @@
-﻿{
+{
   "nav": {
     "wadatrip": "WADATRIP",
     "products": "Products",
@@ -15,6 +15,7 @@
   "hero": {
     "title": "Simplify your travel planning",
     "subtitle": "with personalized AI",
+    "list_tour_cta": "List your tour",
     "description": "Discover unique itineraries created especially for you. Enter your destination, dates, interests and budget, and get personalized recommendations for your next adventure.",
     "destination_label": "Where do you want to go?",
     "destination_placeholder": "E.g: Paris, Tokyo, Bali...",
@@ -483,4 +484,5 @@
     "back_home": "Back to Home"
   }
 }
+
 
