@@ -470,14 +470,27 @@ export default function OperatorToursNew() {
                 {t('operator.edit_kicker_help', 'Already published? Jump to the edit section.')}
               </p>
             </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+            <div>
+              <label htmlFor="edit-tour-link" className="text-sm text-[#e0e0e0]">
+                {t('operator.tour_link_label', 'Tour link or ID')}
+              </label>
+              <Input
+                id="edit-tour-link"
+                value={editLookup}
+                onChange={(event) => setEditLookup(event.target.value)}
+                placeholder={t('operator.tour_link_placeholder', 'https://wadatrip.com/tours/...')}
+                className="mt-2 h-12 neon-input"
+              />
+            </div>
             <Button
               type="button"
-              className="h-12 neon-cta font-black hover:scale-105 transition-all md:w-auto"
-              onClick={() => {
-                document.getElementById('edit-tour')?.scrollIntoView({ behavior: 'smooth' });
-              }}
+              className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
+              onClick={handleLoadTour}
+              disabled={tourLoading}
             >
-              {t('operator.edit_kicker_cta', 'Edit a tour')}
+              {tourLoading ? t('operator.loading_label', 'Loading...') : t('operator.load_tour', 'Load tour')}
             </Button>
           </div>
         </section>
