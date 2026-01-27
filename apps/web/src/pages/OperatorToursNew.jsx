@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppConfig } from '../config/appConfig';
 import { Button } from '../components/ui/button';
@@ -51,8 +51,19 @@ export default function OperatorToursNew() {
   const [editLookup, setEditLookup] = useState('');
   const [editMessage, setEditMessage] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [pendingEditId, setPendingEditId] = useState(null);
 
   const accessCodeTrimmed = accessCode.trim();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('edit');
+    if (editId) {
+      setEditLookup(editId);
+      setPendingEditId(editId);
+    }
+  }, []);
 
   const handleProviderChange = (field, value) => {
     setProviderForm((prev) => ({ ...prev, [field]: value }));
@@ -228,45 +239,22 @@ export default function OperatorToursNew() {
     }
   };
 
-  const resolveEditId = async () => {
-    const raw = editLookup.trim();
-    if (!raw) return null;
-    let slugOrId = raw;
-    if (raw.includes('/tours/')) {
-      slugOrId = raw.split('/tours/')[1] || raw;
-    }
-    slugOrId = slugOrId.split('?')[0].split('#')[0];
-    if (isLikelyListingId(slugOrId)) return slugOrId;
-
-    const response = await fetch(`${apiBase}/listings/search?status=published&limit=200`);
-    const data = await response.json().catch(() => null);
-    const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-    return findListingIdFromSlug(slugOrId, items);
-  };
-
-  const handleLoadTour = async (event) => {
-    event.preventDefault();
+  const handleLoadTourById = async (listingId) => {
     setEditMessage(null);
-    if (!accessCodeTrimmed) {
-      setEditMessage(
-        t('operator.messages.access_required_load', 'Access code is required to load a tour.')
-      );
-      return;
-    }
-    if (!editLookup.trim()) {
+    if (!ensureAccessCode()) return;
+    if (!listingId) {
       setEditMessage(t('operator.messages.tour_link_required', 'Enter a tour link or ID.'));
       return;
     }
+
     setTourLoading(true);
     try {
-      const listingId = await resolveEditId();
-      if (!listingId) {
-        throw new Error('Tour not found. Check the link or ID.');
-      }
       const response = await fetch(`${apiBase}/listings/${encodeURIComponent(listingId)}`);
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.message || data?.error || 'Tour could not be loaded.');
+        throw new Error(
+          data?.message || data?.error || t('operator.messages.tour_load_error', 'Error loading tour.')
+        );
       }
       setEditingId(listingId);
       setCreatedTour(data);
@@ -287,11 +275,56 @@ export default function OperatorToursNew() {
       });
       setEditMessage(t('operator.messages.tour_loaded', 'Tour loaded. Update the fields and save.'));
     } catch (err) {
-      setEditMessage(
-        err?.message || t('operator.messages.tour_load_error', 'Error loading tour.')
-      );
+      setEditMessage(err?.message || t('operator.messages.tour_load_error', 'Error loading tour.'));
     } finally {
       setTourLoading(false);
+    }
+  };
+
+  const resolveEditId = async () => {
+    const raw = editLookup.trim();
+    if (!raw) return null;
+    let slugOrId = raw;
+    if (raw.includes('/tours/')) {
+      slugOrId = raw.split('/tours/')[1] || raw;
+    }
+    slugOrId = slugOrId.split('?')[0].split('#')[0];
+    if (isLikelyListingId(slugOrId)) return slugOrId;
+
+    const response = await fetch(`${apiBase}/listings/search?status=published&limit=200`);
+    const data = await response.json().catch(() => null);
+    const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+    return findListingIdFromSlug(slugOrId, items);
+  };
+
+  useEffect(() => {
+    if (pendingEditId && accessCodeTrimmed) {
+      handleLoadTourById(pendingEditId);
+      setPendingEditId(null);
+    }
+  }, [pendingEditId, accessCodeTrimmed]);
+
+  const handleLoadTour = async (event) => {
+    event.preventDefault();
+    setEditMessage(null);
+    if (!accessCodeTrimmed) {
+      setEditMessage(
+        t('operator.messages.access_required_load', 'Access code is required to load a tour.')
+      );
+      return;
+    }
+    if (!editLookup.trim()) {
+      setEditMessage(t('operator.messages.tour_link_required', 'Enter a tour link or ID.'));
+      return;
+    }
+    try {
+      const listingId = await resolveEditId();
+      if (!listingId) {
+        throw new Error(t('operator.messages.tour_not_found', 'Tour not found. Check the link or ID.'));
+      }
+      await handleLoadTourById(listingId);
+    } catch (err) {
+      setEditMessage(err?.message || t('operator.messages.tour_load_error', 'Error loading tour.'));
     }
   };
 
@@ -833,7 +866,42 @@ export default function OperatorToursNew() {
                   {t('operator.copy_tour_link', 'Copy tour link')}
                 </Button>
               </div>
-              <p>Tour code: {buildTourCode({ city: createdTour.city, id: createdTour.id })}</p>
+              <p>
+                {t('operator.tour_code_label', 'Tour code')}:{' '}
+                {buildTourCode({ city: createdTour.city, id: createdTour.id })}
+              </p>
+              <div className="mt-4 rounded-xl border border-[#00D9FF]/20 bg-[#0a0e27]/60 p-4">
+                <p className="text-sm font-semibold text-white">
+                  {t('operator.edit_title', 'Edit this tour')}
+                </p>
+                <p className="text-xs text-[#a0a0a0]">
+                  {t('operator.edit_help', 'Use this link to edit later.')}
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    readOnly
+                    value={`${siteOrigin}/operator/tours/new?edit=${createdTour.id}`}
+                    className="h-12 neon-input"
+                  />
+                  <Button
+                    type="button"
+                    className="h-12 neon-cta font-black hover:scale-105 transition-all"
+                    onClick={() => {
+                      const url = `${siteOrigin}/operator/tours/new?edit=${createdTour.id}`;
+                      navigator.clipboard?.writeText(url);
+                    }}
+                  >
+                    {t('operator.copy_edit_link', 'Copy edit link')}
+                  </Button>
+                </div>
+                <Button
+                  type="button"
+                  className="mt-3 h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
+                  onClick={() => handleLoadTourById(createdTour.id)}
+                >
+                  {t('operator.edit_button', 'Load for editing')}
+                </Button>
+              </div>
             </div>
           )}
         </section>
