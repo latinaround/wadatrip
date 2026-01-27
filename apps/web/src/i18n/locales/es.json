@@ -98,7 +98,7 @@
                  "deleting_label":  "Eliminando...",
                  "delete_button":  "Eliminar tour",
                  "shareable_link_label":  "Link para compartir (sin ID interno):",
-                 "copy_tour_link":  "Copiar link del tour"
+                 "copy_tour_link":  "Copiar link del tour",
                  "messages":  {
                      "access_required":  "Se requiere codigo de acceso.",
                      "operator_created":  "Operador creado. Guarda el ID para publicar tours.",
