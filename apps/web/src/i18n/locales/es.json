@@ -99,6 +99,29 @@
                  "delete_button":  "Eliminar tour",
                  "shareable_link_label":  "Link para compartir (sin ID interno):",
                  "copy_tour_link":  "Copiar link del tour"
+                 "messages":  {
+                     "access_required":  "Se requiere codigo de acceso.",
+                     "operator_created":  "Operador creado. Guarda el ID para publicar tours.",
+                     "operator_create_error":  "Error al crear operador.",
+                     "operator_id_required":  "Ingresa un ID de operador.",
+                     "operator_found":  "Operador encontrado: {{name}}",
+                     "operator_fetch_error":  "Error al cargar operador.",
+                     "use_update":  "Usa \"Actualizar tour\" para guardar cambios en un tour existente.",
+                     "provider_id_required":  "El ID del operador es requerido.",
+                     "required_fields":  "Completa los campos requeridos: titulo, categoria, ciudad, pais.",
+                     "tour_created":  "Tour creado: {{title}}",
+                     "tour_create_error":  "Error al crear tour.",
+                     "access_required_load":  "Se requiere codigo de acceso para cargar un tour.",
+                     "tour_link_required":  "Ingresa un link o ID del tour.",
+                     "tour_loaded":  "Tour cargado. Actualiza los campos y guarda.",
+                     "tour_load_error":  "Error al cargar tour.",
+                     "update_requires_load":  "Carga un tour antes de actualizar.",
+                     "tour_updated":  "Tour actualizado correctamente.",
+                     "tour_update_error":  "Error al actualizar tour.",
+                     "delete_requires_load":  "Carga un tour antes de eliminar.",
+                     "tour_deleted":  "Tour eliminado.",
+                     "tour_delete_error":  "Error al eliminar tour."
+                 },
              },
     "price_alerts":  {
                          "title":  "Alertas de Precios de Vuelos",
@@ -192,5 +215,6 @@
                         "searching":  "Buscando..."
                     }
 }
+
 
 

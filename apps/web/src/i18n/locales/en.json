@@ -385,6 +385,29 @@
         "deleting_label":  "Deleting...",
         "delete_button":  "Delete tour",
         "shareable_link_label":  "Shareable link (no internal ID):",
+        "messages":  {
+            "access_required":  "Access code is required.",
+            "operator_created":  "Operator created. Save the ID to publish tours.",
+            "operator_create_error":  "Error creating operator.",
+            "operator_id_required":  "Enter an operator ID.",
+            "operator_found":  "Operator found: {{name}}",
+            "operator_fetch_error":  "Error fetching operator.",
+            "use_update":  "Use \"Update tour\" to save changes to an existing tour.",
+            "provider_id_required":  "Provider ID is required.",
+            "required_fields":  "Complete required fields: title, category, city, country.",
+            "tour_created":  "Tour created: {{title}}",
+            "tour_create_error":  "Error creating tour.",
+            "access_required_load":  "Access code is required to load a tour.",
+            "tour_link_required":  "Enter a tour link or ID.",
+            "tour_loaded":  "Tour loaded. Update the fields and save.",
+            "tour_load_error":  "Error loading tour.",
+            "update_requires_load":  "Load a tour before updating.",
+            "tour_updated":  "Tour updated successfully.",
+            "tour_update_error":  "Error updating tour.",
+            "delete_requires_load":  "Load a tour before deleting.",
+            "tour_deleted":  "Tour deleted.",
+            "tour_delete_error":  "Error deleting tour."
+        },
         "copy_tour_link":  "Copy tour link"
     },
     "price_alerts":  {
@@ -614,4 +637,7 @@
                         "searching":  "Searching..."
                     }
 }
+
+
+
 

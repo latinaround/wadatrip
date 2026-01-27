@@ -64,8 +64,8 @@ export default function OperatorToursNew() {
 
   const ensureAccessCode = () => {
     if (!accessCodeTrimmed) {
-      setProviderMessage('Access code is required.');
-      setTourMessage('Access code is required.');
+      setProviderMessage(t('operator.messages.access_required', 'Access code is required.'));
+      setTourMessage(t('operator.messages.access_required', 'Access code is required.'));
       return false;
     }
     return true;
@@ -112,9 +112,13 @@ export default function OperatorToursNew() {
       }
 
       setProviderStatus(data?.provider || data || null);
-      setProviderMessage('Operator created. Save the ID to publish tours.');
+      setProviderMessage(
+        t('operator.messages.operator_created', 'Operator created. Save the ID to publish tours.')
+      );
     } catch (err) {
-      setProviderMessage(err?.message || 'Error creating operator.');
+      setProviderMessage(
+        err?.message || t('operator.messages.operator_create_error', 'Error creating operator.')
+      );
     } finally {
       setProviderLoading(false);
     }
@@ -124,7 +128,7 @@ export default function OperatorToursNew() {
     event.preventDefault();
     setProviderMessage(null);
     if (!providerLookupId.trim()) {
-      setProviderMessage('Enter an operator ID.');
+      setProviderMessage(t('operator.messages.operator_id_required', 'Enter an operator ID.'));
       return;
     }
     setProviderLoading(true);
@@ -136,9 +140,15 @@ export default function OperatorToursNew() {
         throw new Error(message);
       }
       setProviderStatus(data);
-      setProviderMessage(`Operator found: ${data?.name || data?.id}`);
+      setProviderMessage(
+        t('operator.messages.operator_found', 'Operator found: {{name}}', {
+          name: data?.name || data?.id,
+        })
+      );
     } catch (err) {
-      setProviderMessage(err?.message || 'Error fetching operator.');
+      setProviderMessage(
+        err?.message || t('operator.messages.operator_fetch_error', 'Error fetching operator.')
+      );
     } finally {
       setProviderLoading(false);
     }
@@ -148,16 +158,20 @@ export default function OperatorToursNew() {
     event.preventDefault();
     setTourMessage(null);
     if (editingId) {
-      setTourMessage('Use "Update tour" to save changes to an existing tour.');
+      setTourMessage(
+        t('operator.messages.use_update', 'Use "Update tour" to save changes to an existing tour.')
+      );
       return;
     }
     if (!ensureAccessCode()) return;
     if (!tourForm.provider_id.trim()) {
-      setTourMessage('Provider ID is required.');
+      setTourMessage(t('operator.messages.provider_id_required', 'Provider ID is required.'));
       return;
     }
     if (!tourForm.title.trim() || !tourForm.category.trim() || !tourForm.city.trim() || !tourForm.country_code.trim()) {
-      setTourMessage('Complete required fields: title, category, city, country.');
+      setTourMessage(
+        t('operator.messages.required_fields', 'Complete required fields: title, category, city, country.')
+      );
       return;
     }
 
@@ -199,10 +213,16 @@ export default function OperatorToursNew() {
 
       const created = data?.listing || data;
       setCreatedTour(created);
-      setTourMessage(`Tour created: ${created?.title || payload.title}`);
+      setTourMessage(
+        t('operator.messages.tour_created', 'Tour created: {{title}}', {
+          title: created?.title || payload.title,
+        })
+      );
       setTourForm((prev) => ({ ...emptyTour, provider_id: prev.provider_id }));
     } catch (err) {
-      setTourMessage(err?.message || 'Error creating tour.');
+      setTourMessage(
+        err?.message || t('operator.messages.tour_create_error', 'Error creating tour.')
+      );
     } finally {
       setTourLoading(false);
     }
@@ -228,11 +248,13 @@ export default function OperatorToursNew() {
     event.preventDefault();
     setEditMessage(null);
     if (!accessCodeTrimmed) {
-      setEditMessage('Access code is required to load a tour.');
+      setEditMessage(
+        t('operator.messages.access_required_load', 'Access code is required to load a tour.')
+      );
       return;
     }
     if (!editLookup.trim()) {
-      setEditMessage('Enter a tour link or ID.');
+      setEditMessage(t('operator.messages.tour_link_required', 'Enter a tour link or ID.'));
       return;
     }
     setTourLoading(true);
@@ -263,9 +285,11 @@ export default function OperatorToursNew() {
         tags: Array.isArray(data?.tags) ? data.tags.join(', ') : '',
         publish_now: data?.status ? String(data.status).toLowerCase() === 'published' : true,
       });
-      setEditMessage('Tour loaded. Update the fields and save.');
+      setEditMessage(t('operator.messages.tour_loaded', 'Tour loaded. Update the fields and save.'));
     } catch (err) {
-      setEditMessage(err?.message || 'Error loading tour.');
+      setEditMessage(
+        err?.message || t('operator.messages.tour_load_error', 'Error loading tour.')
+      );
     } finally {
       setTourLoading(false);
     }
@@ -276,7 +300,7 @@ export default function OperatorToursNew() {
     setEditMessage(null);
     if (!ensureAccessCode()) return;
     if (!editingId) {
-      setEditMessage('Load a tour before updating.');
+      setEditMessage(t('operator.messages.update_requires_load', 'Load a tour before updating.'));
       return;
     }
     setTourLoading(true);
@@ -313,9 +337,11 @@ export default function OperatorToursNew() {
       }
 
       setCreatedTour(data);
-      setTourMessage('Tour updated successfully.');
+      setTourMessage(t('operator.messages.tour_updated', 'Tour updated successfully.'));
     } catch (err) {
-      setTourMessage(err?.message || 'Error updating tour.');
+      setTourMessage(
+        err?.message || t('operator.messages.tour_update_error', 'Error updating tour.')
+      );
     } finally {
       setTourLoading(false);
     }
@@ -326,7 +352,7 @@ export default function OperatorToursNew() {
     setEditMessage(null);
     if (!ensureAccessCode()) return;
     if (!editingId) {
-      setEditMessage('Load a tour before deleting.');
+      setEditMessage(t('operator.messages.delete_requires_load', 'Load a tour before deleting.'));
       return;
     }
     const confirmed = window.confirm('Delete this tour? This cannot be undone.');
@@ -344,12 +370,14 @@ export default function OperatorToursNew() {
       if (!response.ok) {
         throw new Error(data?.message || data?.error || 'Tour could not be deleted.');
       }
-      setTourMessage('Tour deleted.');
+      setTourMessage(t('operator.messages.tour_deleted', 'Tour deleted.'));
       setEditingId(null);
       setCreatedTour(null);
       setTourForm((prev) => ({ ...emptyTour, provider_id: prev.provider_id }));
     } catch (err) {
-      setTourMessage(err?.message || 'Error deleting tour.');
+      setTourMessage(
+        err?.message || t('operator.messages.tour_delete_error', 'Error deleting tour.')
+      );
     } finally {
       setTourLoading(false);
     }
