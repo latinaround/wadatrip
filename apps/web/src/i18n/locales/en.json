@@ -17,8 +17,8 @@
         "title":  "Simplify your travel planning",
         "subtitle":  "with personalized AI",
         "list_tour_cta":  "List your tour",
-                 "description":  "Discover unique itineraries created especially for you. Enter your destination, dates, interests and budget, and get personalized recommendations for your next adventure.",
-                 "destination_label":  "Where do you want to go?",
+        "description":  "Discover unique itineraries created especially for you. Enter your destination, dates, interests and budget, and get personalized recommendations for your next adventure.",
+        "destination_label":  "Where do you want to go?",
                  "destination_placeholder":  "E.g: Paris, Tokyo, Bali...",
                  "dates_label":  "When are you traveling?",
                  "travelers_label":  "Travelers",
@@ -316,6 +316,9 @@
                              "route_factor":  "Route",
                              "cabin_class_factor":  "Cabin Class"
                          },
+    "operator":  {
+        "publish_title":  "Publish tours on Wadatrip"
+    },
     "price_alerts":  {
                          "title":  "Flight Alerts",
                          "subtitle":  "Set up smart alerts and get notified when we find flights within your budget",

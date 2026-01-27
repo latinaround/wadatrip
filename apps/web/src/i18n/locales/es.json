@@ -29,6 +29,9 @@
                  "interests_placeholder":  "Ej: cultura, aventura, gastronomía...",
                  "search_button":  "Buscar mi viaje perfecto"
              },
+    "operator":  {
+                 "publish_title":  "Publica tours en Wadatrip"
+             },
     "price_alerts":  {
                          "title":  "Alertas de Precios de Vuelos",
                          "subtitle":  "Configura alertas inteligentes y recibe notificaciones cuando encontremos vuelos dentro de tu presupuesto",

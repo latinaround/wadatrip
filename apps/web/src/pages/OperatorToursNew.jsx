@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppConfig } from '../config/appConfig';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -34,6 +35,7 @@ const emptyTour = {
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
 export default function OperatorToursNew() {
+  const { t } = useTranslation();
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const siteOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const [accessCode, setAccessCode] = useState('');
@@ -360,7 +362,9 @@ export default function OperatorToursNew() {
           <div className="flex flex-col items-center gap-3">
             <span className="page-kicker">Operator onboarding</span>
           </div>
-          <h1 className="text-3xl font-semibold text-white md:text-4xl">Publish tours on Wadatrip</h1>
+          <h1 className="text-3xl font-semibold text-white md:text-4xl">
+            {t('operator.publish_title', 'Publish tours on Wadatrip')}
+          </h1>
           <p className="mx-auto max-w-2xl text-sm text-[#a0a0a0]">
             Start with your access code, add your operator details, then publish a tour in minutes.
           </p>
