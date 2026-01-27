@@ -121,7 +121,7 @@
                      "delete_requires_load":  "Carga un tour antes de eliminar.",
                      "tour_deleted":  "Tour eliminado.",
                      "tour_delete_error":  "Error al eliminar tour."
-                 },
+                 }
              },
     "price_alerts":  {
                          "title":  "Alertas de Precios de Vuelos",
