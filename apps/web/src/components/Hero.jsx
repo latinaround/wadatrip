@@ -50,7 +50,7 @@ const Hero = ({ onSubmit }) => {
               size="lg"
               className="bg-gradient-to-r from-[#FF8A3D] via-[#FFB703] to-[#FF006E] text-white font-black px-10 py-3 rounded-full shadow-lg shadow-[#FF8A3D]/30 hover:shadow-[#FF006E]/40 hover:brightness-110 transition-all"
             >
-              <Link to="/operator/tours/new">List your tour</Link>
+              <Link to="/operator/tours/new" className="text-white">List your tour</Link>
             </Button>
           </div>
           <h1 className="text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
