@@ -44,6 +44,15 @@ const Hero = ({ onSubmit }) => {
 
       <div className="container mx-auto px-4 py-12 relative z-10">
         <div className="max-w-4xl mx-auto text-center mb-8">
+          <div className="mb-6 flex justify-center">
+            <Button
+              asChild
+              size="lg"
+              className="bg-[#FF8A3D] text-white font-black px-10 py-3 rounded-xl hover:bg-[#ff7a22] transition-colors"
+            >
+              <Link to="/operator/tours/new">List your tour</Link>
+            </Button>
+          </div>
           <h1 className="text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
             {t('hero.title')}
             <br />
@@ -57,15 +66,6 @@ const Hero = ({ onSubmit }) => {
           <p className="text-sm text-[#a0a0a0] max-w-2xl mx-auto">
             This tool generates AI travel plans. You can explore real tours from local operators in the Tours section.
           </p>
-          <div className="mt-6 flex justify-center">
-            <Button
-              asChild
-              size="lg"
-              className="bg-[#FF8A3D] text-white font-black px-10 py-3 rounded-xl hover:bg-[#ff7a22] transition-colors"
-            >
-              <Link to="/operator/tours/new">List your tour</Link>
-            </Button>
-          </div>
         </div>
 
         <div className="max-w-4xl mx-auto">
