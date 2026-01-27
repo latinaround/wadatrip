@@ -360,31 +360,40 @@ export default function OperatorToursNew() {
       <div className="page-container flex w-full flex-col gap-10">
         <header className="space-y-4 text-center">
           <div className="flex flex-col items-center gap-3">
-            <span className="page-kicker">Operator onboarding</span>
+            <span className="page-kicker">{t('operator.kicker', 'Operator onboarding')}</span>
           </div>
           <h1 className="text-3xl font-semibold text-white md:text-4xl">
             {t('operator.publish_title', 'Publish tours on Wadatrip')}
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-[#a0a0a0]">
-            Start with your access code, add your operator details, then publish a tour in minutes.
+            {t(
+              'operator.subtitle',
+              'Start with your access code, add your operator details, then publish a tour in minutes.'
+            )}
           </p>
         </header>
 
         <section className="page-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#00D9FF]">Step 1</p>
-              <h2 className="text-xl font-semibold text-white">Access code</h2>
-              <p className="text-sm text-[#a0a0a0]">Required to unlock self-serve publishing.</p>
+              <p className="text-sm text-[#00D9FF]">{t('operator.step1_label', 'Step 1')}</p>
+              <h2 className="text-xl font-semibold text-white">
+                {t('operator.access_title', 'Access code')}
+              </h2>
+              <p className="text-sm text-[#a0a0a0]">
+                {t('operator.access_help', 'Required to unlock self-serve publishing.')}
+              </p>
             </div>
           </div>
           <div className="mt-6">
-            <label htmlFor="access-code" className="text-sm text-[#e0e0e0]">Access code</label>
+            <label htmlFor="access-code" className="text-sm text-[#e0e0e0]">
+              {t('operator.access_label', 'Access code')}
+            </label>
             <Input
               id="access-code"
               value={accessCode}
               onChange={(event) => setAccessCode(event.target.value)}
-              placeholder="Enter your access code"
+              placeholder={t('operator.access_placeholder', 'Enter your access code')}
               className="mt-2 h-12 neon-input"
             />
           </div>
@@ -392,83 +401,101 @@ export default function OperatorToursNew() {
 
         <section className="page-card">
           <div className="space-y-1">
-            <p className="text-sm text-[#00D9FF]">Step 2 (optional)</p>
-            <h2 className="text-xl font-semibold text-white">Operator details</h2>
-            <p className="text-sm text-[#a0a0a0]">Create or validate your operator profile.</p>
+            <p className="text-sm text-[#00D9FF]">{t('operator.step2_label', 'Step 2 (optional)')}</p>
+            <h2 className="text-xl font-semibold text-white">
+              {t('operator.operator_title', 'Operator details')}
+            </h2>
+            <p className="text-sm text-[#a0a0a0]">
+              {t('operator.operator_help', 'Create or validate your operator profile.')}
+            </p>
           </div>
 
           <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={handleCreateProvider}>
             <div>
-              <label htmlFor="provider-name" className="text-sm text-[#e0e0e0]">Full name</label>
+              <label htmlFor="provider-name" className="text-sm text-[#e0e0e0]">
+                {t('operator.full_name_label', 'Full name')}
+              </label>
               <Input
                 id="provider-name"
                 value={providerForm.name}
                 onChange={(event) => handleProviderChange('name', event.target.value)}
-                placeholder="Jane Doe"
+                placeholder={t('operator.full_name_placeholder', 'Jane Doe')}
                 className="mt-2 h-12 neon-input"
               />
             </div>
             <div>
-              <label htmlFor="provider-email" className="text-sm text-[#e0e0e0]">Email</label>
+              <label htmlFor="provider-email" className="text-sm text-[#e0e0e0]">
+                {t('operator.email_label', 'Email')}
+              </label>
               <Input
                 id="provider-email"
                 value={providerForm.email}
                 onChange={(event) => handleProviderChange('email', event.target.value)}
-                placeholder="you@company.com"
+                placeholder={t('operator.email_placeholder', 'you@company.com')}
                 type="email"
                 className="mt-2 h-12 neon-input"
               />
             </div>
             <div>
-              <label htmlFor="provider-phone" className="text-sm text-[#e0e0e0]">Phone</label>
+              <label htmlFor="provider-phone" className="text-sm text-[#e0e0e0]">
+                {t('operator.phone_label', 'Phone')}
+              </label>
               <Input
                 id="provider-phone"
                 value={providerForm.phone}
                 onChange={(event) => handleProviderChange('phone', event.target.value)}
-                placeholder="+1 555 123 456"
+                placeholder={t('operator.phone_placeholder', '+1 555 123 456')}
                 className="mt-2 h-12 neon-input"
               />
             </div>
             <div>
-              <label htmlFor="provider-base-city" className="text-sm text-[#e0e0e0]">Base city</label>
+              <label htmlFor="provider-base-city" className="text-sm text-[#e0e0e0]">
+                {t('operator.base_city_label', 'Base city')}
+              </label>
               <Input
                 id="provider-base-city"
                 value={providerForm.base_city}
                 onChange={(event) => handleProviderChange('base_city', event.target.value)}
-                placeholder="Lima"
+                placeholder={t('operator.base_city_placeholder', 'Lima')}
                 className="mt-2 h-12 neon-input"
               />
             </div>
             <div>
-              <label htmlFor="provider-country" className="text-sm text-[#e0e0e0]">Country (ISO2)</label>
+              <label htmlFor="provider-country" className="text-sm text-[#e0e0e0]">
+                {t('operator.country_label', 'Country (ISO2)')}
+              </label>
               <Input
                 id="provider-country"
                 value={providerForm.country_code}
                 onChange={(event) => handleProviderChange('country_code', event.target.value)}
-                placeholder="PE"
+                placeholder={t('operator.country_placeholder', 'PE')}
                 className="mt-2 h-12 neon-input"
               />
             </div>
             <div>
-              <label htmlFor="provider-languages" className="text-sm text-[#e0e0e0]">Languages</label>
+              <label htmlFor="provider-languages" className="text-sm text-[#e0e0e0]">
+                {t('operator.languages_label', 'Languages')}
+              </label>
               <Input
                 id="provider-languages"
                 value={providerForm.languages}
                 onChange={(event) => handleProviderChange('languages', event.target.value)}
-                placeholder="es,en"
+                placeholder={t('operator.languages_placeholder', 'es,en')}
                 className="mt-2 h-12 neon-input"
               />
             </div>
             <div>
-              <label htmlFor="provider-type" className="text-sm text-[#e0e0e0]">Operator type</label>
+              <label htmlFor="provider-type" className="text-sm text-[#e0e0e0]">
+                {t('operator.type_label', 'Operator type')}
+              </label>
               <select
                 id="provider-type"
                 value={providerForm.type}
                 onChange={(event) => handleProviderChange('type', event.target.value)}
                 className="mt-2 h-12 w-full rounded-md border border-[#00D9FF]/30 bg-[#1a1f3a] px-3 text-sm text-white"
               >
-                <option value="operator">Operator</option>
-                <option value="guide">Guide</option>
+                <option value="operator">{t('operator.type_operator', 'Operator')}</option>
+                <option value="guide">{t('operator.type_guide', 'Guide')}</option>
               </select>
             </div>
             <div className="flex items-end">
@@ -477,7 +504,9 @@ export default function OperatorToursNew() {
                 className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
                 disabled={providerLoading}
               >
-                {providerLoading ? 'Creating...' : 'Create operator'}
+                {providerLoading
+                  ? t('operator.creating_label', 'Creating...')
+                  : t('operator.create_button', 'Create operator')}
               </Button>
             </div>
           </form>
@@ -485,12 +514,14 @@ export default function OperatorToursNew() {
           <div className="mt-6 page-card">
             <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleLookupProvider}>
               <div className="flex-1">
-                <label htmlFor="provider-lookup-id" className="text-sm text-[#e0e0e0]">Verify operator by ID</label>
+                <label htmlFor="provider-lookup-id" className="text-sm text-[#e0e0e0]">
+                  {t('operator.verify_title', 'Verify operator by ID')}
+                </label>
                 <Input
                   id="provider-lookup-id"
                   value={providerLookupId}
                   onChange={(event) => setProviderLookupId(event.target.value)}
-                  placeholder="provider_id"
+                  placeholder={t('operator.provider_id_placeholder', 'provider_id')}
                   className="mt-2 h-12 neon-input"
                 />
               </div>
@@ -499,7 +530,9 @@ export default function OperatorToursNew() {
                 className="h-12 neon-cta font-black hover:scale-105 transition-all"
                 disabled={providerLoading}
               >
-                {providerLoading ? 'Checking...' : 'Verify'}
+                {providerLoading
+                  ? t('operator.checking_label', 'Checking...')
+                  : t('operator.verify_button', 'Verify')}
               </Button>
             </form>
             {providerStatus && (
@@ -514,19 +547,23 @@ export default function OperatorToursNew() {
 
         <section className="page-card">
           <div className="space-y-1">
-            <p className="text-sm text-[#00D9FF]">Step 3</p>
-            <h2 className="text-xl font-semibold text-white">Tour details</h2>
-            <p className="text-sm text-[#a0a0a0]">Publish the experience you want to sell.</p>
+            <p className="text-sm text-[#00D9FF]">{t('operator.step3_label', 'Step 3')}</p>
+            <h2 className="text-xl font-semibold text-white">{t('operator.tour_title', 'Tour details')}</h2>
+            <p className="text-sm text-[#a0a0a0]">
+              {t('operator.tour_help', 'Publish the experience you want to sell.')}
+            </p>
           </div>
 
           <form className="mt-6 grid gap-4 md:grid-cols-[2fr_1fr]" onSubmit={handleLoadTour}>
             <div>
-              <label htmlFor="tour-edit-lookup" className="text-sm text-[#e0e0e0]">Tour link or ID</label>
+              <label htmlFor="tour-edit-lookup" className="text-sm text-[#e0e0e0]">
+                {t('operator.tour_link_label', 'Tour link or ID')}
+              </label>
               <Input
                 id="tour-edit-lookup"
                 value={editLookup}
                 onChange={(event) => setEditLookup(event.target.value)}
-                placeholder="https://wadatrip.com/tours/..."
+                placeholder={t('operator.tour_link_placeholder', 'https://wadatrip.com/tours/...')}
                 className="mt-2 h-12 neon-input"
               />
             </div>
@@ -536,7 +573,7 @@ export default function OperatorToursNew() {
                 className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
                 disabled={tourLoading}
               >
-                {tourLoading ? 'Loading...' : 'Load tour'}
+                {tourLoading ? t('operator.loading_label', 'Loading...') : t('operator.load_tour', 'Load tour')}
               </Button>
             </div>
           </form>
@@ -544,96 +581,114 @@ export default function OperatorToursNew() {
 
           <form className="mt-6 grid gap-5" onSubmit={handleCreateTour}>
             <div>
-              <label htmlFor="tour-provider-id" className="text-sm text-[#e0e0e0]">Provider ID</label>
+              <label htmlFor="tour-provider-id" className="text-sm text-[#e0e0e0]">
+                {t('operator.tour_provider_id_label', 'Provider ID')}
+              </label>
               <Input
                 id="tour-provider-id"
                 value={tourForm.provider_id}
                 onChange={(event) => handleTourChange('provider_id', event.target.value)}
-                placeholder="provider_id"
+                placeholder={t('operator.provider_id_placeholder', 'provider_id')}
                 className="mt-2 h-12 neon-input"
                 readOnly={Boolean(editingId)}
               />
               {editingId && (
                 <p className="mt-2 text-xs text-[#a0a0a0]">
-                  Provider ID is locked while editing.
+                  {t('operator.provider_id_locked', 'Provider ID is locked while editing.')}
                 </p>
               )}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label htmlFor="tour-title" className="text-sm text-[#e0e0e0]">Tour title</label>
+                <label htmlFor="tour-title" className="text-sm text-[#e0e0e0]">
+                  {t('operator.tour_title_label', 'Tour title')}
+                </label>
                 <Input
                   id="tour-title"
                   value={tourForm.title}
                   onChange={(event) => handleTourChange('title', event.target.value)}
-                  placeholder="Sunrise hike in the Andes"
+                  placeholder={t('operator.tour_title_placeholder', 'Sunrise hike in the Andes')}
                   className="mt-2 h-12 neon-input"
                 />
               </div>
               <div>
-                <label htmlFor="tour-category" className="text-sm text-[#e0e0e0]">Category</label>
+                <label htmlFor="tour-category" className="text-sm text-[#e0e0e0]">
+                  {t('operator.category_label', 'Category')}
+                </label>
                 <Input
                   id="tour-category"
                   value={tourForm.category}
                   onChange={(event) => handleTourChange('category', event.target.value)}
-                  placeholder="tour"
+                  placeholder={t('operator.category_placeholder', 'tour')}
                   className="mt-2 h-12 neon-input"
                 />
               </div>
               <div>
-                <label htmlFor="tour-city" className="text-sm text-[#e0e0e0]">City</label>
+                <label htmlFor="tour-city" className="text-sm text-[#e0e0e0]">
+                  {t('operator.city_label', 'City')}
+                </label>
                 <Input
                   id="tour-city"
                   value={tourForm.city}
                   onChange={(event) => handleTourChange('city', event.target.value)}
-                  placeholder="Cusco"
+                  placeholder={t('operator.city_placeholder', 'Cusco')}
                   className="mt-2 h-12 neon-input"
                 />
               </div>
               <div>
-                <label htmlFor="tour-country" className="text-sm text-[#e0e0e0]">Country (ISO2)</label>
+                <label htmlFor="tour-country" className="text-sm text-[#e0e0e0]">
+                  {t('operator.tour_country_label', 'Country (ISO2)')}
+                </label>
                 <Input
                   id="tour-country"
                   value={tourForm.country_code}
                   onChange={(event) => handleTourChange('country_code', event.target.value)}
-                  placeholder="PE"
+                  placeholder={t('operator.country_placeholder', 'PE')}
                   className="mt-2 h-12 neon-input"
                 />
               </div>
               <div>
-                <label htmlFor="tour-duration" className="text-sm text-[#e0e0e0]">Duration (minutes)</label>
+                <label htmlFor="tour-duration" className="text-sm text-[#e0e0e0]">
+                  {t('operator.duration_label', 'Duration (minutes)')}
+                </label>
                 <Input
                   id="tour-duration"
                   value={tourForm.duration_minutes}
                   onChange={(event) => handleTourChange('duration_minutes', event.target.value)}
-                  placeholder="240"
+                  placeholder={t('operator.duration_placeholder', '240')}
                   type="number"
                   className="mt-2 h-12 neon-input"
                 />
               </div>
               <div>
-                <label htmlFor="tour-price" className="text-sm text-[#e0e0e0]">Starting price</label>
+                <label htmlFor="tour-price" className="text-sm text-[#e0e0e0]">
+                  {t('operator.price_label', 'Starting price')}
+                </label>
                 <Input
                   id="tour-price"
                   value={tourForm.price_from}
                   onChange={(event) => handleTourChange('price_from', event.target.value)}
-                  placeholder="120"
+                  placeholder={t('operator.price_placeholder', '120')}
                   type="number"
                   className="mt-2 h-12 neon-input"
                 />
               </div>
               <div>
-                <label htmlFor="tour-currency" className="text-sm text-[#e0e0e0]">Currency</label>
+                <label htmlFor="tour-currency" className="text-sm text-[#e0e0e0]">
+                  {t('operator.currency_label', 'Currency')}
+                </label>
                 <Input
                   id="tour-currency"
                   value={tourForm.currency}
                   onChange={(event) => handleTourChange('currency', event.target.value)}
-                  placeholder="USD"
+                  placeholder={t('operator.currency_placeholder', 'USD')}
                   className="mt-2 h-12 neon-input"
                 />
               </div>
               <div>
-                <label htmlFor="tour-start-date" className="text-sm text-[#e0e0e0]">Start date</label>
+                <label htmlFor="tour-start-date" className="text-sm text-[#e0e0e0]">
+                  {t('operator.start_date_label', 'Start date')}
+                </label>
                 <Input
                   id="tour-start-date"
                   value={tourForm.start_date}
@@ -643,7 +698,9 @@ export default function OperatorToursNew() {
                 />
               </div>
               <div>
-                <label htmlFor="tour-end-date" className="text-sm text-[#e0e0e0]">End date</label>
+                <label htmlFor="tour-end-date" className="text-sm text-[#e0e0e0]">
+                  {t('operator.end_date_label', 'End date')}
+                </label>
                 <Input
                   id="tour-end-date"
                   value={tourForm.end_date}
@@ -654,22 +711,29 @@ export default function OperatorToursNew() {
               </div>
             </div>
             <div>
-              <label htmlFor="tour-description" className="text-sm text-[#e0e0e0]">Description</label>
+              <label htmlFor="tour-description" className="text-sm text-[#e0e0e0]">
+                {t('operator.description_label', 'Description')}
+              </label>
               <Textarea
                 id="tour-description"
                 value={tourForm.description}
                 onChange={(event) => handleTourChange('description', event.target.value)}
-                placeholder="Describe the experience, meeting point, and highlights."
+                placeholder={t(
+                  'operator.description_placeholder',
+                  'Describe the experience, meeting point, and highlights.'
+                )}
                 className="mt-2 min-h-[120px] neon-input"
               />
             </div>
             <div>
-              <label htmlFor="tour-tags" className="text-sm text-[#e0e0e0]">Tags</label>
+              <label htmlFor="tour-tags" className="text-sm text-[#e0e0e0]">
+                {t('operator.tags_label', 'Tags')}
+              </label>
               <Input
                 id="tour-tags"
                 value={tourForm.tags}
                 onChange={(event) => handleTourChange('tags', event.target.value)}
-                placeholder="adventure, sunrise, hiking"
+                placeholder={t('operator.tags_placeholder', 'adventure, sunrise, hiking')}
                 className="mt-2 h-12 neon-input"
               />
             </div>
@@ -680,14 +744,18 @@ export default function OperatorToursNew() {
                 checked={tourForm.publish_now}
                 onChange={(event) => handleTourChange('publish_now', event.target.checked)}
               />
-              <label htmlFor="tour-publish-now">Publish immediately</label>
+              <label htmlFor="tour-publish-now">
+                {t('operator.publish_now_label', 'Publish immediately')}
+              </label>
             </div>
             <Button
               type="submit"
               className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
               disabled={tourLoading}
             >
-              {tourLoading ? 'Publishing...' : 'Publish tour'}
+              {tourLoading
+                ? t('operator.publishing_label', 'Publishing...')
+                : t('operator.publish_button', 'Publish tour')}
             </Button>
             <Button
               type="button"
@@ -696,7 +764,7 @@ export default function OperatorToursNew() {
               onClick={handleUpdateTour}
               disabled={tourLoading || !editingId}
             >
-              {tourLoading ? 'Saving...' : 'Update tour'}
+              {tourLoading ? t('operator.saving_label', 'Saving...') : t('operator.update_button', 'Update tour')}
             </Button>
             <Button
               type="button"
@@ -705,13 +773,13 @@ export default function OperatorToursNew() {
               onClick={handleDeleteTour}
               disabled={tourLoading || !editingId}
             >
-              {tourLoading ? 'Deleting...' : 'Delete tour'}
+              {tourLoading ? t('operator.deleting_label', 'Deleting...') : t('operator.delete_button', 'Delete tour')}
             </Button>
           </form>
           {tourMessage && <p className="mt-4 text-sm text-[#00D9FF]">{tourMessage}</p>}
           {createdTour?.id && (
             <div className="mt-4 space-y-2 text-sm text-[#a0a0a0]">
-              <p>Shareable link (no internal ID):</p>
+              <p>{t('operator.shareable_link_label', 'Shareable link (no internal ID):')}</p>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Input
                   readOnly
@@ -734,7 +802,7 @@ export default function OperatorToursNew() {
                     navigator.clipboard?.writeText(url);
                   }}
                 >
-                  Copy tour link
+                  {t('operator.copy_tour_link', 'Copy tour link')}
                 </Button>
               </div>
               <p>Tour code: {buildTourCode({ city: createdTour.city, id: createdTour.id })}</p>
