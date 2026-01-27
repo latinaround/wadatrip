@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { MapPin, Navigation, Calendar, Users, DollarSign, Search as SearchIcon, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,6 +57,15 @@ const Hero = ({ onSubmit }) => {
           <p className="text-sm text-[#a0a0a0] max-w-2xl mx-auto">
             This tool generates AI travel plans. You can explore real tours from local operators in the Tours section.
           </p>
+          <div className="mt-6 flex justify-center">
+            <Button
+              asChild
+              size="lg"
+              className="bg-[#FF8A3D] text-white font-black px-10 py-3 rounded-xl hover:bg-[#ff7a22] transition-colors"
+            >
+              <Link to="/operator/tours/new">List your tour</Link>
+            </Button>
+          </div>
         </div>
 
         <div className="max-w-4xl mx-auto">
