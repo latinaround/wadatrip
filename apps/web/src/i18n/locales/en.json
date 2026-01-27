@@ -8,9 +8,10 @@
                 "contact":  "Contact",
                 "request_demo":  "Request Demo",
                 "login":  "Login",
-                "privacy_policy":  "Privacy Policy",
-                "tour_alerts":  "Tour Alerts",
-                "tours":  "Tours"
+        "privacy_policy":  "Privacy Policy",
+        "tour_alerts":  "Tour Alerts",
+        "tours":  "Tours",
+        "list_tour":  "List your tour"
             },
     "hero":  {
         "title":  "Simplify your travel planning",

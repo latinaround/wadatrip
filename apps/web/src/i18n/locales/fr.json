@@ -10,12 +10,13 @@
     "login": "Login",
     "privacy_policy": "Privacy Policy",
     "tour_alerts": "Tour Alerts",
-    "tours": "Tours"
+    "tours": "Tours",
+    "list_tour": "Publiez votre tour"
   },
   "hero": {
     "title": "Simplify your travel planning",
     "subtitle": "with personalized AI",
-    "list_tour_cta": "List your tour",
+    "list_tour_cta": "Publiez votre tour",
     "description": "Discover unique itineraries created especially for you. Enter your destination, dates, interests and budget, and get personalized recommendations for your next adventure.",
     "destination_label": "Where do you want to go?",
     "destination_placeholder": "E.g: Paris, Tokyo, Bali...",

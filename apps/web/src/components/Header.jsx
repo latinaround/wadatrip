@@ -94,7 +94,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
               className="hidden md:flex bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hover:scale-105 transition-all"
               asChild
             >
-              <Link to="/operator/tours/new">List your tour</Link>
+              <Link to="/operator/tours/new">{t('nav.list_tour') ?? 'List your tour'}</Link>
             </Button>
             {user ? (
               <div className="hidden md:flex items-center gap-2">
@@ -153,7 +153,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   asChild
                 >
                   <Link to="/operator/tours/new" onClick={() => setIsMenuOpen(false)}>
-                    List your tour
+                    {t('nav.list_tour') ?? 'List your tour'}
                   </Link>
                 </Button>
                 {user ? (

@@ -25,7 +25,9 @@ export class BookingsController {
     if (q.status) where.status = String(q.status);
     if (q.payment_status) where.payment_status = String(q.payment_status);
     if (q.provider_id) where.provider_id = String(q.provider_id);
-    if (q.user_id) {
+    if (q.user_email) {
+      where.user = { email: String(q.user_email).toLowerCase() };
+    } else if (q.user_id) {
       where.user_id = String(q.user_id);
     } else {
       const claims = getClaimsFromAuth(req);
