@@ -201,7 +201,11 @@
                 "loading":  "Cargando tours...",
                 "empty":  "Aun no hay tours publicados.",
                 "hosted_by":  "Organizado por",
-                "default_desc":  "Experiencia organizada por un socio local."
+                "default_desc":  "Experiencia organizada por un socio local.",
+                "guide_kicker":  "Para guias",
+                "guide_title":  "Eres guia de tours?",
+                "guide_subtitle":  "Publica tu tour aqui y llega directo a viajeros.",
+                "guide_cta":  "Publica tu tour"
             },
     "footer":  {
                    "description":  "Creamos itinerarios de viaje personalizados con inteligencia artificial para ofrecerte experiencias unicas e inolvidables.",

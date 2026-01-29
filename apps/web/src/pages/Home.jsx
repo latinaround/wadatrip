@@ -176,6 +176,24 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="page-card flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <p className="text-sm text-[#00D9FF]">{t('home.guide_kicker', 'For guides')}</p>
+            <h2 className="text-2xl font-semibold text-white">
+              {t('home.guide_title', 'Are you a tour guide?')}
+            </h2>
+            <p className="text-sm text-[#e0e0e0]">
+              {t('home.guide_subtitle', 'List your tour here and reach travelers directly.')}
+            </p>
+          </div>
+          <Link
+            to="/operator/tours/new"
+            className="neon-cta inline-flex h-12 items-center justify-center rounded-md px-6 text-sm font-black uppercase tracking-wide transition-transform hover:scale-105"
+          >
+            {t('home.guide_cta', 'List your tour')}
+          </Link>
+        </section>
+
         <FlightPricePredictor />
       </div>
     </div>

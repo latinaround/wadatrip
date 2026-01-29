@@ -267,7 +267,11 @@
                 "loading":  "Loading tours...",
                 "empty":  "No tours have been published yet.",
                 "hosted_by":  "Hosted by",
-                "default_desc":  "Experience hosted by a local partner."
+                "default_desc":  "Experience hosted by a local partner.",
+                "guide_kicker":  "For guides",
+                "guide_title":  "Are you a tour guide?",
+                "guide_subtitle":  "List your tour here and reach travelers directly.",
+                "guide_cta":  "List your tour"
             },
     "footer":  {
                    "description":  "We create personalized travel itineraries using artificial intelligence to offer you unique and unforgettable experiences.",
