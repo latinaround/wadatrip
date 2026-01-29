@@ -252,6 +252,22 @@
                                                ]
                               }
                     },
+    "home":  {
+                "hero_kicker":  "Marketplace",
+                "hero_title":  "Access curated local experiences",
+                "hero_subtitle":  "Book real tours from verified local operators. Use AI only when you need help planning.",
+                "hero_primary":  "Explore experiences",
+                "hero_secondary":  "Plan with AI",
+                "featured_kicker":  "Featured this week",
+                "featured_subtitle":  "Curated experiences ready to book right now.",
+                "limited_kicker":  "Limited spots",
+                "limited_subtitle":  "Small-group tours with limited availability.",
+                "see_all":  "See all tours",
+                "loading":  "Loading tours...",
+                "empty":  "No tours have been published yet.",
+                "hosted_by":  "Hosted by",
+                "default_desc":  "Experience hosted by a local partner."
+            },
     "footer":  {
                    "description":  "We create personalized travel itineraries using artificial intelligence to offer you unique and unforgettable experiences.",
                    "products":  "Products",

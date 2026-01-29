@@ -186,6 +186,22 @@
                          "timeout_notification":  "Tiempo expirado. Mejor precio encontrado: ${{price}}",
                          "alert_created_success_with_id":  "Alerta de precio creada exitosamente. ID: {{id}}"
                      },
+    "home":  {
+                "hero_kicker":  "Marketplace",
+                "hero_title":  "Accede a experiencias locales curadas",
+                "hero_subtitle":  "Reserva tours reales de operadores verificados. Usa la IA solo cuando necesites planificar.",
+                "hero_primary":  "Explorar experiencias",
+                "hero_secondary":  "Planificar con IA",
+                "featured_kicker":  "Destacados de la semana",
+                "featured_subtitle":  "Experiencias curadas listas para reservar.",
+                "limited_kicker":  "Cupos limitados",
+                "limited_subtitle":  "Tours en grupos pequenos con disponibilidad limitada.",
+                "see_all":  "Ver todos los tours",
+                "loading":  "Cargando tours...",
+                "empty":  "Aun no hay tours publicados.",
+                "hosted_by":  "Organizado por",
+                "default_desc":  "Experiencia organizada por un socio local."
+            },
     "footer":  {
                    "description":  "Creamos itinerarios de viaje personalizados con inteligencia artificial para ofrecerte experiencias unicas e inolvidables.",
                    "products":  "Productos",

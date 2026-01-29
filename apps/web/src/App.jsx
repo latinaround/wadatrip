@@ -23,6 +23,7 @@ import Account from './pages/Account';
 import OperatorToursNew from './pages/OperatorToursNew.jsx';
 import Tours from './pages/Tours.jsx';
 import TourDetail from './pages/TourDetail.jsx';
+import Home from './pages/Home.jsx';
 import AuthDialog from './components/AuthDialog.jsx';
 import CheckoutDialog from './components/payments/CheckoutDialog.jsx';
 import { useAuth } from './context/AuthContext.jsx';
@@ -259,8 +260,9 @@ function App() {
 
       <Routes>
         <Route path="/admin/*" element={<AdminApp />} />
+        <Route path="/" element={<Home />} />
         <Route
-          path="/"
+          path="/plan"
           element={
             <>
               <Hero onSubmit={handleSearch} />
@@ -322,9 +324,11 @@ function App() {
           <Footer />
           <WhatsAppButton />
 
-          <div className="fixed bottom-4 right-4 z-50">
-            <WadaAgent />
-          </div>
+          {location.pathname.startsWith('/plan') && (
+            <div className="fixed bottom-4 right-4 z-50">
+              <WadaAgent />
+            </div>
+          )}
 
           <AuthDialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
 
