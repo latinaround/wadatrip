@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
+import FlightPricePredictor from '../components/FlightPricePredictor';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -53,8 +54,8 @@ export default function Home() {
     };
   }, [apiBase]);
 
-  const featured = items.slice(0, 3);
-  const limited = items.slice(3, 6);
+  const topTours = items.slice(0, 3);
+  const featured = items.slice(3, 5);
 
   return (
     <div className="page-shell">
@@ -94,9 +95,9 @@ export default function Home() {
         <section className="space-y-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="page-kicker text-[#00D9FF]">{t('home.featured_kicker', 'Featured this week')}</p>
+              <p className="page-kicker text-[#00D9FF]">{t('home.top_kicker', 'Top tours')}</p>
               <p className="text-sm text-[#e0e0e0]">
-                {t('home.featured_subtitle', 'Curated experiences ready to book right now.')}
+                {t('home.top_subtitle', 'Highest‑rated experiences from local guides.')}
               </p>
             </div>
             <Link to="/tours" className="text-sm text-[#00D9FF] hover:text-white">
@@ -106,12 +107,12 @@ export default function Home() {
 
           {loading && <p className="text-[#e0e0e0]">{t('home.loading', 'Loading tours...')}</p>}
           {error && <p className="text-[#ff006e]">{error}</p>}
-          {!loading && !error && featured.length === 0 && (
+          {!loading && !error && topTours.length === 0 && (
             <p className="text-[#e0e0e0]">{t('home.empty', 'No tours have been published yet.')}</p>
           )}
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featured.map((item) => (
+            {topTours.map((item) => (
               <Link
                 key={item.id}
                 to={`/tours/${buildTourSlug({ title: item.title, city: item.city, id: item.id })}`}
@@ -141,29 +142,29 @@ export default function Home() {
 
         <section className="space-y-6">
           <div>
-            <p className="page-kicker text-[#00D9FF]">{t('home.limited_kicker', 'Limited spots')}</p>
+            <p className="page-kicker text-[#00D9FF]">{t('home.featured_kicker', 'Featured this week')}</p>
             <p className="text-sm text-[#e0e0e0]">
-              {t('home.limited_subtitle', 'Small-group tours with limited availability.')}
+              {t('home.featured_subtitle', 'Curated experiences ready to book right now.')}
             </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {limited.map((item) => (
+          <div className="grid gap-6 md:grid-cols-2">
+            {featured.map((item) => (
               <Link
                 key={item.id}
                 to={`/tours/${buildTourSlug({ title: item.title, city: item.city, id: item.id })}`}
-                className="page-card flex flex-col gap-3 transition-transform hover:-translate-y-1"
+                className="page-card flex flex-col gap-4 transition-transform hover:-translate-y-1"
               >
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   <div>
                     <p className="text-xs uppercase text-[#a0a0a0]">{item.city || '-'}</p>
-                    <h2 className="text-lg font-semibold text-white">{item.title}</h2>
+                    <h2 className="text-xl font-semibold text-white">{item.title}</h2>
                   </div>
                   {item.provider_name && (
                     <p className="text-xs text-[#a0a0a0]">
                       {t('home.hosted_by', 'Hosted by')} {item.provider_name}
                     </p>
                   )}
-                  <p className="text-sm text-[#e0e0e0] leading-relaxed line-clamp-3">
+                  <p className="text-sm text-[#e0e0e0] leading-relaxed line-clamp-4">
                     {item.description || t('home.default_desc', 'Experience hosted by a local partner.')}
                   </p>
                   <div className="text-base font-semibold text-[#00D9FF]">
@@ -174,6 +175,8 @@ export default function Home() {
             ))}
           </div>
         </section>
+
+        <FlightPricePredictor />
       </div>
     </div>
   );
