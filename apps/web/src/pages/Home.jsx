@@ -60,15 +60,15 @@ export default function Home() {
     <div className="page-shell">
       <div className="page-container space-y-16">
         <section className="space-y-6">
-          <p className="page-kicker text-[#00D9FF]">{t('home.hero_kicker', 'Marketplace')}</p>
+          <p className="page-kicker text-[#00D9FF]">{t('home.hero_kicker', 'Local guides marketplace')}</p>
           <div className="space-y-4">
             <h1 className="text-3xl font-semibold neon-title md:text-5xl">
-              {t('home.hero_title', 'Access curated local experiences')}
+              {t('home.hero_title', 'Book tours directly from local guides')}
             </h1>
             <p className="max-w-2xl text-sm text-[#e0e0e0] md:text-base">
               {t(
                 'home.hero_subtitle',
-                'Book real tours from verified local operators. Use AI only when you need help planning.'
+                'AI helps you pick the best experience for your taste and budget. No agencies, no middlemen.'
               )}
             </p>
           </div>
@@ -86,6 +86,9 @@ export default function Home() {
               {t('home.hero_secondary', 'Plan with AI')}
             </Link>
           </div>
+          <p className="text-xs uppercase tracking-[0.2em] text-[#a0a0a0]">
+            {t('home.hero_badge', 'Human-led experiences · AI-optimized choices')}
+          </p>
         </section>
 
         <section className="space-y-6">

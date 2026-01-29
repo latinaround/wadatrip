@@ -253,11 +253,12 @@
                               }
                     },
     "home":  {
-                "hero_kicker":  "Marketplace",
-                "hero_title":  "Access curated local experiences",
-                "hero_subtitle":  "Book real tours from verified local operators. Use AI only when you need help planning.",
+                "hero_kicker":  "Local guides marketplace",
+                "hero_title":  "Book tours directly from local guides",
+                "hero_subtitle":  "AI helps you pick the best experience for your taste and budget. No agencies, no middlemen.",
                 "hero_primary":  "Explore experiences",
                 "hero_secondary":  "Plan with AI",
+                "hero_badge":  "Human-led experiences · AI-optimized choices",
                 "featured_kicker":  "Featured this week",
                 "featured_subtitle":  "Curated experiences ready to book right now.",
                 "limited_kicker":  "Limited spots",

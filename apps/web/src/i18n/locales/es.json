@@ -187,11 +187,12 @@
                          "alert_created_success_with_id":  "Alerta de precio creada exitosamente. ID: {{id}}"
                      },
     "home":  {
-                "hero_kicker":  "Marketplace",
-                "hero_title":  "Accede a experiencias locales curadas",
-                "hero_subtitle":  "Reserva tours reales de operadores verificados. Usa la IA solo cuando necesites planificar.",
+                "hero_kicker":  "Marketplace de guias locales",
+                "hero_title":  "Reserva tours directo con guias locales",
+                "hero_subtitle":  "La IA te ayuda a elegir la mejor experiencia para tu gusto y presupuesto. Sin agencias, sin intermediarios.",
                 "hero_primary":  "Explorar experiencias",
                 "hero_secondary":  "Planificar con IA",
+                "hero_badge":  "Experiencias humanas · Eleccion optimizada por IA",
                 "featured_kicker":  "Destacados de la semana",
                 "featured_subtitle":  "Experiencias curadas listas para reservar.",
                 "limited_kicker":  "Cupos limitados",
