@@ -156,6 +156,9 @@ export default function Tours() {
               to={`/tours/${buildTourSlug({ title: item.title, city: item.city, id: item.id })}`}
               className="page-card flex flex-col gap-3 transition-transform hover:-translate-y-1"
             >
+              <div className="h-40 w-full rounded-xl bg-gradient-to-br from-[#00D9FF]/30 via-[#ffb703]/20 to-[#ff006e]/30 border border-[#00D9FF]/20 flex items-center justify-center text-xs text-[#e0e0e0]">
+                Photo coming soon
+              </div>
               <div className="flex flex-col gap-3">
                 <div>
                   <p className="text-xs uppercase text-[#a0a0a0]">{item.city || '-'}</p>
