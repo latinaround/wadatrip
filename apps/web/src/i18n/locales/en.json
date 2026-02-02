@@ -401,6 +401,7 @@
         "description_placeholder":  "Describe the experience, meeting point, and highlights.",
         "tags_label":  "Tags",
         "tags_placeholder":  "adventure, sunrise, hiking",
+        "free_tour_label":  "Free walking tour (pay-what-you-want)",
         "publish_now_label":  "Publish immediately",
         "publishing_label":  "Publishing...",
         "publish_button":  "Publish tour",
