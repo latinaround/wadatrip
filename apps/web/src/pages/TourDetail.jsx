@@ -34,6 +34,7 @@ export default function TourDetail() {
     num_people: 1,
     date: '',
   });
+  const isFreeTour = Array.isArray(tour?.tags) && tour.tags.includes('free_tour');
 
   useEffect(() => {
     let mounted = true;
@@ -84,8 +85,8 @@ export default function TourDetail() {
     try {
       const numPeople = Math.max(1, Number(bookingForm.num_people || 1));
       const unitPrice = Number(tour.price_from || 0);
-      const totalPrice = unitPrice > 0 ? unitPrice * numPeople : null;
-      const amountCents = totalPrice ? Math.round(totalPrice * 100) : null;
+      const totalPrice = isFreeTour ? 0 : unitPrice > 0 ? unitPrice * numPeople : null;
+      const amountCents = totalPrice != null ? Math.round(Number(totalPrice) * 100) : null;
 
       const bookingResponse = await fetch(`${apiBase}/bookings/simple`, {
         method: 'POST',
@@ -105,6 +106,11 @@ export default function TourDetail() {
       if (!bookingResponse.ok || !bookingData?.id) {
         const message = bookingData?.message || bookingData?.error || bookingResponse.statusText || 'Booking failed';
         throw new Error(message);
+      }
+
+      if (isFreeTour) {
+        setBookingSuccess('Registration confirmed. Your guide will contact you.');
+        return;
       }
 
       const checkoutResponse = await fetch(
@@ -161,9 +167,9 @@ export default function TourDetail() {
               </p>
             )}
             <p className="text-[#e0e0e0]">{tour.description || 'Experience hosted by a local partner.'}</p>
-            <div className="text-2xl font-semibold text-[#00D9FF]">
-              {formatPrice(tour.price_from, tour.currency || 'USD')}
-            </div>
+          <div className="text-2xl font-semibold text-[#00D9FF]">
+            {isFreeTour ? 'Free walking tour' : formatPrice(tour.price_from, tour.currency || 'USD')}
+          </div>
           </div>
         </div>
 
@@ -201,7 +207,7 @@ export default function TourDetail() {
           {bookingError && <p className="text-[#ff006e]">{bookingError}</p>}
           {bookingSuccess && <p className="text-[#00D9FF]">{bookingSuccess}</p>}
           <Button className="neon-cta font-black hover:scale-105 transition-all" onClick={handleBooking} disabled={bookingLoading}>
-            {bookingLoading ? 'Processing...' : 'Book and pay'}
+            {bookingLoading ? 'Processing...' : isFreeTour ? 'Reserve your spot' : 'Book and pay'}
           </Button>
         </div>
       </div>

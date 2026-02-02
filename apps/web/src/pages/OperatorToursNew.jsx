@@ -52,6 +52,7 @@ export default function OperatorToursNew() {
   const [editMessage, setEditMessage] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [pendingEditId, setPendingEditId] = useState(null);
+  const [isFreeTour, setIsFreeTour] = useState(false);
 
   const accessCodeTrimmed = accessCode.trim();
 
@@ -71,6 +72,15 @@ export default function OperatorToursNew() {
 
   const handleTourChange = (field, value) => {
     setTourForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const buildTagsPayload = () => {
+    const tags = tourForm.tags
+      ? tourForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+      : [];
+    if (isFreeTour && !tags.includes('free_tour')) tags.push('free_tour');
+    if (!isFreeTour) return tags.filter((tag) => tag !== 'free_tour');
+    return tags;
   };
 
   const ensureAccessCode = () => {
@@ -200,9 +210,7 @@ export default function OperatorToursNew() {
         currency: tourForm.currency || undefined,
         start_date: tourForm.start_date || undefined,
         end_date: tourForm.end_date || undefined,
-        tags: tourForm.tags
-          ? tourForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-          : undefined,
+        tags: buildTagsPayload(),
         status: tourForm.publish_now ? 'published' : 'draft',
         access_code: accessCodeTrimmed,
       };
@@ -270,9 +278,10 @@ export default function OperatorToursNew() {
         currency: data?.currency || 'USD',
         start_date: data?.start_date ? String(data.start_date).slice(0, 10) : '',
         end_date: data?.end_date ? String(data.end_date).slice(0, 10) : '',
-        tags: Array.isArray(data?.tags) ? data.tags.join(', ') : '',
+        tags: Array.isArray(data?.tags) ? data.tags.filter((tag) => tag !== 'free_tour').join(', ') : '',
         publish_now: data?.status ? String(data.status).toLowerCase() === 'published' : true,
       });
+      setIsFreeTour(Array.isArray(data?.tags) && data.tags.includes('free_tour'));
       setEditMessage(t('operator.messages.tour_loaded', 'Tour loaded. Update the fields and save.'));
     } catch (err) {
       setEditMessage(err?.message || t('operator.messages.tour_load_error', 'Error loading tour.'));
@@ -349,9 +358,7 @@ export default function OperatorToursNew() {
         currency: tourForm.currency || undefined,
         start_date: tourForm.start_date || null,
         end_date: tourForm.end_date || null,
-        tags: tourForm.tags
-          ? tourForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-          : [],
+        tags: buildTagsPayload(),
         access_code: accessCodeTrimmed,
       };
 
@@ -832,6 +839,17 @@ export default function OperatorToursNew() {
                 placeholder={t('operator.tags_placeholder', 'adventure, sunrise, hiking')}
                 className="mt-2 h-12 neon-input"
               />
+            </div>
+            <div className="flex items-center gap-2 text-sm text-[#e0e0e0]">
+              <input
+                id="tour-free"
+                type="checkbox"
+                checked={isFreeTour}
+                onChange={(event) => setIsFreeTour(event.target.checked)}
+              />
+              <label htmlFor="tour-free">
+                {t('operator.free_tour_label', 'Free walking tour (pay-what-you-want)')}
+              </label>
             </div>
             <div className="flex items-center gap-2 text-sm text-[#e0e0e0]">
               <input

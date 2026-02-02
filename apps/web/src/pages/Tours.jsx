@@ -22,6 +22,7 @@ export default function Tours() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({ city: '', country: '' });
+  const [freeOnly, setFreeOnly] = useState(false);
   const [geoStatus, setGeoStatus] = useState('');
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function Tours() {
         });
         if (filters.city.trim()) params.set('city', filters.city.trim());
         if (filters.country.trim()) params.set('country_code', filters.country.trim().toUpperCase());
+        if (freeOnly) params.set('free_tour', 'true');
 
         const response = await fetch(`${apiBase}/listings/search?${params.toString()}`);
         const data = await response.json().catch(() => null);
@@ -54,7 +56,7 @@ export default function Tours() {
     return () => {
       mounted = false;
     };
-  }, [apiBase, filters.city, filters.country]);
+  }, [apiBase, filters.city, filters.country, freeOnly]);
 
   const handleFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
@@ -138,6 +140,15 @@ export default function Tours() {
             >
               Use my location
             </button>
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-xs text-[#e0e0e0]">
+            <input
+              id="free-tours"
+              type="checkbox"
+              checked={freeOnly}
+              onChange={(event) => setFreeOnly(event.target.checked)}
+            />
+            <label htmlFor="free-tours">Free walking tours</label>
           </div>
           {geoStatus && <p className="mt-3 text-xs text-[#a0a0a0]">{geoStatus}</p>}
         </section>
