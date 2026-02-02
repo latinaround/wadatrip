@@ -307,6 +307,10 @@ export class ProvidersController {
     }
     if (query.category) where.category = String(query.category);
     if (query.q) where.title = { contains: String(query.q), mode: 'insensitive' };
+    const freeFlag = String(query.free_tour || query.free || 'false').toLowerCase();
+    if (freeFlag === 'true' || freeFlag === '1') {
+      where.tags = { has: 'free_tour' };
+    }
     const minPrice = query.min_price ?? query.price_min;
     const maxPrice = query.max_price ?? query.price_max;
     if (minPrice || maxPrice) {

@@ -6,6 +6,38 @@ import { getClaimsFromAuth } from '../utils/auth';
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const INTERNAL_TOKEN = process.env.INTERNAL_SERVICE_TOKEN;
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || '';
+
+async function notifyProviderByEmail(opts: { to: string; subject: string; text: string }) {
+  if (!SENDGRID_API_KEY || !EMAIL_FROM) {
+    return { sent: false, reason: 'email_not_configured' };
+  }
+  try {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: opts.to }] }],
+        from: { email: EMAIL_FROM },
+        subject: opts.subject,
+        content: [{ type: 'text/plain', value: opts.text }],
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error('[bookings.notify] Email failed', response.status, errText);
+      return { sent: false, reason: 'email_failed' };
+    }
+    return { sent: true };
+  } catch (err: any) {
+    console.error('[bookings.notify] Email error', err?.message || err);
+    return { sent: false, reason: 'email_error' };
+  }
+}
 
 @Controller()
 export class BookingsController {
@@ -89,15 +121,21 @@ export class BookingsController {
     if (!listing) throw new BadRequestException('listing not found');
 
     const provider_id = listing.provider_id;
+    const isFreeTour = Array.isArray(listing.tags) && listing.tags.includes('free_tour');
     const date = new Date(String(body.date));
     if (isNaN(+date)) throw new BadRequestException('invalid date');
 
     const num_people = Number(body.num_people);
     if (!Number.isFinite(num_people) || num_people <= 0) throw new BadRequestException('invalid num_people');
 
-    const total_price = body.total_price != null ? String(body.total_price) : null;
-    const amount_cents =
-      body.amount_cents != null
+    const total_price = isFreeTour
+      ? '0'
+      : body.total_price != null
+        ? String(body.total_price)
+        : null;
+    const amount_cents = isFreeTour
+      ? 0
+      : body.amount_cents != null
         ? Math.trunc(Number(body.amount_cents))
         : total_price != null && Number.isFinite(Number(total_price))
           ? Math.round(Number(total_price) * 100)
@@ -124,10 +162,21 @@ export class BookingsController {
         num_people,
         total_price,
         amount_cents,
-        status: 'pending',
-        payment_status: 'unpaid',
+        status: isFreeTour ? 'confirmed' : 'pending',
+        payment_status: isFreeTour ? 'paid' : 'unpaid',
       },
     });
+
+    if (isFreeTour) {
+      const provider = await prisma.providers.findUnique({ where: { id: provider_id } });
+      if (provider?.email) {
+        await notifyProviderByEmail({
+          to: provider.email,
+          subject: 'New free tour registration',
+          text: `New registration for ${listing.title}\n\nName: ${body.user_name || ''}\nEmail: ${body.user_email || ''}\nDate: ${date.toISOString()}\nPeople: ${num_people}\n\nMeeting point: ${listing.city || ''}`,
+        });
+      }
+    }
 
     return created;
   }
