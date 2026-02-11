@@ -666,7 +666,23 @@
                         "email_hint":  "Optional: Receive notifications about price changes",
                         "search_button":  "Search Trips",
                         "searching":  "Searching..."
-                    }
+                    },
+    "checkout":  {
+                     "success":  {
+                                     "kicker":  "Payment confirmed",
+                                     "title":  "Your booking is confirmed",
+                                     "body":  "You will receive a confirmation email with the tour details.",
+                                     "cta_primary":  "Back to tours",
+                                     "cta_secondary":  "View my bookings"
+                                 },
+                     "cancel":  {
+                                    "kicker":  "Payment canceled",
+                                    "title":  "Your payment was canceled",
+                                    "body":  "No charge was made. You can return to the tour and try again anytime.",
+                                    "cta_primary":  "Back to tours",
+                                    "cta_secondary":  "List your tour"
+                                }
+                 }
 }
 
 

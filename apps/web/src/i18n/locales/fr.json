@@ -609,7 +609,21 @@
   "common": {
     "back_home": "Back to Home"
   }
+,
+    "checkout":  {
+                     "success":  {
+                                     "kicker":  "Paiement confirme",
+                                     "title":  "Votre reservation est confirmee",
+                                     "body":  "Vous recevrez un email de confirmation avec les details du tour.",
+                                     "cta_primary":  "Retour aux tours",
+                                     "cta_secondary":  "Voir mes reservations"
+                                 },
+                     "cancel":  {
+                                    "kicker":  "Paiement annule",
+                                    "title":  "Votre paiement a ete annule",
+                                    "body":  "Aucun debit n a ete effectue. Vous pouvez revenir au tour et reessayer quand vous voulez.",
+                                    "cta_primary":  "Retour aux tours",
+                                    "cta_secondary":  "Publier votre tour"
+                                }
+                 }
 }
-
-
-

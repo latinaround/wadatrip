@@ -24,6 +24,8 @@ import OperatorToursNew from './pages/OperatorToursNew.jsx';
 import Tours from './pages/Tours.jsx';
 import TourDetail from './pages/TourDetail.jsx';
 import Home from './pages/Home.jsx';
+import CheckoutSuccess from './pages/CheckoutSuccess.jsx';
+import CheckoutCancel from './pages/CheckoutCancel.jsx';
 import AuthDialog from './components/AuthDialog.jsx';
 import CheckoutDialog from './components/payments/CheckoutDialog.jsx';
 import { useAuth } from './context/AuthContext.jsx';
@@ -317,6 +319,8 @@ function App() {
         <Route path="/tours" element={<Tours />} />
         <Route path="/tours/:id" element={<TourDetail />} />
         <Route path="/operator/tours/new" element={<OperatorToursNew />} />
+        <Route path="/checkout/success" element={<CheckoutSuccess />} />
+        <Route path="/checkout/cancel" element={<CheckoutCancel />} />
       </Routes>
 
       {!isAdminRoute && (

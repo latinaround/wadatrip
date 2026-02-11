@@ -245,7 +245,21 @@
                         "search_button":  "Buscar Viajes",
                         "searching":  "Buscando..."
                     }
+,
+    "checkout":  {
+                     "success":  {
+                                     "kicker":  "Pago confirmado",
+                                     "title":  "Tu reserva esta confirmada",
+                                     "body":  "Recibiras un correo de confirmacion con los detalles del tour.",
+                                     "cta_primary":  "Volver a tours",
+                                     "cta_secondary":  "Ver mis reservas"
+                                 },
+                     "cancel":  {
+                                    "kicker":  "Pago cancelado",
+                                    "title":  "Tu pago fue cancelado",
+                                    "body":  "No se realizo ningun cobro. Puedes volver al tour e intentarlo cuando quieras.",
+                                    "cta_primary":  "Volver a tours",
+                                    "cta_secondary":  "Publica tu tour"
+                                }
+                 }
 }
-
-
-
