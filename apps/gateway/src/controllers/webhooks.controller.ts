@@ -1,5 +1,6 @@
 import { Controller, Post, Req } from '@nestjs/common';
 import axios from 'axios';
+import { getPrisma } from '@wadatrip/db';
 
 @Controller('webhooks')
 export class WebhooksController {
@@ -60,8 +61,28 @@ export class WebhooksController {
 
     const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
     const INTERNAL_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
+    const prisma = getPrisma() as any;
 
     try {
+      if (type === 'checkout.session.completed') {
+        await prisma.bookings.update({
+          where: { id: String(bookingId) },
+          data: {
+            checkout_session_id: data?.id ? String(data.id) : undefined,
+            payment_intent_id: data?.payment_intent ? String(data.payment_intent) : undefined,
+          },
+        }).catch(() => {});
+      }
+
+      if (type === 'payment_intent.succeeded') {
+        await prisma.bookings.update({
+          where: { id: String(bookingId) },
+          data: {
+            payment_intent_id: data?.id ? String(data.id) : undefined,
+          },
+        }).catch(() => {});
+      }
+
       if (type === 'checkout.session.completed' || type === 'payment_intent.succeeded') {
         await axios.post(
           `${HUB}/bookings/${bookingId}/status`,

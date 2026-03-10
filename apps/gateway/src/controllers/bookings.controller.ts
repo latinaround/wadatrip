@@ -9,6 +9,48 @@ const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
 const EMAIL_FROM = process.env.EMAIL_FROM || '';
 
+function getStripeClient() {
+  const key = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET;
+  if (!key) return null;
+  try {
+    return new (require('stripe'))(key, { apiVersion: '2024-06-20' });
+  } catch {
+    return null;
+  }
+}
+
+async function enrichBookingLinks(booking: any) {
+  if (!booking) return booking;
+  const stripe = getStripeClient();
+  if (!stripe) return booking;
+
+  const enriched = { ...booking };
+
+  try {
+    if (booking?.checkout_session_id) {
+      const session = await stripe.checkout.sessions.retrieve(String(booking.checkout_session_id));
+      if (session?.url) enriched.checkout_url = session.url;
+      if (!enriched.payment_intent_id && session?.payment_intent) {
+        enriched.payment_intent_id = String(session.payment_intent);
+      }
+    }
+  } catch {}
+
+  try {
+    const paymentIntentId = enriched.payment_intent_id || booking?.payment_intent_id;
+    if (paymentIntentId) {
+      const intent = await stripe.paymentIntents.retrieve(String(paymentIntentId), {
+        expand: ['latest_charge'],
+      });
+      const latestCharge = typeof intent?.latest_charge === 'object' ? intent.latest_charge : null;
+      if (latestCharge?.receipt_url) enriched.receipt_url = latestCharge.receipt_url;
+      enriched.payment_intent_id = intent?.id || enriched.payment_intent_id;
+    }
+  } catch {}
+
+  return enriched;
+}
+
 async function notifyProviderByEmail(opts: { to: string; subject: string; text: string }) {
   if (!SENDGRID_API_KEY || !EMAIL_FROM) {
     return { sent: false, reason: 'email_not_configured' };
@@ -45,7 +87,8 @@ export class BookingsController {
   async list(@Query() q: any, @Req() req: any) {
     if (ENABLED) {
       const { data } = await axios.get(`${HUB}/bookings`, { params: q });
-      return data;
+      const items = await Promise.all(((data?.items as any[]) || []).map((item) => enrichBookingLinks(item)));
+      return { ...data, items };
     }
 
     const prisma = getPrisma();
@@ -87,13 +130,14 @@ export class BookingsController {
       }),
     ]);
 
-    return { items, total, page, limit };
+    const enrichedItems = await Promise.all(items.map((item) => enrichBookingLinks(item)));
+    return { items: enrichedItems, total, page, limit };
   }
   @Get('bookings/:id')
   async get(@Param('id') id: string) {
     if (ENABLED) {
       const { data } = await axios.get(`${HUB}/bookings/${id}`);
-      return data;
+      return enrichBookingLinks(data);
     }
 
     const prisma = getPrisma();
@@ -102,7 +146,7 @@ export class BookingsController {
       include: { listing: true, provider: true, user: true },
     });
     if (!booking) throw new BadRequestException('booking not found');
-    return booking;
+    return enrichBookingLinks(booking);
   }
   @Post('bookings')
   async create(@Body() body: any) {

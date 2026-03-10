@@ -230,6 +230,18 @@ export class PaymentsController {
       );
     }
 
+    try {
+      await prisma.bookings.update({
+        where: { id: bookingId },
+        data: {
+          checkout_session_id: session.id || null,
+          payment_intent_id: session.payment_intent ? String(session.payment_intent) : undefined,
+        },
+      });
+    } catch (err: any) {
+      console.error('[payments.checkout] Could not persist checkout metadata:', err?.message || err);
+    }
+
     return { url: session.url };
   }
 
