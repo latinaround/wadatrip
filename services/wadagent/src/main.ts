@@ -380,11 +380,11 @@ async function requestTours(opts: { city?: string; q?: string; category?: string
     const items = Array.isArray(data?.items) ? data.items : [];
 
     return items
-      .filter((item) => {
+      .filter((item: any) => {
         const providerStatus = String(item?.provider_status || '').toLowerCase();
         return !providerStatus || providerStatus === 'approved' || providerStatus === 'verified';
       })
-      .map((item) => ({
+       .map((item: any) => ({
         id: String(item?.id || ''),
         title: String(item?.title || 'Tour'),
         city: String(item?.city || ''),
@@ -396,7 +396,7 @@ async function requestTours(opts: { city?: string; q?: string; category?: string
         provider_verified_level: String(item?.provider_verified_level || ''),
         provider_status: String(item?.provider_status || ''),
       }))
-      .sort((a, b) => a.price_from - b.price_from)
+      .sort((a: TourOption, b: TourOption) => a.price_from - b.price_from)
       .slice(0, 5);
   } catch {
     return [];
@@ -419,7 +419,7 @@ async function fetchBookingOptions(context?: WadaAgentContext): Promise<BookingO
     const data = await resp.json();
     const items = Array.isArray(data?.items) ? data.items : [];
 
-    return items.map((item) => ({
+    return items .map((item: any) => ({
       id: String(item?.id || ''),
       title: String(item?.listing?.title || item?.title || 'Booking'),
       city: String(item?.listing?.city || item?.city || ''),
@@ -641,3 +641,4 @@ function safeJson(content: any) {
 app.listen(PORT, () => {
   console.log(`[svc-wadagent] listening on :${PORT}`);
 });
+
