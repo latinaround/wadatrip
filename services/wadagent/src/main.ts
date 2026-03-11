@@ -5,16 +5,20 @@ import { SYSTEM_PROMPT } from './prompt';
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
+type WadaAgentContext = {
+  origin?: string;
+  destination?: string;
+  dates?: string;
+  start_date?: string;
+  budget?: string;
+  interests?: string[];
+  user_email?: string;
+  user_id?: string;
+};
+
 type WadaAgentRequest = {
   message: string;
-  context?: {
-    origin?: string;
-    destination?: string;
-    dates?: string;
-    start_date?: string;
-    budget?: string;
-    interests?: string[];
-  };
+  context?: WadaAgentContext;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
 };
 
@@ -24,10 +28,38 @@ type PricingAdvice = {
   reason?: string;
 };
 
+type TourOption = {
+  id: string;
+  title: string;
+  city: string;
+  country_code: string;
+  category: string;
+  price_from: number;
+  currency: string;
+  provider_name: string;
+  provider_verified_level: string;
+  provider_status: string;
+};
+
+type BookingOption = {
+  id: string;
+  title: string;
+  city: string;
+  date: string;
+  total_price: number;
+  currency: string;
+  booking_status: string;
+  payment_status: string;
+  provider_name: string;
+  reference: string;
+};
+
 const PORT = Number(process.env.WADAGENT_PORT || 3022);
 const MISTRAL_API_KEY = String(process.env.MISTRAL_API_KEY || '').trim();
 const MISTRAL_MODEL = String(process.env.MISTRAL_MODEL || 'mistral-small-latest');
 const PRICING_SERVICE_URL = String(process.env.PRICING_SERVICE_URL || 'http://localhost:3012').replace(/\/$/, '');
+const MARKETPLACE_API_URL = String(process.env.MARKETPLACE_API_URL || process.env.PROVIDER_HUB_URL || 'http://localhost:3014').replace(/\/$/, '');
+const BOOKINGS_API_URL = String(process.env.BOOKINGS_API_URL || process.env.GATEWAY_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 const app = express();
 app.use(cors());
@@ -149,13 +181,13 @@ app.get('/wadagent', (_req, res) => {
         <div class="header">WadaAgent</div>
         <div class="messages" id="messages">
           <div class="bubble">
-            Hi, I'm WadaAgent. Ask about destinations, tours, or prices.
+            Hi, I'm WadaAgent. Ask about tours, flight timing, or your bookings.
           </div>
           <div id="table"></div>
         </div>
         <div class="composer">
           <form id="chat-form">
-            <textarea id="input" placeholder="Ask me about destinations, tours, or prices..."></textarea>
+            <textarea id="input" placeholder="Ask me about tours, flight timing, or your bookings..."></textarea>
             <button type="submit">➤</button>
           </form>
         </div>
@@ -225,6 +257,10 @@ app.post('/wadagent/chat', async (req, res) => {
   }
 
   const pricingAdvice = await fetchPricingAdvice(body?.context);
+  const [tourOptions, bookingOptions] = await Promise.all([
+    fetchTourOptions(body?.context, message),
+    fetchBookingOptions(body?.context),
+  ]);
 
   const userContext = {
     origin: body?.context?.origin || '',
@@ -232,12 +268,15 @@ app.post('/wadagent/chat', async (req, res) => {
     dates: body?.context?.dates || body?.context?.start_date || '',
     budget: body?.context?.budget || '',
     interests: body?.context?.interests || [],
+    has_user_context: !!(body?.context?.user_email || body?.context?.user_id),
   };
 
   const messages: ChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'system', content: `context: ${JSON.stringify(userContext)}` },
     { role: 'system', content: `pricing_advice: ${JSON.stringify(pricingAdvice)}` },
+    { role: 'system', content: `tour_options: ${JSON.stringify(tourOptions)}` },
+    { role: 'system', content: `booking_options: ${JSON.stringify(bookingOptions)}` },
   ];
 
   if (Array.isArray(body?.history)) {
@@ -272,20 +311,15 @@ app.post('/wadagent/chat', async (req, res) => {
     const content = payload?.choices?.[0]?.message?.content;
     const parsed = safeJson(content);
     if (!parsed) {
-      return res.json({
-        reply: String(content || ''),
-        recommendations: [],
-        table: { columns: [], rows: [] },
-        meta: { confidence: 0.3, notes: 'fallback' },
-      });
+      return res.json(buildFallbackResponse(pricingAdvice, tourOptions, bookingOptions));
     }
-    return res.json(parsed);
+    return res.json(normalizeAgentPayload(parsed, pricingAdvice, tourOptions, bookingOptions));
   } catch (err: any) {
     return res.status(500).json({ error: 'wadagent_failed', detail: err?.message || String(err) });
   }
 });
 
-async function fetchPricingAdvice(context?: WadaAgentRequest['context']): Promise<PricingAdvice> {
+async function fetchPricingAdvice(context?: WadaAgentContext): Promise<PricingAdvice> {
   const origin = context?.origin;
   const destination = context?.destination;
   const date = context?.dates || context?.start_date;
@@ -309,12 +343,297 @@ async function fetchPricingAdvice(context?: WadaAgentRequest['context']): Promis
   }
 }
 
+async function fetchTourOptions(context?: WadaAgentContext, message?: string): Promise<TourOption[]> {
+  const destination = normalizeSearchValue(context?.destination);
+  const query = buildSearchQuery(destination, message);
+  const category = normalizeSearchValue(Array.isArray(context?.interests) ? context?.interests[0] : '');
+  const budget = parseBudget(context?.budget);
+
+  const direct = await requestTours({ city: destination, q: destination ? '' : query, category, budget });
+  if (direct.length > 0) return direct;
+
+  if (destination) {
+    const fallback = await requestTours({ city: '', q: destination, category, budget });
+    if (fallback.length > 0) return fallback;
+  }
+
+  if (query) {
+    return requestTours({ city: '', q: query, category, budget });
+  }
+
+  return [];
+}
+
+async function requestTours(opts: { city?: string; q?: string; category?: string; budget?: number | null }): Promise<TourOption[]> {
+  try {
+    const params = new URLSearchParams();
+    params.set('limit', '5');
+    params.set('status', 'published');
+    if (opts.city) params.set('city', opts.city);
+    if (opts.q) params.set('q', opts.q);
+    if (opts.category) params.set('category', opts.category);
+    if (opts.budget != null && Number.isFinite(opts.budget)) params.set('max_price', String(opts.budget));
+
+    const resp = await fetch(`${MARKETPLACE_API_URL}/listings/search?${params.toString()}`);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    const items = Array.isArray(data?.items) ? data.items : [];
+
+    return items
+      .filter((item) => {
+        const providerStatus = String(item?.provider_status || '').toLowerCase();
+        return !providerStatus || providerStatus === 'approved' || providerStatus === 'verified';
+      })
+      .map((item) => ({
+        id: String(item?.id || ''),
+        title: String(item?.title || 'Tour'),
+        city: String(item?.city || ''),
+        country_code: String(item?.country_code || ''),
+        category: String(item?.category || 'tour'),
+        price_from: parseMoney(item?.price_from),
+        currency: String(item?.currency || 'USD'),
+        provider_name: String(item?.provider_name || 'Local tour guide'),
+        provider_verified_level: String(item?.provider_verified_level || ''),
+        provider_status: String(item?.provider_status || ''),
+      }))
+      .sort((a, b) => a.price_from - b.price_from)
+      .slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchBookingOptions(context?: WadaAgentContext): Promise<BookingOption[]> {
+  const userEmail = normalizeSearchValue(context?.user_email);
+  const userId = normalizeSearchValue(context?.user_id);
+  if (!userEmail && !userId) return [];
+
+  try {
+    const params = new URLSearchParams();
+    params.set('limit', '5');
+    if (userEmail) params.set('user_email', userEmail);
+    if (userId) params.set('user_id', userId);
+
+    const resp = await fetch(`${BOOKINGS_API_URL}/bookings?${params.toString()}`);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    const items = Array.isArray(data?.items) ? data.items : [];
+
+    return items.map((item) => ({
+      id: String(item?.id || ''),
+      title: String(item?.listing?.title || item?.title || 'Booking'),
+      city: String(item?.listing?.city || item?.city || ''),
+      date: String(item?.date || ''),
+      total_price: parseMoney(item?.total_price ?? (Number.isFinite(Number(item?.amount_cents)) ? Number(item?.amount_cents || 0) / 100 : 0)),
+      currency: String(item?.listing?.currency || item?.currency || 'USD'),
+      booking_status: String(item?.status || 'unknown'),
+      payment_status: String(item?.payment_status || 'unknown'),
+      provider_name: String(item?.provider?.name || item?.provider_name || 'Local tour guide'),
+      reference: String(item?.reference || item?.id || ''),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function normalizeAgentPayload(parsed: any, pricingAdvice: PricingAdvice, tourOptions: TourOption[], bookingOptions: BookingOption[]) {
+  const recommendations = Array.isArray(parsed?.recommendations)
+    ? parsed.recommendations.map((item: any) => {
+        const action = normalizeAction(item?.recommended_action || item?.adred_action || pricingAdvice.action);
+        return {
+          type: normalizeRecommendationType(item?.type),
+          title: String(item?.title || 'Recommendation'),
+          price: Number.isFinite(Number(item?.price)) ? Number(item.price) : 0,
+          currency: String(item?.currency || 'USD'),
+          recommended_action: action,
+          adred_action: action,
+        };
+      })
+    : [];
+
+  if (recommendations.length === 0 && bookingOptions.length > 0) {
+    recommendations.push(...bookingOptions.slice(0, 2).map((booking) => ({
+      type: 'booking',
+      title: booking.title,
+      price: booking.total_price,
+      currency: booking.currency,
+      recommended_action: booking.payment_status === 'paid' ? 'buy' : 'alert',
+      adred_action: booking.payment_status === 'paid' ? 'buy' : 'alert',
+    })));
+  }
+
+  if (recommendations.length === 0 && tourOptions.length > 0) {
+    recommendations.push(...tourOptions.slice(0, 3).map((tour) => ({
+      type: 'tour',
+      title: tour.title,
+      price: tour.price_from,
+      currency: tour.currency,
+      recommended_action: 'buy',
+      adred_action: 'buy',
+    })));
+  }
+
+  const table = normalizeTable(parsed?.table, tourOptions, bookingOptions);
+  const meta = {
+    confidence: Number.isFinite(Number(parsed?.meta?.confidence)) ? Number(parsed.meta.confidence) : Number(pricingAdvice.confidence || 0.55),
+    notes: String(parsed?.meta?.notes || pricingAdvice.reason || (bookingOptions.length > 0 ? 'booking_context_attached' : tourOptions.length > 0 ? 'tour_search_attached' : 'assistant_response')),
+  };
+
+  return {
+    reply: String(parsed?.reply || buildFallbackReply(pricingAdvice, tourOptions, bookingOptions)),
+    recommendations,
+    table,
+    meta,
+  };
+}
+
+function buildFallbackResponse(pricingAdvice: PricingAdvice, tourOptions: TourOption[], bookingOptions: BookingOption[]) {
+  return {
+    reply: buildFallbackReply(pricingAdvice, tourOptions, bookingOptions),
+    recommendations: bookingOptions.length > 0
+      ? bookingOptions.slice(0, 2).map((booking) => ({
+          type: 'booking',
+          title: booking.title,
+          price: booking.total_price,
+          currency: booking.currency,
+          recommended_action: booking.payment_status === 'paid' ? 'buy' : 'alert',
+          adred_action: booking.payment_status === 'paid' ? 'buy' : 'alert',
+        }))
+      : tourOptions.slice(0, 3).map((tour) => ({
+          type: 'tour',
+          title: tour.title,
+          price: tour.price_from,
+          currency: tour.currency,
+          recommended_action: 'buy',
+          adred_action: 'buy',
+        })),
+    table: normalizeTable(null, tourOptions, bookingOptions),
+    meta: {
+      confidence: Number(pricingAdvice.confidence || (bookingOptions.length > 0 || tourOptions.length > 0 ? 0.62 : 0.3)),
+      notes: String(pricingAdvice.reason || (bookingOptions.length > 0 ? 'booking_context_fallback' : tourOptions.length > 0 ? 'tour_search_fallback' : 'fallback')),
+    },
+  };
+}
+
+function buildFallbackReply(pricingAdvice: PricingAdvice, tourOptions: TourOption[], bookingOptions: BookingOption[]) {
+  const parts: string[] = [];
+  if (bookingOptions.length > 0) {
+    const latest = bookingOptions[0];
+    parts.push(`Your latest booking is ${latest.title} in ${latest.city || 'your destination'}. It is currently ${latest.booking_status} and payment is ${latest.payment_status}.`);
+  }
+  if (tourOptions.length > 0) {
+    const first = tourOptions[0];
+    const priceText = first.price_from > 0 ? `${currencySymbol(first.currency)}${first.price_from}` : 'a flexible price';
+    parts.push(`I also found ${tourOptions.length} tours in ${first.city || 'your destination'}. The best current option starts around ${priceText}.`);
+  }
+  if (pricingAdvice.action && pricingAdvice.action !== 'unknown') {
+    const actionText = pricingAdvice.action === 'buy' ? 'buy now' : pricingAdvice.action === 'wait' ? 'wait a bit' : 'set an alert';
+    parts.push(`For flights, my timing advice is to ${actionText}${pricingAdvice.reason ? ` because ${pricingAdvice.reason}` : ''}.`);
+  }
+  if (parts.length === 0) {
+    parts.push('I can help with tour options, flight timing, and booking questions. Share a destination or ask about your bookings and I will narrow it down.');
+  }
+  return parts.join(' ').slice(0, 320);
+}
+
+function normalizeTable(table: any, tourOptions: TourOption[], bookingOptions: BookingOption[]) {
+  const hasColumns = Array.isArray(table?.columns) && table.columns.length > 0;
+  const hasRows = Array.isArray(table?.rows) && table.rows.length > 0;
+  if (hasColumns && hasRows) {
+    return {
+      columns: table.columns.map((col: any) => String(col)),
+      rows: table.rows.map((row: any) => Array.isArray(row) ? row.map((cell: any) => String(cell)) : []),
+    };
+  }
+  if (bookingOptions.length > 0) {
+    return {
+      columns: ['Booking', 'Date', 'Status', 'Payment'],
+      rows: bookingOptions.slice(0, 5).map((booking) => ([
+        booking.title,
+        booking.date ? booking.date.slice(0, 10) : '-',
+        booking.booking_status,
+        booking.payment_status,
+      ])),
+    };
+  }
+  if (tourOptions.length === 0) {
+    return { columns: [], rows: [] };
+  }
+  return {
+    columns: ['Tour', 'City', 'From', 'Host'],
+    rows: tourOptions.slice(0, 5).map((tour) => ([
+      tour.title,
+      tour.city || '-',
+      `${currencySymbol(tour.currency)}${tour.price_from || 0}`,
+      tour.provider_name,
+    ])),
+  };
+}
+
+function normalizeRecommendationType(value: any) {
+  const type = String(value || 'other').toLowerCase();
+  if (['tour', 'flight', 'booking', 'itinerary', 'other'].includes(type)) return type;
+  if (type === 'activity') return 'tour';
+  return 'other';
+}
+
+function normalizeAction(value: any): 'buy' | 'wait' | 'alert' | 'unknown' {
+  const action = String(value || 'unknown').toLowerCase();
+  if (action === 'buy' || action === 'wait' || action === 'alert') return action;
+  return 'unknown';
+}
+
+function normalizeSearchValue(value?: string) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
+function buildSearchQuery(destination?: string, message?: string) {
+  if (destination) return destination;
+  const raw = String(message || '').replace(/[^\p{L}\p{N}\s-]/gu, ' ').replace(/\s+/g, ' ').trim();
+  return raw.slice(0, 80);
+}
+
+function parseBudget(value?: string) {
+  const match = String(value || '').match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
+}
+
+function parseMoney(value: any) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const match = String(value || '').match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function currencySymbol(currency?: string) {
+  switch (String(currency || '').toUpperCase()) {
+    case 'EUR': return 'EUR ';
+    case 'GBP': return 'GBP ';
+    case 'MXN': return 'MXN ';
+    case 'PEN': return 'PEN ';
+    case 'ARS': return 'ARS ';
+    case 'CLP': return 'CLP ';
+    default: return '$';
+  }
+}
+
 function safeJson(content: any) {
   if (!content || typeof content !== 'string') return null;
   const trimmed = content.trim();
   try {
     return JSON.parse(trimmed);
   } catch {
+    const start = trimmed.indexOf('{');
+    const end = trimmed.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(trimmed.slice(start, end + 1));
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }
