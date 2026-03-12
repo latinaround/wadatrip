@@ -14,17 +14,18 @@ import { buildFallbackResponse, normalizeAgentPayload, safeJson } from './respon
 const PORT = Number(process.env.WADAGENT_PORT || 3022);
 const MISTRAL_API_KEY = String(process.env.MISTRAL_API_KEY || '').trim();
 const MISTRAL_MODEL = String(process.env.MISTRAL_MODEL || 'mistral-small-latest');
+const WADAGENT_USE_LLM = String(process.env.WADAGENT_USE_LLM || 'false').toLowerCase() === 'true';
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', use_llm: WADAGENT_USE_LLM, llm_ready: !!MISTRAL_API_KEY });
 });
 
 app.get('/wadagent/health', (_req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', use_llm: WADAGENT_USE_LLM, llm_ready: !!MISTRAL_API_KEY });
 });
 
 app.get('/wadagent', (_req, res) => {
@@ -206,9 +207,6 @@ app.post('/wadagent/chat', async (req, res) => {
   if (!message) {
     return res.status(400).json({ error: 'message_required' });
   }
-  if (!MISTRAL_API_KEY) {
-    return res.status(500).json({ error: 'missing_mistral_key' });
-  }
 
   const pricingAdvice = await fetchPricingAdvice(body?.context);
   const [tourOptions, bookingOptions] = await Promise.all([
@@ -243,6 +241,10 @@ app.post('/wadagent/chat', async (req, res) => {
   }
 
   messages.push({ role: 'user', content: message });
+
+  if (!WADAGENT_USE_LLM || !MISTRAL_API_KEY) {
+    return res.json(buildFallbackResponse(pricingAdvice, tourOptions, bookingOptions, itineraryOptions));
+  }
 
   try {
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
