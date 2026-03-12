@@ -10,11 +10,49 @@ const PRICING_SERVICE_URL = String(process.env.PRICING_SERVICE_URL || 'http://lo
 const MARKETPLACE_API_URL = String(process.env.MARKETPLACE_API_URL || process.env.PROVIDER_HUB_URL || 'http://localhost:3014').replace(/\/$/, '');
 const BOOKINGS_API_URL = String(process.env.BOOKINGS_API_URL || process.env.GATEWAY_URL || 'http://localhost:3000').replace(/\/$/, '');
 const ITINERARIES_API_URL = String(process.env.ITINERARIES_API_URL || 'http://localhost:3011').replace(/\/$/, '');
+const INTEREST_KEYWORDS = ['food', 'hiking', 'adventure', 'culture', 'history', 'art', 'beach', 'nightlife', 'nature'];
+
+export function hydrateContextFromMessage(context: WadaAgentContext | undefined, message?: string): WadaAgentContext {
+  const merged: WadaAgentContext = { ...(context || {}) };
+  const raw = String(message || '').trim();
+  if (!raw) return merged;
+
+  const flightMatch = raw.match(/\bfrom\s+([A-Za-z]{3}|[A-Za-z][A-Za-z\s-]{1,40})\s+to\s+([A-Za-z]{3}|[A-Za-z][A-Za-z\s-]{1,40})/i);
+  if (flightMatch) {
+    if (!merged.origin) merged.origin = normalizeLocationToken(flightMatch[1]);
+    if (!merged.destination) merged.destination = normalizeLocationToken(flightMatch[2]);
+  }
+
+  if (!merged.destination) {
+    const destinationMatch = raw.match(/\b(?:tours?|experiences?|itinerary|trip|visit|travel|in|for|to)\s+(?:idea\s+for\s+)?([A-Za-z][A-Za-z\s-]{1,40})/i);
+    if (destinationMatch) {
+      merged.destination = normalizeLocationPhrase(destinationMatch[1]);
+    }
+  }
+
+  if (!merged.start_date && !merged.dates) {
+    const date = extractDate(raw);
+    if (date) merged.start_date = date;
+  }
+
+  if (!merged.budget) {
+    const budgetMatch = raw.match(/(?:under|below|budget(?:\s+of)?|for)\s*\$?(\d+(?:\.\d+)?)/i) || raw.match(/\$(\d+(?:\.\d+)?)/);
+    if (budgetMatch) merged.budget = String(budgetMatch[1]);
+  }
+
+  if (!Array.isArray(merged.interests) || merged.interests.length === 0) {
+    const lower = raw.toLowerCase();
+    const interests = INTEREST_KEYWORDS.filter((keyword) => lower.includes(keyword));
+    if (interests.length > 0) merged.interests = interests;
+  }
+
+  return merged;
+}
 
 export async function fetchPricingAdvice(context?: WadaAgentContext): Promise<PricingAdvice> {
   const origin = context?.origin;
   const destination = context?.destination;
-  const date = extractDate(context?.dates || context?.start_date);
+  const date = extractDate(context?.dates || context?.start_date) || (origin && destination ? futureDate(30) : '');
   if (!origin || !destination || !date) return { action: 'unknown' };
 
   try {
@@ -28,7 +66,7 @@ export async function fetchPricingAdvice(context?: WadaAgentContext): Promise<Pr
     return {
       action: data?.action,
       confidence: data?.confidence,
-      reason: data?.reason || data?.recommendation,
+      reason: data?.reason || data?.recommendation || (!extractDate(context?.dates || context?.start_date) ? 'this uses a flexible future date because no travel date was provided' : ''),
     };
   } catch {
     return { action: 'unknown' };
@@ -240,6 +278,20 @@ function deriveBudgetFromTours(tours: TourOption[]) {
   return first ? Math.max(first.price_from * 2, 800) : 0;
 }
 
+function normalizeLocationToken(value?: string) {
+  const token = String(value || '').trim();
+  if (/^[A-Za-z]{3}$/.test(token)) return token.toUpperCase();
+  return normalizeLocationPhrase(token);
+}
+
+function normalizeLocationPhrase(value?: string) {
+  return String(value || '')
+    .replace(/\b(?:today|please|now|for me|my bookings?|my trips?)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 40);
+}
+
 export function normalizeSearchValue(value?: string) {
   return String(value || '')
     .replace(/\s+/g, ' ')
@@ -257,6 +309,3 @@ export function parseMoney(value: any) {
   const match = String(value || '').match(/\d+(?:\.\d+)?/);
   return match ? Number(match[0]) : 0;
 }
-
-
-

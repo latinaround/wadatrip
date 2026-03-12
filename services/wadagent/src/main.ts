@@ -8,6 +8,7 @@ import {
   fetchItineraryOptions,
   fetchPricingAdvice,
   fetchTourOptions,
+  hydrateContextFromMessage,
 } from './tools';
 import { buildFallbackResponse, normalizeAgentPayload, safeJson } from './response';
 
@@ -208,20 +209,21 @@ app.post('/wadagent/chat', async (req, res) => {
     return res.status(400).json({ error: 'message_required' });
   }
 
-  const pricingAdvice = await fetchPricingAdvice(body?.context);
+  const context = hydrateContextFromMessage(body?.context, message);
+  const pricingAdvice = await fetchPricingAdvice(context);
   const [tourOptions, bookingOptions] = await Promise.all([
-    fetchTourOptions(body?.context, message),
-    fetchBookingOptions(body?.context),
+    fetchTourOptions(context, message),
+    fetchBookingOptions(context),
   ]);
-  const itineraryOptions = await fetchItineraryOptions(body?.context, tourOptions);
+  const itineraryOptions = await fetchItineraryOptions(context, tourOptions);
 
   const userContext = {
-    origin: body?.context?.origin || '',
-    destination: body?.context?.destination || '',
-    dates: body?.context?.dates || body?.context?.start_date || '',
-    budget: body?.context?.budget || '',
-    interests: body?.context?.interests || [],
-    has_user_context: !!(body?.context?.user_email || body?.context?.user_id),
+    origin: context?.origin || '',
+    destination: context?.destination || '',
+    dates: context?.dates || context?.start_date || '',
+    budget: context?.budget || '',
+    interests: context?.interests || [],
+    has_user_context: !!(context?.user_email || context?.user_id),
   };
 
   const messages: ChatMessage[] = [
