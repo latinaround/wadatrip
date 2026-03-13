@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
 
@@ -7,7 +7,7 @@ const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
 const formatPrice = (value, currency = 'USD') => {
   const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return 'Consultar';
+  if (!Number.isFinite(amount) || amount <= 0) return 'Contact us';
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency,
@@ -16,14 +16,79 @@ const formatPrice = (value, currency = 'USD') => {
   }).format(amount);
 };
 
+const buildTourHref = (item) => `/tours/${buildTourSlug({ title: item.title, city: item.city, id: item.id })}`;
+
+const buildExperienceKey = (item) => {
+  const city = String(item?.city || '').trim().toLowerCase();
+  const title = String(item?.title || '').trim().toLowerCase();
+  return `${title}::${city}`;
+};
+
+function ExperienceCard({ experience }) {
+  const cheapestHost = experience.hosts[0] || null;
+  const hostCount = experience.hosts.length;
+  const freeTour = experience.hosts.some((host) => Array.isArray(host.tags) && host.tags.includes('free_tour'));
+
+  return (
+    <Link
+      to={buildTourHref(cheapestHost || experience.primary)}
+      className="group overflow-hidden rounded-[30px] border border-[#ebddd0] bg-[linear-gradient(145deg,#fff8f2_0%,#fffdfb_58%,#f4fbfa_100%)] p-6 text-[#0f172a] shadow-[0_18px_52px_rgba(15,23,42,0.10)] transition-transform duration-200 hover:-translate-y-1"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-[#167c7d]">{experience.city || 'Destination'}</p>
+          <h2 className="mt-2 text-2xl font-semibold leading-tight text-[#0f172a]">{experience.title}</h2>
+        </div>
+        <div className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#167c7d] shadow-sm">
+          {freeTour ? 'Free option' : formatPrice(cheapestHost?.price_from, cheapestHost?.currency || 'USD')}
+        </div>
+      </div>
+
+      <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#526173]">
+        {experience.description || 'Compare verified local hosts offering the same experience in one clean view.'}
+      </p>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div className="space-y-2">
+          <div className="inline-flex items-center rounded-full bg-[#e8faf8] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#167c7d]">
+            {hostCount} {hostCount === 1 ? 'Host' : 'Hosts'} Available
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#7c8aa0]">Best match right now</p>
+            <p className="mt-1 text-sm font-semibold text-[#0f172a]">{cheapestHost?.provider_name || 'Verified local host'}</p>
+          </div>
+        </div>
+        <span className="inline-flex items-center justify-center rounded-2xl bg-[#0f172a] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition-colors group-hover:bg-[#167c7d]">
+          Compare Hosts
+        </span>
+      </div>
+    </Link>
+  );
+}
+
 export default function Tours() {
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
+  const location = useLocation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({ city: '', country: '' });
   const [freeOnly, setFreeOnly] = useState(false);
   const [geoStatus, setGeoStatus] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const wantsFree = params.get('free') === 'true' || params.get('free_tour') === 'true';
+    const city = params.get('city') || '';
+    const country = params.get('country_code') || '';
+    if (wantsFree) setFreeOnly(true);
+    if (city || country) {
+      setFilters((prev) => ({
+        city: city || prev.city,
+        country: country || prev.country,
+      }));
+    }
+  }, [location.search]);
 
   useEffect(() => {
     let mounted = true;
@@ -33,7 +98,7 @@ export default function Tours() {
       try {
         const params = new URLSearchParams({
           status: 'published',
-          limit: '50',
+          limit: '60',
         });
         if (filters.city.trim()) params.set('city', filters.city.trim());
         if (filters.country.trim()) params.set('country_code', filters.country.trim().toUpperCase());
@@ -86,7 +151,7 @@ export default function Tours() {
             country: countryCode || prev.country,
           }));
           setGeoStatus(city ? `Using ${city}${countryCode ? `, ${countryCode}` : ''}` : 'Location detected.');
-        } catch (err) {
+        } catch {
           setGeoStatus('Unable to resolve your city. Please enter it manually.');
         }
       },
@@ -95,97 +160,137 @@ export default function Tours() {
     );
   };
 
+  const experiences = useMemo(() => {
+    const groups = new Map();
+    for (const item of items) {
+      const key = buildExperienceKey(item);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          title: item.title,
+          city: item.city,
+          description: item.description,
+          primary: item,
+          hosts: [],
+        });
+      }
+      groups.get(key).hosts.push(item);
+    }
+
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        hosts: group.hosts.slice().sort((a, b) => {
+          const aPrice = Number(a?.price_from || 0);
+          const bPrice = Number(b?.price_from || 0);
+          if (!Number.isFinite(aPrice) && !Number.isFinite(bPrice)) return 0;
+          if (!Number.isFinite(aPrice)) return 1;
+          if (!Number.isFinite(bPrice)) return -1;
+          return aPrice - bPrice;
+        }),
+      }))
+      .sort((a, b) => b.hosts.length - a.hosts.length || a.title.localeCompare(b.title));
+  }, [items]);
+
+  const activeCities = useMemo(() => {
+    return Array.from(new Set(experiences.map((item) => String(item.city || '').trim()).filter(Boolean))).slice(0, 6);
+  }, [experiences]);
+
   return (
     <div className="page-shell">
       <div className="page-container space-y-10">
-        <header className="space-y-3">
-          <p className="page-kicker text-[#00D9FF]">Tours</p>
-          <h1 className="text-3xl font-semibold neon-title md:text-4xl">Tours ready to book</h1>
-          <p className="max-w-2xl text-sm text-[#e0e0e0]">
-            Discover real experiences published by verified operators.
-          </p>
-        </header>
+        <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
+          <div className="overflow-hidden rounded-[30px] border border-white/12 bg-[linear-gradient(135deg,#0f7f77_0%,#14908d_42%,#dd8a63_100%)] p-8 shadow-[0_26px_70px_rgba(15,23,42,0.22)] md:p-9">
+            <div className="space-y-5">
+              <p className="page-kicker text-[#dcfffb]">Tours marketplace</p>
+              <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] text-white md:text-5xl">Pick the experience first. Compare hosts second.</h1>
+              <p className="max-w-2xl text-base leading-relaxed text-white/86">
+                WadaTrip helps travelers find one clean experience page, then compare verified tour guides and operators without scrolling through duplicated listings.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">Verified hosts</span>
+                <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">Cleaner pricing</span>
+                <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">Traveler-first flow</span>
+              </div>
+            </div>
+          </div>
 
-        <section className="page-card">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <p className="page-kicker text-[#00D9FF]">Filters</p>
-              <p className="text-sm text-[#e0e0e0]">Find tours by city or country.</p>
+          <section className="rounded-[30px] border border-[#ecdccc] bg-[#fffaf5] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="page-kicker text-[#167c7d]">Filters</p>
+                  <p className="text-sm text-[#64748b]">Search by city, country, or free walking tours.</p>
+                </div>
+                <div className="text-xs uppercase tracking-[0.18em] text-[#7c8aa0]">{experiences.length} experiences</div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7c8aa0]">City</label>
+                  <input
+                    value={filters.city}
+                    onChange={(event) => handleFilterChange('city', event.target.value)}
+                    placeholder="Lima"
+                    className="mt-2 w-full rounded-2xl border border-[#d8ecea] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7c8aa0]">Country</label>
+                  <input
+                    value={filters.country}
+                    onChange={(event) => handleFilterChange('country', event.target.value)}
+                    placeholder="PE"
+                    className="mt-2 w-full rounded-2xl border border-[#d8ecea] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={applyGeolocation}
+                  className="h-12 rounded-2xl border border-[#d7bca9] px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#0f172a] transition-colors hover:bg-[#fff2e7]"
+                >
+                  Use My Location
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-[#526173]">
+                <label className="inline-flex items-center gap-2 rounded-full bg-[#fff] px-4 py-2">
+                  <input
+                    id="free-tours"
+                    type="checkbox"
+                    checked={freeOnly}
+                    onChange={(event) => setFreeOnly(event.target.checked)}
+                  />
+                  <span>Free walking tours</span>
+                </label>
+                {geoStatus ? <span className="text-xs uppercase tracking-[0.16em] text-[#7c8aa0]">{geoStatus}</span> : null}
+              </div>
             </div>
-            <div className="text-xs text-[#a0a0a0]">{items.length} experiences</div>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-[1.5fr_1fr_auto] md:items-end">
-            <div>
-              <label className="text-xs text-[#a0a0a0]">City</label>
-              <input
-                value={filters.city}
-                onChange={(event) => handleFilterChange('city', event.target.value)}
-                placeholder="Lima"
-                className="mt-2 w-full rounded-md border border-[#00D9FF]/30 bg-[#1a1f3a] px-3 py-2 text-sm text-white"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-[#a0a0a0]">Country (ISO2)</label>
-              <input
-                value={filters.country}
-                onChange={(event) => handleFilterChange('country', event.target.value)}
-                placeholder="PE"
-                className="mt-2 w-full rounded-md border border-[#00D9FF]/30 bg-[#1a1f3a] px-3 py-2 text-sm text-white"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={applyGeolocation}
-              className="h-10 rounded-md border border-[#00D9FF]/40 px-4 text-xs font-semibold uppercase tracking-wide text-[#00D9FF] hover:text-white"
-            >
-              Use my location
-            </button>
-          </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-[#e0e0e0]">
-            <input
-              id="free-tours"
-              type="checkbox"
-              checked={freeOnly}
-              onChange={(event) => setFreeOnly(event.target.checked)}
-            />
-            <label htmlFor="free-tours">Free walking tours</label>
-          </div>
-          {geoStatus && <p className="mt-3 text-xs text-[#a0a0a0]">{geoStatus}</p>}
+          </section>
         </section>
 
-        {loading && <p className="text-[#e0e0e0]">Loading tours...</p>}
-        {error && <p className="text-[#ff006e]">{error}</p>}
+        {activeCities.length ? (
+          <section className="flex flex-wrap gap-3">
+            {activeCities.map((city) => (
+              <button
+                key={city}
+                type="button"
+                onClick={() => handleFilterChange('city', city)}
+                className="rounded-full border border-[#d8ecea] bg-[#f4fbfa] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#167c7d] transition-colors hover:bg-[#e9f7f6]"
+              >
+                {city}
+              </button>
+            ))}
+          </section>
+        ) : null}
 
-        {!loading && !error && items.length === 0 && (
-          <p className="text-[#e0e0e0]">No tours have been published yet.</p>
+        {loading && <p className="text-[#cad3df]">Loading tours...</p>}
+        {error && <p className="text-[#ff6d8e]">{error}</p>}
+        {!loading && !error && experiences.length === 0 && (
+          <p className="text-[#cad3df]">No tours have been published yet.</p>
         )}
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <Link
-              key={item.id}
-              to={`/tours/${buildTourSlug({ title: item.title, city: item.city, id: item.id })}`}
-              className="page-card flex flex-col gap-3 transition-transform hover:-translate-y-1"
-            >
-              <div className="flex flex-col gap-3">
-                <div>
-                  <p className="text-xs uppercase text-[#a0a0a0]">{item.city || '-'}</p>
-                  <h2 className="text-lg font-semibold text-white">{item.title}</h2>
-                </div>
-                {item.provider_name && (
-                  <p className="text-xs text-[#a0a0a0]">
-                    Hosted by local guide {item.provider_name}
-                    {item.provider_country ? ` (${item.provider_country})` : ''}
-                  </p>
-                )}
-                <p className="text-sm text-[#e0e0e0] leading-relaxed line-clamp-3">
-                  {item.description || 'Experience hosted by a local partner.'}
-                </p>
-                <div className="text-base font-semibold text-[#00D9FF]">
-                  {formatPrice(item.price_from, item.currency || 'USD')}
-                </div>
-              </div>
-            </Link>
+        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          {experiences.map((experience) => (
+            <ExperienceCard key={experience.key} experience={experience} />
           ))}
         </div>
       </div>
