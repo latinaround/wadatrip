@@ -109,7 +109,11 @@ export class ProvidersController {
           languages,
           base_city: String(body.base_city),
           country_code: String(body.country_code),
+          photo_url: body.photo_url ?? null,
+          bio_short: body.bio_short ?? null,
           status: 'pending',
+          verified_level: String(body.verified_level || 'community').toLowerCase() === 'licensed' ? 'licensed' : 'community',
+          license_url: body.license_url ?? null,
         },
         include: { documents: true, listings: true },
       });
@@ -260,6 +264,7 @@ export class ProvidersController {
             : null,
         tags: normalizeTags(body.tags),
         status: body.status ? String(body.status) : undefined,
+        cover_image_url: body.cover_image_url ?? body.coverImageUrl ?? null,
       },
     });
 
@@ -344,14 +349,18 @@ export class ProvidersController {
         orderBy,
         skip,
         take: limit,
-        include: { provider: { select: { name: true, country_code: true } } },
+        include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true } } },
       }),
     ]);
 
-    const mapped = items.map((item) => ({
+    const mapped = items.map((item: any) => ({
       ...item,
       provider_name: item.provider?.name ?? null,
       provider_country: item.provider?.country_code ?? null,
+      provider_status: item.provider?.status ?? null,
+      provider_verified_level: item.provider?.verified_level ?? null,
+      provider_photo_url: item.provider?.photo_url ?? null,
+      provider_bio_short: item.provider?.bio_short ?? null,
     }));
 
     return { items: mapped, total, page, limit };
@@ -367,13 +376,17 @@ export class ProvidersController {
     const prisma = getPrisma();
     const listing = await prisma.listings.findUnique({
       where: { id: String(id) },
-      include: { provider: { select: { name: true, country_code: true } } },
+      include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true } } },
     });
     if (!listing) throw new BadRequestException('listing not found');
     return {
       ...listing,
       provider_name: listing.provider?.name ?? null,
       provider_country: listing.provider?.country_code ?? null,
+      provider_status: listing.provider?.status ?? null,
+      provider_verified_level: listing.provider?.verified_level ?? null,
+      provider_photo_url: listing.provider?.photo_url ?? null,
+      provider_bio_short: listing.provider?.bio_short ?? null,
     };
   }
 
@@ -417,6 +430,7 @@ export class ProvidersController {
     if (body?.start_date != null) updateData.start_date = body.start_date ? new Date(String(body.start_date)) : null;
     if (body?.end_date != null) updateData.end_date = body.end_date ? new Date(String(body.end_date)) : null;
     if (body?.tags != null) updateData.tags = normalizeTags(body.tags);
+    if (body?.cover_image_url != null || body?.coverImageUrl != null) updateData.cover_image_url = body.cover_image_url ?? body.coverImageUrl ?? null;
 
     if (!Object.keys(updateData).length) {
       throw new BadRequestException('no editable fields provided');
@@ -520,7 +534,7 @@ export class ProvidersController {
       orderBy: { created_at: 'desc' },
     });
     return {
-      items: items.map((i) => ({
+      items: items.map((i: any) => ({
         id: i.id,
         user_id: i.user_id,
         rule: i.rule,

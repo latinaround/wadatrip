@@ -6,6 +6,7 @@ import { BookingsController } from './controllers/bookings.controller';
 import { ProvidersController } from './controllers/providers.controller';
 import { AlertsController } from './controllers/alerts.controller';
 import { AuthController } from './controllers/auth.controller';
+import { DestinationCoversController } from './controllers/destination-covers.controller';
 import { EventsGateway } from './events.gateway';
 
 @Module({
@@ -22,6 +23,7 @@ import { EventsGateway } from './events.gateway';
     ProvidersController,
     AlertsController,
     AuthController,
+    DestinationCoversController,
   ],
   providers: [EventsGateway],
 })

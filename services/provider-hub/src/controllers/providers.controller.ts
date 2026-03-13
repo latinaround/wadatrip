@@ -30,7 +30,7 @@ export class ProvidersController {
     private readonly identityVerificationQueue: IdentityVerificationQueueService,
   ) {}
   // ============================================================
-  // 🟢 LISTAR PROVEEDORES
+  // LIST PROVIDERS
   // ============================================================
   @Get()
   async list(@Query() query: any) {
@@ -67,7 +67,7 @@ export class ProvidersController {
   }
 
   // ============================================================
-  // 🟢 CREAR PROVEEDOR MANUALMENTE (SIN DOCUMENTO)
+  // CREATE PROVIDER (MANUAL)
   // ============================================================
   @Post()
   async create(@Body() body: any) {
@@ -94,6 +94,10 @@ export class ProvidersController {
       base_city: body.base_city,
       country_code: body.country_code,
       status: 'pending',
+      photo_url: body.photo_url ?? null,
+      bio_short: body.bio_short ?? null,
+      verified_level: String(body.verified_level || 'community').toLowerCase() === 'licensed' ? 'licensed' : 'community',
+      license_url: body.license_url ?? null,
     };
 
     const created = await prisma.providers.create({
@@ -121,7 +125,7 @@ export class ProvidersController {
       if (aiRes?.decision === 'verified') {
         await prisma.providers.update({
           where: { id: created.id },
-          data: { status: 'verified', verification_status: 'approved' },
+          data: { status: 'approved', verification_status: 'approved' },
         });
       }
     } catch (err) {
@@ -132,7 +136,7 @@ export class ProvidersController {
   }
 
  // ============================================================
-// 🟠 REGISTRO DINÁMICO (ACEPTA DOCUMENTO + VERIFICACIÓN AUTOMÁTICA)
+// DYNAMIC REGISTER (DOCUMENT + AUTO VERIFICATION)
 // ============================================================
   @Post('register')
   @UseInterceptors(
@@ -168,6 +172,10 @@ export class ProvidersController {
     base_city: body.base_city ?? null,
     country_code: body.country_code ?? null,
     status: 'pending',
+      photo_url: body.photo_url ?? null,
+      bio_short: body.bio_short ?? null,
+    verified_level: String(body.verified_level || 'community').toLowerCase() === 'licensed' ? 'licensed' : 'community',
+    license_url: body.license_url ?? null,
   };
 
   const created = await prisma.providers.create({
@@ -222,7 +230,7 @@ export class ProvidersController {
         risk_level: null,
         detected_name: null,
         document_valid: false,
-        status: 'review_required',
+        status: 'pending',
       },
     });
   }
@@ -373,7 +381,7 @@ export class ProvidersController {
         risk_level: ocrResult.risk_level ?? (status === 'approved' ? 'low' : 'review'),
         detected_name: ocrResult.detectedName ?? body.fullName ?? provider.name,
         document_valid: ocrResult.document_valid ?? false,
-        status: status === 'approved' ? 'verified' : 'review_required',
+        status: status === 'approved' ? 'approved' : (status === 'rejected' ? 'rejected' : 'pending'),
         extracted_country: ocrResult?.extracted_country ?? null,
         extracted_id_number: ocrResult?.extracted_id_number ?? null,
         match_faces: faceMatch,
@@ -436,7 +444,7 @@ export class ProvidersController {
         risk_level: null,
         detected_name: null,
         document_valid: false,
-        status: 'review_required',
+        status: 'pending',
       },
     });
 
@@ -456,7 +464,7 @@ export class ProvidersController {
       where: { id },
       data: {
         verification_status: status,
-        status: status === 'approved' ? 'verified' : 'rejected',
+        status: status === 'approved' ? 'approved' : 'rejected',
         stripe_account_id: body.stripe_account_id ?? undefined,
       },
     });
@@ -465,7 +473,7 @@ export class ProvidersController {
   }
 
   // ============================================================
-  // 🟢 OBTENER UN PROVEEDOR
+  // GET ONE PROVIDER
   // ============================================================
   @Get(':id')
   async findOne(@Param('id') id: string) {

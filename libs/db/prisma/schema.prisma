@@ -150,6 +150,12 @@ model providers {
   ratings_avg       Float    @default(0)
   ratings_count     Int      @default(0)
   status            String   @default("pending")
+  photo_url         String?
+  bio_short         String?  @db.Text
+  verified_level    String   @default("community")
+  license_url       String?
+  approved_at       DateTime?
+  approved_by       String?
   created_at        DateTime @default(now())
   stripe_account_id String?
 
@@ -189,6 +195,7 @@ model listings {
   end_date         DateTime?
   tags             String[]
   status           String    @default("pending")
+  cover_image_url  String?
   created_at       DateTime  @default(now())
 
   provider     providers              @relation(fields: [provider_id], references: [id])
@@ -255,6 +262,21 @@ model bookings {
   @@index([user_id, status], name: "idx_bookings_user_status")
 }
 
+model destination_covers {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  city         String
+  country_code String?
+  title        String?
+  image_url    String
+  eyebrow      String?
+  active       Boolean  @default(true)
+  created_at   DateTime @default(now())
+
+  @@index([city, country_code, active], name: "idx_destination_covers_city_country_active")
+  @@index([active], name: "idx_destination_covers_active")
+}
+
 model PaymentEvent {
   id           String   @id
   type         String
@@ -288,3 +310,4 @@ model OperatorWallet {
   updatedAt      DateTime @updatedAt
   createdAt      DateTime @default(now())
 }
+

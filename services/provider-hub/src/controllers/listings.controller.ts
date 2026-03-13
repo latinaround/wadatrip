@@ -29,8 +29,8 @@ export class ListingsController {
     const provider = await prisma.providers.findUnique({ where: { id: String(body.provider_id) } });
     if (!provider) throw new BadRequestException('provider not found');
     const allowUnverified = hasValidAccessCode(req, body);
-    if (!allowUnverified && provider.verification_status !== 'verified' && provider.status !== 'verified')
-      throw new BadRequestException('provider must be verified');
+    if (!allowUnverified && String(provider.status || '').toLowerCase() !== 'approved')
+      throw new BadRequestException('provider must be approved');
 
     const listing = await prisma.listings.create({
       data: {
@@ -51,6 +51,7 @@ export class ListingsController {
             ? String(body.tags).split(',').map((s) => s.trim()).filter(Boolean)
             : [],
         status: body.status ? String(body.status) : undefined,
+        cover_image_url: body.cover_image_url ?? body.coverImageUrl ?? null,
       },
     });
     return listing;
@@ -80,6 +81,7 @@ export class ListingsController {
     if (query.country || query.country_code) where.country_code = String(query.country || query.country_code);
     if (query.category) where.category = String(query.category);
     if (query.q) where.title = { contains: String(query.q), mode: 'insensitive' };
+    if (query.provider_id) where.provider_id = String(query.provider_id);
     const minPrice = query.min_price ?? query.price_min;
     const maxPrice = query.max_price ?? query.price_max;
     if (minPrice || maxPrice) {
@@ -114,7 +116,7 @@ export class ListingsController {
         orderBy,
         skip,
         take: limit,
-        include: { provider: { select: { name: true, country_code: true } } },
+        include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true } } },
       }),
     ]);
 
@@ -122,6 +124,10 @@ export class ListingsController {
       ...item,
       provider_name: item.provider?.name ?? null,
       provider_country: item.provider?.country_code ?? null,
+      provider_status: item.provider?.status ?? null,
+      provider_verified_level: item.provider?.verified_level ?? null,
+      provider_photo_url: item.provider?.photo_url ?? null,
+      provider_bio_short: item.provider?.bio_short ?? null,
     }));
 
     return { items: mapped, total, page, limit };
@@ -145,13 +151,18 @@ export class ListingsController {
     const prisma = getPrisma();
     const listing = await prisma.listings.findUnique({
       where: { id: String(id) },
-      include: { provider: { select: { name: true, country_code: true } } },
+      include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true } } },
     });
     if (!listing) throw new BadRequestException('listing not found');
     return {
       ...listing,
       provider_name: listing.provider?.name ?? null,
       provider_country: listing.provider?.country_code ?? null,
+      provider_status: listing.provider?.status ?? null,
+      provider_verified_level: listing.provider?.verified_level ?? null,
+      provider_photo_url: listing.provider?.photo_url ?? null,
+      provider_bio_short: listing.provider?.bio_short ?? null,
     };
   }
 }
+
