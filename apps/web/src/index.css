@@ -1,9 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap");
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
+@import "tailwindcss";
 :root {
   color-scheme: dark;
   --background: #0a0e27;
@@ -219,3 +215,5 @@ h2 {
   letter-spacing: 0.35em;
   color: var(--primary);
 }
+
+
