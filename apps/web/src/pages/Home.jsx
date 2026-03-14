@@ -236,10 +236,10 @@ export default function Home() {
 
         <section className="grid gap-4 md:grid-cols-3">
           {trustPoints.map((point, index) => (
-            <div key={point.title} className="rounded-[24px] border border-[#ecd8c9] bg-[linear-gradient(180deg,#fff7ef_0%,#fffdfa_100%)] p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
+            <div key={point.title} className="rounded-[24px] border border-[#d9c7b8] bg-[linear-gradient(180deg,#f3e2d2_0%,#fbf0e6_100%)] p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#dd8a63]">0{index + 1}</p>
               <h3 className="mt-3 text-xl font-semibold text-[#0f172a]">{point.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-[#64748b]">{point.copy}</p>
+              <p className="mt-3 text-sm leading-relaxed text-[#435164]">{point.copy}</p>
             </div>
           ))}
         </section>
@@ -287,23 +287,23 @@ export default function Home() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-[30px] border border-[#e8d7c7] bg-[linear-gradient(180deg,#fff6ed_0%,#fffdf9_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <div className="rounded-[30px] border border-[#ddc8b5] bg-[linear-gradient(180deg,#f6e7d8_0%,#fcf4ec_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <p className="page-kicker text-[#dd8a63]">How booking works</p>
             <div className="mt-5 space-y-5">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#167c7d]">01</p>
                 <h3 className="mt-2 text-xl font-semibold text-[#0f172a]">Pick the experience first</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#64748b]">See one destination-led experience instead of ten repetitive listings with the same photo.</p>
+                <p className="mt-2 text-sm leading-relaxed text-[#435164]">See one destination-led experience instead of ten repetitive listings with the same photo.</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#167c7d]">02</p>
                 <h3 className="mt-2 text-xl font-semibold text-[#0f172a]">Compare hosts clearly</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#64748b]">Choose the tour guide or operator that matches your budget, language, and travel style.</p>
+                <p className="mt-2 text-sm leading-relaxed text-[#435164]">Choose the tour guide or operator that matches your budget, language, and travel style.</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#167c7d]">03</p>
                 <h3 className="mt-2 text-xl font-semibold text-[#0f172a]">Book with confidence</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#64748b]">Move from discovery to booking with cleaner pricing and fewer marketplace distractions.</p>
+                <p className="mt-2 text-sm leading-relaxed text-[#435164]">Move from discovery to booking with cleaner pricing and fewer marketplace distractions.</p>
               </div>
             </div>
           </div>
@@ -322,10 +322,10 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="rounded-[30px] border border-[#ead0de] bg-[linear-gradient(180deg,#fff5fa_0%,#fffdfc_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+            <div className="rounded-[30px] border border-[#dfc3d3] bg-[linear-gradient(180deg,#f8e4ee_0%,#fff8fb_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
               <p className="page-kicker text-[#df5b95]">For hosts</p>
               <h2 className="mt-3 text-3xl font-semibold text-[#0f172a]">Publish tours. Reach travelers. Earn with WadaTrip.</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#64748b]">
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#435164]">
                 Apply once, get reviewed, and publish experiences into a marketplace designed to help travelers compare and book faster.
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -349,4 +349,5 @@ export default function Home() {
     </div>
   );
 }
+
 

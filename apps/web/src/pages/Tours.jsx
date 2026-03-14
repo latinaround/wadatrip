@@ -32,7 +32,7 @@ function ExperienceCard({ experience }) {
   return (
     <Link
       to={buildTourHref(cheapestHost || experience.primary)}
-      className="group overflow-hidden rounded-[30px] border border-[#ebddd0] bg-[linear-gradient(145deg,#fff8f2_0%,#fffdfb_58%,#f4fbfa_100%)] p-6 text-[#0f172a] shadow-[0_18px_52px_rgba(15,23,42,0.10)] transition-transform duration-200 hover:-translate-y-1"
+      className="group overflow-hidden rounded-[30px] border border-[#dccab9] bg-[linear-gradient(145deg,#f7e7d8_0%,#fcf3ea_58%,#eef8f6_100%)] p-6 text-[#0f172a] shadow-[0_18px_52px_rgba(15,23,42,0.10)] transition-transform duration-200 hover:-translate-y-1"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -44,7 +44,7 @@ function ExperienceCard({ experience }) {
         </div>
       </div>
 
-      <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#526173]">
+      <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#435164]">
         {experience.description || 'Compare verified local hosts offering the same experience in one clean view.'}
       </p>
 
@@ -54,7 +54,7 @@ function ExperienceCard({ experience }) {
             {hostCount} {hostCount === 1 ? 'Host' : 'Hosts'} Available
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#7c8aa0]">Best match right now</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#6b7687]">Best match right now</p>
             <p className="mt-1 text-sm font-semibold text-[#0f172a]">{cheapestHost?.provider_name || 'Verified local host'}</p>
           </div>
         </div>
@@ -222,11 +222,11 @@ export default function Tours() {
                   <p className="page-kicker text-[#167c7d]">Filters</p>
                   <p className="text-sm text-[#64748b]">Search by city, country, or free walking tours.</p>
                 </div>
-                <div className="text-xs uppercase tracking-[0.18em] text-[#7c8aa0]">{experiences.length} experiences</div>
+                <div className="text-xs uppercase tracking-[0.18em] text-[#6b7687]">{experiences.length} experiences</div>
               </div>
               <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7c8aa0]">City</label>
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">City</label>
                   <input
                     value={filters.city}
                     onChange={(event) => handleFilterChange('city', event.target.value)}
@@ -235,7 +235,7 @@ export default function Tours() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7c8aa0]">Country</label>
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">Country</label>
                   <input
                     value={filters.country}
                     onChange={(event) => handleFilterChange('country', event.target.value)}
@@ -251,7 +251,7 @@ export default function Tours() {
                   Use My Location
                 </button>
               </div>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-[#526173]">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-[#435164]">
                 <label className="inline-flex items-center gap-2 rounded-full border border-[#ecdccc] bg-[#fff8f0] px-4 py-2">
                   <input
                     id="free-tours"
@@ -261,7 +261,7 @@ export default function Tours() {
                   />
                   <span>Free walking tours</span>
                 </label>
-                {geoStatus ? <span className="text-xs uppercase tracking-[0.16em] text-[#7c8aa0]">{geoStatus}</span> : null}
+                {geoStatus ? <span className="text-xs uppercase tracking-[0.16em] text-[#6b7687]">{geoStatus}</span> : null}
               </div>
             </div>
           </section>
@@ -297,5 +297,6 @@ export default function Tours() {
     </div>
   );
 }
+
 
 
