@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, Search, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LanguageSwitcher from './LanguageSwitcher';
+import BrandLogo from './BrandLogo';
 
 const Header = ({ user, onLoginClick, onLogout }) => {
   const { t } = useTranslation();
@@ -37,19 +38,16 @@ const Header = ({ user, onLoginClick, onLogout }) => {
   };
 
   return (
-    <header className="border-b border-[#2d3548] bg-[#0a0e27]/80 backdrop-blur-md sticky top-0 z-50">
+    <header className="sticky top-0 z-50 border-b border-[#243048] bg-[#0a0e27]/82 backdrop-blur-md">
       <div className="w-full px-4">
-        <div className="flex items-center h-16 gap-4 max-w-7xl mx-auto">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-4">
           <div className="flex-shrink-0">
-            <Link to="/" className="flex items-center gap-3 text-lg font-black">
-              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00D9FF] to-[#FF006E] flex items-center justify-center shadow-lg shadow-[#00D9FF]/50">
-                <span className="text-white text-lg font-black">W</span>
-              </span>
-              <span className="bg-gradient-to-r from-[#00D9FF] to-[#FF006E] bg-clip-text text-transparent">Wadatrip</span>
+            <Link to="/" className="flex items-center">
+              <BrandLogo size="sm" />
             </Link>
           </div>
 
-          <div className="hidden lg:flex flex-1 justify-center">
+          <div className="hidden flex-1 justify-center lg:flex">
             <nav className="flex items-center gap-3 text-sm">
               {navItems.map((item) => {
                 const IconComponent = item.icon;
@@ -57,7 +55,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   <Link
                     key={item.key}
                     to={item.href}
-                    className="text-[#e0e0e0] hover:text-[#00D9FF] transition-colors px-2 py-1 whitespace-nowrap flex items-center gap-1"
+                    className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-[#e0e0e0] transition-colors hover:text-[#16d7d0]"
                   >
                     {IconComponent && <IconComponent size={16} />}
                     {t(`nav.${item.key}`)}
@@ -67,7 +65,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
             </nav>
           </div>
 
-          <div className="lg:hidden flex-1 flex justify-end">
+          <div className="flex flex-1 justify-end lg:hidden">
             <Button
               variant="ghost"
               size="sm"
@@ -78,12 +76,12 @@ const Header = ({ user, onLoginClick, onLogout }) => {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-shrink-0 items-center gap-2">
             <LanguageSwitcher />
             <Button
               variant="outline"
               size="sm"
-              className="bg-transparent border-[#00D9FF]/30 text-[#00D9FF] hover:bg-white/5 text-xs hidden md:flex"
+              className="hidden border-[#16d7d0]/30 bg-transparent text-xs text-[#16d7d0] hover:bg-white/5 md:flex"
               asChild
             >
               <Link to="/request-demo">{t('nav.request_demo')}</Link>
@@ -91,18 +89,18 @@ const Header = ({ user, onLoginClick, onLogout }) => {
             <Button
               variant="secondary"
               size="sm"
-              className="hidden md:flex bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hover:scale-105 transition-all"
+              className="hidden bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105 md:flex"
               asChild
             >
               <Link to="/operator/tours/new">{t('nav.list_tour') ?? 'List your tour'}</Link>
             </Button>
             {user ? (
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden items-center gap-2 md:flex">
                 <Button variant="ghost" size="sm" className="text-white" onClick={goToAccount}>
-                  <UserCircle className="w-4 h-4 mr-1" />
+                  <UserCircle className="mr-1 h-4 w-4" />
                   {user.name || user.email}
                 </Button>
-                <Button variant="outline" size="sm" className="bg-transparent border-[#00D9FF]/30 text-[#00D9FF] hover:bg-white/5" onClick={handleLogout}>
+                <Button variant="outline" size="sm" className="border-[#16d7d0]/30 bg-transparent text-[#16d7d0] hover:bg-white/5" onClick={handleLogout}>
                   {t('nav.logout') ?? 'Logout'}
                 </Button>
               </div>
@@ -110,7 +108,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
               <Button
                 variant="default"
                 size="sm"
-                className="bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hidden md:flex hover:scale-105 transition-all"
+                className="hidden bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105 md:flex"
                 onClick={handleLoginClick}
               >
                 {t('nav.login') ?? 'Login'}
@@ -120,7 +118,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
         </div>
 
         {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-[#2d3548]">
+          <div className="border-t border-[#2d3548] py-4 lg:hidden">
             <nav className="flex flex-col space-y-4">
               {navItems.map((item) => {
                 const IconComponent = item.icon;
@@ -128,7 +126,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   <Link
                     key={item.key}
                     to={item.href}
-                    className="text-[#e0e0e0] hover:text-[#00D9FF] transition-colors duration-200 font-medium flex items-center gap-2"
+                    className="flex items-center gap-2 font-medium text-[#e0e0e0] transition-colors duration-200 hover:text-[#16d7d0]"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {IconComponent && <IconComponent size={16} />}
@@ -136,11 +134,11 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                   </Link>
                 );
               })}
-              <div className="flex flex-col space-y-2 pt-4 border-t border-[#2d3548]">
+              <div className="flex flex-col space-y-2 border-t border-[#2d3548] pt-4">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-transparent border-[#00D9FF]/30 text-[#00D9FF] hover:bg-white/5"
+                  className="border-[#16d7d0]/30 bg-transparent text-[#16d7d0] hover:bg-white/5"
                   asChild
                 >
                   <Link to="/request-demo" onClick={() => setIsMenuOpen(false)}>
@@ -149,7 +147,7 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                 </Button>
                 <Button
                   size="sm"
-                  className="bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hover:scale-105 transition-all"
+                  className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105"
                   asChild
                 >
                   <Link to="/operator/tours/new" onClick={() => setIsMenuOpen(false)}>
@@ -158,20 +156,20 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                 </Button>
                 {user ? (
                   <>
-                    <Button size="sm" className="bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hover:scale-105 transition-all" onClick={goToAccount}>
+                    <Button size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105" onClick={goToAccount}>
                       {t('nav.my_trips') ?? 'My trips'}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="bg-transparent border-[#00D9FF]/30 text-[#00D9FF] hover:bg-white/5"
+                      className="border-[#16d7d0]/30 bg-transparent text-[#16d7d0] hover:bg-white/5"
                       onClick={handleLogout}
                     >
                       {t('nav.logout') ?? 'Logout'}
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" className="bg-gradient-to-r from-[#FF006E] via-[#FFB703] to-[#00D9FF] text-white font-black hover:scale-105 transition-all" onClick={handleLoginClick}>
+                  <Button size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105" onClick={handleLoginClick}>
                     {t('nav.login') ?? 'Login'}
                   </Button>
                 )}
@@ -185,4 +183,3 @@ const Header = ({ user, onLoginClick, onLogout }) => {
 };
 
 export default Header;
-
