@@ -4,6 +4,7 @@ import { AppConfig } from '../config/appConfig';
 import { findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import BrandLogo from '../components/BrandLogo';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -24,23 +25,38 @@ const buildExperienceKey = (item) => {
   return `${title}::${city}`;
 };
 
+const getInitials = (name) =>
+  String(name || 'Host')
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
 function HostOptionCard({ item, selected, onSelect }) {
   const freeTour = Array.isArray(item.tags) && item.tags.includes('free_tour');
+  const initials = getInitials(item.provider_name);
+
   return (
     <button
       type="button"
       onClick={() => onSelect(item)}
       className={`w-full rounded-[24px] border p-5 text-left transition-all ${selected
-        ? 'border-[#167c7d] bg-[#f2fcfb] shadow-[0_14px_36px_rgba(22,124,125,0.12)]'
-        : 'border-[#ebddd0] bg-[#fffdfb] hover:border-[#d8ecea] hover:bg-[#f8fefd]'
+        ? 'border-[#167c7d] bg-[linear-gradient(180deg,#e7f7f5_0%,#f3fcfb_100%)] shadow-[0_14px_36px_rgba(22,124,125,0.12)]'
+        : 'border-[#e1cdbd] bg-[linear-gradient(180deg,#f7e8db_0%,#fdf5ee_100%)] hover:border-[#d8ecea] hover:bg-[#f8fefd]'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.22em] text-[#7c8aa0]">Host</p>
-          <h3 className="mt-1 text-lg font-semibold text-[#0f172a]">{item.provider_name || 'Verified local host'}</h3>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#16d7d0_0%,#159291_100%)] text-sm font-black text-white shadow-[0_10px_24px_rgba(21,146,145,0.24)]">
+            {initials}
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-[#7c8aa0]">Host</p>
+            <h3 className="mt-1 text-lg font-semibold text-[#0f172a]">{item.provider_name || 'Verified local host'}</h3>
+          </div>
         </div>
-        <span className="rounded-full border border-[#f1d6c1] bg-[#fff2e8] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
+        <span className="rounded-full border border-[#ecd0bc] bg-[#ffebdc] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
           {freeTour ? 'Free option' : formatPrice(item.price_from, item.currency || 'USD')}
         </span>
       </div>
@@ -48,9 +64,9 @@ function HostOptionCard({ item, selected, onSelect }) {
         {item.provider_bio_short || item.description || 'Local operator ready to host this experience.'}
       </p>
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
-        <span className="rounded-full bg-[#eefbfb] px-3 py-2 text-[#167c7d]">Verified host</span>
-        {item.duration_hours ? <span className="rounded-full bg-[#fff4eb] px-3 py-2 text-[#c36d1f]">{item.duration_hours}h</span> : null}
-        {item.language ? <span className="rounded-full bg-[#fff8fb] px-3 py-2 text-[#b55282]">{item.language}</span> : null}
+        <span className="rounded-full bg-[#e7f7f5] px-3 py-2 text-[#167c7d]">Verified host</span>
+        {item.duration_hours ? <span className="rounded-full bg-[#fff1e5] px-3 py-2 text-[#c36d1f]">{item.duration_hours}h</span> : null}
+        {item.language ? <span className="rounded-full bg-[#f7e9f0] px-3 py-2 text-[#b55282]">{item.language}</span> : null}
       </div>
     </button>
   );
@@ -58,7 +74,7 @@ function HostOptionCard({ item, selected, onSelect }) {
 
 function TrustItem({ label, copy }) {
   return (
-    <div className="rounded-[22px] border border-[#ead9cb] bg-[linear-gradient(180deg,#fff8f1_0%,#fffdfb_100%)] p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+    <div className="rounded-[22px] border border-[#dec8b6] bg-[linear-gradient(180deg,#f5e4d3_0%,#fcf4ec_100%)] p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
       <p className="text-[11px] uppercase tracking-[0.22em] text-[#167c7d]">{label}</p>
       <p className="mt-2 text-sm leading-relaxed text-[#526173]">{copy}</p>
     </div>
@@ -135,6 +151,7 @@ export default function TourDetail() {
 
   const currentHost = selectedHost || tour;
   const isFreeTour = Array.isArray(currentHost?.tags) && currentHost.tags.includes('free_tour');
+  const currentHostInitials = getInitials(currentHost?.provider_name);
 
   const handleBookingChange = (field, value) => {
     setBookingForm((prev) => ({ ...prev, [field]: value }));
@@ -222,6 +239,7 @@ export default function TourDetail() {
         <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
           <div className="overflow-hidden rounded-[32px] border border-white/12 bg-[linear-gradient(135deg,#0f7f77_0%,#14908d_42%,#dd8a63_100%)] p-8 shadow-[0_28px_80px_rgba(15,23,42,0.22)] md:p-10">
             <div className="space-y-5">
+              <BrandLogo size="sm" light className="mb-2" />
               <p className="page-kicker text-[#dcfffb]">{tour.city || 'Destination'} {tour.country_code ? `· ${tour.country_code}` : ''}</p>
               <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] text-white md:text-6xl">{tour.title}</h1>
               <p className="max-w-2xl text-base leading-relaxed text-white/86 md:text-lg">
@@ -235,7 +253,7 @@ export default function TourDetail() {
             </div>
           </div>
 
-          <div className="rounded-[30px] border border-[#e8d7c7] bg-[linear-gradient(180deg,#fff6ed_0%,#fffdf9_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <div className="rounded-[30px] border border-[#dcc2ae] bg-[linear-gradient(180deg,#f1dcc8_0%,#f7e9db_52%,#fdf3eb_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)] lg:sticky lg:top-24">
             <p className="page-kicker text-[#167c7d]">Reserve this experience</p>
             <div className="mt-4 flex items-end justify-between gap-4">
               <div>
@@ -244,8 +262,21 @@ export default function TourDetail() {
                   {isFreeTour ? 'Free' : formatPrice(currentHost?.price_from, currentHost?.currency || 'USD')}
                 </p>
               </div>
-              <div className="rounded-full bg-[#eefbfb] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#167c7d]">
+              <div className="rounded-full bg-[#e7f7f5] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#167c7d]">
                 {currentHost?.provider_name || 'Verified host'}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[24px] border border-[#e4cbbb] bg-[linear-gradient(180deg,#f7e8db_0%,#fdf4ec_100%)] p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#16d7d0_0%,#159291_100%)] text-base font-black text-white shadow-[0_12px_28px_rgba(21,146,145,0.22)]">
+                  {currentHostInitials}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-[#7c8aa0]">Meet your host</p>
+                  <h3 className="text-lg font-semibold text-[#0f172a]">{currentHost?.provider_name || 'Verified local host'}</h3>
+                  <p className="text-sm leading-relaxed text-[#526173]">{currentHost?.provider_bio_short || 'Verified local guide or operator ready to host this experience.'}</p>
+                </div>
               </div>
             </div>
 
@@ -254,14 +285,14 @@ export default function TourDetail() {
                 value={bookingForm.name}
                 onChange={(event) => handleBookingChange('name', event.target.value)}
                 placeholder="Full name"
-                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fffbf7] !text-[#172033]"
+                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
               />
               <Input
                 type="email"
                 value={bookingForm.email}
                 onChange={(event) => handleBookingChange('email', event.target.value)}
                 placeholder="Email"
-                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fffbf7] !text-[#172033]"
+                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
               />
               <Input
                 type="number"
@@ -269,13 +300,13 @@ export default function TourDetail() {
                 value={bookingForm.num_people}
                 onChange={(event) => handleBookingChange('num_people', event.target.value)}
                 placeholder="Travelers"
-                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fffbf7] !text-[#172033]"
+                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
               />
               <Input
                 type="date"
                 value={bookingForm.date}
                 onChange={(event) => handleBookingChange('date', event.target.value)}
-                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fffbf7] !text-[#172033]"
+                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
               />
             </div>
 
@@ -317,5 +348,3 @@ export default function TourDetail() {
     </div>
   );
 }
-
-
