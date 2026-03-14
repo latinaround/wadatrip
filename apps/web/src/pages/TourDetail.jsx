@@ -40,7 +40,7 @@ function HostOptionCard({ item, selected, onSelect }) {
           <p className="text-[11px] uppercase tracking-[0.22em] text-[#7c8aa0]">Host</p>
           <h3 className="mt-1 text-lg font-semibold text-[#0f172a]">{item.provider_name || 'Verified local host'}</h3>
         </div>
-        <span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#167c7d] shadow-sm">
+        <span className="rounded-full border border-[#f1d6c1] bg-[#fff2e8] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
           {freeTour ? 'Free option' : formatPrice(item.price_from, item.currency || 'USD')}
         </span>
       </div>
@@ -58,7 +58,7 @@ function HostOptionCard({ item, selected, onSelect }) {
 
 function TrustItem({ label, copy }) {
   return (
-    <div className="rounded-[22px] border border-[#ebddd0] bg-[#fffdfb] p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+    <div className="rounded-[22px] border border-[#ead9cb] bg-[linear-gradient(180deg,#fff8f1_0%,#fffdfb_100%)] p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
       <p className="text-[11px] uppercase tracking-[0.22em] text-[#167c7d]">{label}</p>
       <p className="mt-2 text-sm leading-relaxed text-[#526173]">{copy}</p>
     </div>
@@ -235,7 +235,7 @@ export default function TourDetail() {
             </div>
           </div>
 
-          <div className="rounded-[30px] border border-[#ecdccc] bg-[#fffaf5] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <div className="rounded-[30px] border border-[#e8d7c7] bg-[linear-gradient(180deg,#fff6ed_0%,#fffdf9_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <p className="page-kicker text-[#167c7d]">Reserve this experience</p>
             <div className="mt-4 flex items-end justify-between gap-4">
               <div>
@@ -254,14 +254,14 @@ export default function TourDetail() {
                 value={bookingForm.name}
                 onChange={(event) => handleBookingChange('name', event.target.value)}
                 placeholder="Full name"
-                className="!rounded-2xl !border-[#d8ecea] !bg-white !text-[#0f172a]"
+                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fffbf7] !text-[#172033]"
               />
               <Input
                 type="email"
                 value={bookingForm.email}
                 onChange={(event) => handleBookingChange('email', event.target.value)}
                 placeholder="Email"
-                className="!rounded-2xl !border-[#d8ecea] !bg-white !text-[#0f172a]"
+                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fffbf7] !text-[#172033]"
               />
               <Input
                 type="number"
@@ -269,13 +269,13 @@ export default function TourDetail() {
                 value={bookingForm.num_people}
                 onChange={(event) => handleBookingChange('num_people', event.target.value)}
                 placeholder="Travelers"
-                className="!rounded-2xl !border-[#d8ecea] !bg-white !text-[#0f172a]"
+                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fffbf7] !text-[#172033]"
               />
               <Input
                 type="date"
                 value={bookingForm.date}
                 onChange={(event) => handleBookingChange('date', event.target.value)}
-                className="!rounded-2xl !border-[#d8ecea] !bg-white !text-[#0f172a]"
+                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fffbf7] !text-[#172033]"
               />
             </div>
 
@@ -317,3 +317,5 @@ export default function TourDetail() {
     </div>
   );
 }
+
+

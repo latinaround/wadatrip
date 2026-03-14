@@ -39,7 +39,7 @@ function ExperienceCard({ experience }) {
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#167c7d]">{experience.city || 'Destination'}</p>
           <h2 className="mt-2 text-2xl font-semibold leading-tight text-[#0f172a]">{experience.title}</h2>
         </div>
-        <div className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-[#167c7d] shadow-sm">
+        <div className="rounded-full border border-[#f1d6c1] bg-[#fff2e8] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
           {freeTour ? 'Free option' : formatPrice(cheapestHost?.price_from, cheapestHost?.currency || 'USD')}
         </div>
       </div>
@@ -215,7 +215,7 @@ export default function Tours() {
             </div>
           </div>
 
-          <section className="rounded-[30px] border border-[#ecdccc] bg-[#fffaf5] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <section className="rounded-[30px] border border-[#e8d7c7] bg-[linear-gradient(180deg,#fff6ed_0%,#fffdf9_100%)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
@@ -231,7 +231,7 @@ export default function Tours() {
                     value={filters.city}
                     onChange={(event) => handleFilterChange('city', event.target.value)}
                     placeholder="Lima"
-                    className="mt-2 w-full rounded-2xl border border-[#d8ecea] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
+                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fffbf7] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
                   />
                 </div>
                 <div>
@@ -240,7 +240,7 @@ export default function Tours() {
                     value={filters.country}
                     onChange={(event) => handleFilterChange('country', event.target.value)}
                     placeholder="PE"
-                    className="mt-2 w-full rounded-2xl border border-[#d8ecea] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
+                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fffbf7] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
                   />
                 </div>
                 <button
@@ -252,7 +252,7 @@ export default function Tours() {
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-[#526173]">
-                <label className="inline-flex items-center gap-2 rounded-full bg-[#fff] px-4 py-2">
+                <label className="inline-flex items-center gap-2 rounded-full border border-[#ecdccc] bg-[#fff8f0] px-4 py-2">
                   <input
                     id="free-tours"
                     type="checkbox"
@@ -297,3 +297,5 @@ export default function Tours() {
     </div>
   );
 }
+
+

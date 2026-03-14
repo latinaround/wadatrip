@@ -69,7 +69,7 @@ function ExperienceCard({ item, tone = 'warm' }) {
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#167c7d]">{item.city || 'Destination'}</p>
           <h3 className="mt-2 text-xl font-semibold leading-tight text-[#0f172a]">{item.title}</h3>
         </div>
-        <div className="rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-[#167c7d] shadow-sm">
+        <div className="rounded-full border border-[#f1d6c1] bg-[#fff2e8] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
           {Array.isArray(item.tags) && item.tags.includes('free_tour') ? 'Free' : formatPrice(item.price_from, item.currency || 'USD')}
         </div>
       </div>
@@ -236,7 +236,7 @@ export default function Home() {
 
         <section className="grid gap-4 md:grid-cols-3">
           {trustPoints.map((point, index) => (
-            <div key={point.title} className="rounded-[24px] border border-[#ece0d3] bg-[#fffdfb] p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
+            <div key={point.title} className="rounded-[24px] border border-[#ecd8c9] bg-[linear-gradient(180deg,#fff7ef_0%,#fffdfa_100%)] p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#dd8a63]">0{index + 1}</p>
               <h3 className="mt-3 text-xl font-semibold text-[#0f172a]">{point.title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-[#64748b]">{point.copy}</p>
@@ -287,7 +287,7 @@ export default function Home() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-[30px] border border-[#ecdccc] bg-[#fffaf5] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <div className="rounded-[30px] border border-[#e8d7c7] bg-[linear-gradient(180deg,#fff6ed_0%,#fffdf9_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <p className="page-kicker text-[#dd8a63]">How booking works</p>
             <div className="mt-5 space-y-5">
               <div>
@@ -322,7 +322,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="rounded-[30px] border border-[#edd6e4] bg-[#fff8fb] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+            <div className="rounded-[30px] border border-[#ead0de] bg-[linear-gradient(180deg,#fff5fa_0%,#fffdfc_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
               <p className="page-kicker text-[#df5b95]">For hosts</p>
               <h2 className="mt-3 text-3xl font-semibold text-[#0f172a]">Publish tours. Reach travelers. Earn with WadaTrip.</h2>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#64748b]">
@@ -349,3 +349,4 @@ export default function Home() {
     </div>
   );
 }
+
