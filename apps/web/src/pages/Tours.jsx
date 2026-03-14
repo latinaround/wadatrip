@@ -32,14 +32,14 @@ function ExperienceCard({ experience }) {
   return (
     <Link
       to={buildTourHref(cheapestHost || experience.primary)}
-      className="group overflow-hidden rounded-[30px] border border-[#dccab9] bg-[linear-gradient(145deg,#f7e7d8_0%,#fcf3ea_58%,#eef8f6_100%)] p-6 text-[#0f172a] shadow-[0_18px_52px_rgba(15,23,42,0.10)] transition-transform duration-200 hover:-translate-y-1"
+      className="group overflow-hidden rounded-[30px] border border-[#ddc2ab] bg-[linear-gradient(145deg,#efd9c4_0%,#f7e9db_56%,#eef8f6_100%)] p-6 text-[#0f172a] shadow-[0_18px_52px_rgba(15,23,42,0.10)] transition-transform duration-200 hover:-translate-y-1"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#167c7d]">{experience.city || 'Destination'}</p>
           <h2 className="mt-2 text-2xl font-semibold leading-tight text-[#0f172a]">{experience.title}</h2>
         </div>
-        <div className="rounded-full border border-[#f1d6c1] bg-[#fff2e8] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
+        <div className="rounded-full border border-[#f1d6c1] bg-[#ffecde] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
           {freeTour ? 'Free option' : formatPrice(cheapestHost?.price_from, cheapestHost?.currency || 'USD')}
         </div>
       </div>
@@ -215,7 +215,7 @@ export default function Tours() {
             </div>
           </div>
 
-          <section className="rounded-[30px] border border-[#e8d7c7] bg-[linear-gradient(180deg,#fff6ed_0%,#fffdf9_100%)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <section className="rounded-[30px] border border-[#e8d7c7] bg-[linear-gradient(180deg,#f5e5d5_0%,#fdf3ea_100%)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
@@ -231,7 +231,7 @@ export default function Tours() {
                     value={filters.city}
                     onChange={(event) => handleFilterChange('city', event.target.value)}
                     placeholder="Lima"
-                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fffbf7] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
+                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
                   />
                 </div>
                 <div>
@@ -240,7 +240,7 @@ export default function Tours() {
                     value={filters.country}
                     onChange={(event) => handleFilterChange('country', event.target.value)}
                     placeholder="PE"
-                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fffbf7] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
+                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
                   />
                 </div>
                 <button
@@ -252,7 +252,7 @@ export default function Tours() {
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-[#435164]">
-                <label className="inline-flex items-center gap-2 rounded-full border border-[#ecdccc] bg-[#fff8f0] px-4 py-2">
+                <label className="inline-flex items-center gap-2 rounded-full border border-[#ecdccc] bg-[#faeee2] px-4 py-2">
                   <input
                     id="free-tours"
                     type="checkbox"
@@ -297,6 +297,7 @@ export default function Tours() {
     </div>
   );
 }
+
 
 
 
