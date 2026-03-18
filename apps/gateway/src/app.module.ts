@@ -9,6 +9,7 @@ import { AlertsController } from './controllers/alerts.controller';
 import { AuthController } from './controllers/auth.controller';
 import { DestinationCoversController } from './controllers/destination-covers.controller';
 import { PricingController } from './controllers/pricing.controller';
+import { WebhooksController } from './controllers/webhooks.controller';
 import { EventsGateway } from './events.gateway';
 
 @Module({
@@ -28,6 +29,7 @@ import { EventsGateway } from './events.gateway';
     AuthController,
     DestinationCoversController,
     PricingController,
+    WebhooksController,
   ],
   providers: [EventsGateway],
 })
