@@ -14,6 +14,46 @@ import { getUserIdFromAuth } from '../utils/auth';
 
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 
+function normalizeCountryCode(raw: any): string {
+  const value = String(raw || '').trim();
+  if (!value) return 'US';
+  const upper = value.toUpperCase();
+  if (/^[A-Z]{2}$/.test(upper)) return upper;
+
+  const normalized = upper
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z]/g, '');
+
+  const known: Record<string, string> = {
+    UNITEDSTATES: 'US',
+    USA: 'US',
+    USAAMERICA: 'US',
+    PERU: 'PE',
+    PERUU: 'PE',
+    MEXICO: 'MX',
+    SPAIN: 'ES',
+    ESPANA: 'ES',
+    FRANCE: 'FR',
+    PORTUGAL: 'PT',
+    JAPAN: 'JP',
+    CHILE: 'CL',
+    COLOMBIA: 'CO',
+    ECUADOR: 'EC',
+    COSTARICA: 'CR',
+    DOMINICANREPUBLIC: 'DO',
+    ARGENTINA: 'AR',
+    BRAZIL: 'BR',
+    BRASIL: 'BR',
+    URUGUAY: 'UY',
+    UNITEDKINGDOM: 'GB',
+    GREATBRITAIN: 'GB',
+    ITALY: 'IT',
+  };
+
+  return known[normalized] || 'US';
+}
+
 // Minimal Stripe wrapper (throws when Stripe is misconfigured)
 function requireStripe() {
   const key = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET;
@@ -67,10 +107,11 @@ export class PaymentsController {
 
     let accountId = provider.stripe_account_id;
     if (!accountId) {
+      const stripeCountry = normalizeCountryCode(provider.country_code);
       const acct = await stripe.accounts.create({
         type: 'express',
         email: provider.email,
-        country: provider.country_code || 'US',
+        country: stripeCountry,
       });
       accountId = acct.id;
 
