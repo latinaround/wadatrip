@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Patch, Post, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
+import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import { getJwtSecret, getUserIdFromAuth } from '../utils/auth';
@@ -20,6 +21,44 @@ async function getUserFromRequest(req: any) {
   if (!userId) return null;
   const prisma = getPrisma();
   return prisma.users.findUnique({ where: { id: String(userId) } });
+}
+
+function getAllowedGoogleAudiences() {
+  return [
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_WEB_CLIENT_ID,
+    process.env.GOOGLE_ANDROID_CLIENT_ID,
+    ...(String(process.env.GOOGLE_ALLOWED_CLIENT_IDS || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)),
+  ].filter(Boolean) as string[];
+}
+
+async function verifyGoogleIdToken(idToken: string) {
+  const response = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
+    params: { id_token: idToken },
+    timeout: 10000,
+  });
+
+  const payload = response.data || {};
+  const email = String(payload.email || '').toLowerCase();
+  const emailVerified = String(payload.email_verified || '').toLowerCase() === 'true';
+  const audience = String(payload.aud || '');
+  const allowedAudiences = getAllowedGoogleAudiences();
+
+  if (!email || !emailVerified) {
+    throw new UnauthorizedException('google account email is not verified');
+  }
+
+  if (allowedAudiences.length && !allowedAudiences.includes(audience)) {
+    throw new UnauthorizedException('google token audience is invalid');
+  }
+
+  return {
+    email,
+    name: payload.name ? String(payload.name) : null,
+  };
 }
 
 @Controller('auth')
@@ -77,6 +116,50 @@ export class AuthController {
       where: { id: user.id },
       data: { last_login_at: new Date() },
     });
+
+    const token = signToken(user);
+    return { token, user };
+  }
+
+  @Post('google')
+  async google(@Body() body: any) {
+    const idToken = String(body?.idToken || body?.id_token || '').trim();
+    if (!idToken) {
+      throw new BadRequestException('google id token is required');
+    }
+
+    let googleUser: { email: string; name: string | null };
+    try {
+      googleUser = await verifyGoogleIdToken(idToken);
+    } catch (error: any) {
+      if (error instanceof UnauthorizedException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new UnauthorizedException('google token is invalid');
+    }
+
+    const prisma = getPrisma();
+    let user = await prisma.users.findUnique({ where: { email: googleUser.email } });
+
+    if (!user) {
+      user = await prisma.users.create({
+        data: {
+          email: googleUser.email,
+          name: googleUser.name,
+          role: body?.role ? String(body.role) : 'traveler',
+          status: 'active',
+          last_login_at: new Date(),
+        },
+      });
+    } else {
+      user = await prisma.users.update({
+        where: { id: user.id },
+        data: {
+          name: user.name || googleUser.name || undefined,
+          last_login_at: new Date(),
+        },
+      });
+    }
 
     const token = signToken(user);
     return { token, user };

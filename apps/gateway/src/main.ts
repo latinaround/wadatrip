@@ -107,7 +107,7 @@ async function bootstrap() {
   app.useLogger(logger);
   const server = app.getHttpAdapter().getInstance();
   server.options('*', cors(corsOptions));
-  server.options(['/auth/login', '/auth/register', '/providers', '/listings'], cors(corsOptions));
+  server.options(['/auth/login', '/auth/register', '/auth/google', '/providers', '/listings'], cors(corsOptions));
 
   // Fast health response without touching other modules.
   server.get('/health', (_req: Request, res: Response) => {
