@@ -232,6 +232,7 @@ export class PaymentsController {
     try {
       session = await stripe.checkout.sessions.create({
         mode: 'payment',
+        payment_method_types: ['card'],
         success_url:
           process.env.CHECKOUT_SUCCESS_URL ||
           `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/success`,
@@ -320,6 +321,7 @@ export class PaymentsController {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
+      payment_method_types: ['card'],
       success_url:
         process.env.CHECKOUT_SUCCESS_URL ||
         `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/success`,
