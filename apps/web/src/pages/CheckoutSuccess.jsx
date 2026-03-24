@@ -20,12 +20,21 @@ export default function CheckoutSuccess() {
               'You will receive a confirmation email with the tour details.',
             )}
           </p>
+          <p className="text-xs md:text-sm text-[#c8d3f5] leading-relaxed">
+            {t(
+              'checkout.success.mobile_hint',
+              'If you came from the mobile app, open WadaTrip again to keep browsing or review your traveler wallet.',
+            )}
+          </p>
           <div className="flex flex-col gap-3 md:flex-row md:justify-center">
-            <Link className="neon-cta" to="/tours">
+            <a className="neon-cta" href="wadatrip://">
+              {t('checkout.success.cta_open_app', 'Open WadaTrip app')}
+            </a>
+            <Link className="neon-outline" to="/tours">
               {t('checkout.success.cta_primary', 'Back to tours')}
             </Link>
-            <Link className="neon-outline" to="/account">
-              {t('checkout.success.cta_secondary', 'View my bookings')}
+            <Link className="neon-cta" to="/tours">
+              {t('checkout.success.cta_secondary', 'View web bookings')}
             </Link>
           </div>
         </div>
