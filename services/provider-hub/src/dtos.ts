@@ -11,6 +11,9 @@ export class CreateProviderDto {
   @IsOptional() @IsString()
   phone?: string;
 
+  @IsOptional() @IsString()
+  instagram_handle?: string;
+
   @IsArray()
   languages!: string[];
 

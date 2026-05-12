@@ -11,9 +11,13 @@ const emptyProvider = {
   name: '',
   email: '',
   phone: '',
+  instagram_handle: '',
   base_city: '',
   country_code: '',
   languages: '',
+  photo_url: '',
+  bio_short: '',
+  license_url: '',
 };
 
 const emptyTour = {
@@ -29,6 +33,7 @@ const emptyTour = {
   start_date: '',
   end_date: '',
   tags: '',
+  cover_image_url: '',
   publish_now: true,
 };
 
@@ -53,6 +58,7 @@ export default function OperatorToursNew() {
   const [editingId, setEditingId] = useState(null);
   const [pendingEditId, setPendingEditId] = useState(null);
   const [isFreeTour, setIsFreeTour] = useState(false);
+  const [coverPreview, setCoverPreview] = useState('');
 
   const accessCodeTrimmed = accessCode.trim();
 
@@ -72,6 +78,29 @@ export default function OperatorToursNew() {
 
   const handleTourChange = (field, value) => {
     setTourForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const resolveDestinationCover = async (city, countryCode) => {
+    const cityValue = String(city || '').trim();
+    const countryValue = String(countryCode || '').trim().toUpperCase();
+    if (!cityValue) return null;
+
+    const params = new URLSearchParams();
+    params.set('city', cityValue);
+    if (countryValue) params.set('country_code', countryValue);
+
+    const response = await fetch(`${apiBase}/destination-covers/resolve?${params.toString()}`);
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.message || data?.error || 'Destination cover could not be resolved.');
+    }
+    return data?.item?.image_url ? String(data.item.image_url) : null;
+  };
+
+  const ensureTourCoverImage = async () => {
+    const manual = String(tourForm.cover_image_url || '').trim();
+    if (manual) return manual;
+    return resolveDestinationCover(tourForm.city, tourForm.country_code);
   };
 
   const buildTagsPayload = () => {
@@ -105,9 +134,13 @@ export default function OperatorToursNew() {
         name: providerForm.name.trim(),
         email: providerForm.email.trim(),
         phone: providerForm.phone.trim() || undefined,
+        instagram_handle: providerForm.instagram_handle.trim().replace(/^@+/, '') || undefined,
         base_city: providerForm.base_city.trim(),
         country_code: providerForm.country_code.trim().toUpperCase(),
         languages: providerForm.languages.trim(),
+        photo_url: providerForm.photo_url.trim() || undefined,
+        bio_short: providerForm.bio_short.trim() || undefined,
+        license_url: providerForm.license_url.trim() || undefined,
         access_code: accessCodeTrimmed,
       };
 
@@ -198,6 +231,7 @@ export default function OperatorToursNew() {
 
     setTourLoading(true);
     try {
+      const coverImageUrl = await ensureTourCoverImage();
       const payload = {
         provider_id: tourForm.provider_id.trim(),
         title: tourForm.title.trim(),
@@ -212,6 +246,7 @@ export default function OperatorToursNew() {
         end_date: tourForm.end_date || undefined,
         tags: buildTagsPayload(),
         status: tourForm.publish_now ? 'published' : 'draft',
+        cover_image_url: coverImageUrl || undefined,
         access_code: accessCodeTrimmed,
       };
 
@@ -232,6 +267,7 @@ export default function OperatorToursNew() {
 
       const created = data?.listing || data;
       setCreatedTour(created);
+      setCoverPreview(created?.cover_image_url || coverImageUrl || '');
       setTourMessage(
         t('operator.messages.tour_created', 'Tour created: {{title}}', {
           title: created?.title || payload.title,
@@ -279,9 +315,11 @@ export default function OperatorToursNew() {
         start_date: data?.start_date ? String(data.start_date).slice(0, 10) : '',
         end_date: data?.end_date ? String(data.end_date).slice(0, 10) : '',
         tags: Array.isArray(data?.tags) ? data.tags.filter((tag) => tag !== 'free_tour').join(', ') : '',
+        cover_image_url: data?.cover_image_url || '',
         publish_now: data?.status ? String(data.status).toLowerCase() === 'published' : true,
       });
       setIsFreeTour(Array.isArray(data?.tags) && data.tags.includes('free_tour'));
+      setCoverPreview(data?.cover_image_url || '');
       setEditMessage(t('operator.messages.tour_loaded', 'Tour loaded. Update the fields and save.'));
     } catch (err) {
       setEditMessage(err?.message || t('operator.messages.tour_load_error', 'Error loading tour.'));
@@ -347,6 +385,7 @@ export default function OperatorToursNew() {
     }
     setTourLoading(true);
     try {
+      const coverImageUrl = await ensureTourCoverImage();
       const payload = {
         title: tourForm.title.trim(),
         category: tourForm.category.trim(),
@@ -359,6 +398,7 @@ export default function OperatorToursNew() {
         start_date: tourForm.start_date || null,
         end_date: tourForm.end_date || null,
         tags: buildTagsPayload(),
+        cover_image_url: coverImageUrl || null,
         access_code: accessCodeTrimmed,
       };
 
@@ -377,6 +417,7 @@ export default function OperatorToursNew() {
       }
 
       setCreatedTour(data);
+      setCoverPreview(data?.cover_image_url || coverImageUrl || '');
       setTourMessage(t('operator.messages.tour_updated', 'Tour updated successfully.'));
     } catch (err) {
       setTourMessage(
@@ -414,6 +455,7 @@ export default function OperatorToursNew() {
       setEditingId(null);
       setCreatedTour(null);
       setTourForm((prev) => ({ ...emptyTour, provider_id: prev.provider_id }));
+      setCoverPreview('');
     } catch (err) {
       setTourMessage(
         err?.message || t('operator.messages.tour_delete_error', 'Error deleting tour.')
@@ -552,6 +594,30 @@ export default function OperatorToursNew() {
               />
             </div>
             <div>
+              <label htmlFor="provider-instagram" className="text-sm text-[#e0e0e0]">
+                Instagram (optional)
+              </label>
+              <Input
+                id="provider-instagram"
+                value={providerForm.instagram_handle}
+                onChange={(event) => handleProviderChange('instagram_handle', event.target.value)}
+                placeholder="@yourhandle"
+                className="mt-2 h-12 neon-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="provider-photo-url" className="text-sm text-[#e0e0e0]">
+                Guide photo URL
+              </label>
+              <Input
+                id="provider-photo-url"
+                value={providerForm.photo_url}
+                onChange={(event) => handleProviderChange('photo_url', event.target.value)}
+                placeholder="https://..."
+                className="mt-2 h-12 neon-input"
+              />
+            </div>
+            <div>
               <label htmlFor="provider-base-city" className="text-sm text-[#e0e0e0]">
                 {t('operator.base_city_label', 'Base city')}
               </label>
@@ -584,6 +650,30 @@ export default function OperatorToursNew() {
                 value={providerForm.languages}
                 onChange={(event) => handleProviderChange('languages', event.target.value)}
                 placeholder={t('operator.languages_placeholder', 'es,en')}
+                className="mt-2 h-12 neon-input"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="provider-bio" className="text-sm text-[#e0e0e0]">
+                Short bio
+              </label>
+              <Textarea
+                id="provider-bio"
+                value={providerForm.bio_short}
+                onChange={(event) => handleProviderChange('bio_short', event.target.value)}
+                placeholder="Tell travelers why they should book with you."
+                className="mt-2 min-h-[100px] neon-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="provider-license-url" className="text-sm text-[#e0e0e0]">
+                License URL (optional)
+              </label>
+              <Input
+                id="provider-license-url"
+                value={providerForm.license_url}
+                onChange={(event) => handleProviderChange('license_url', event.target.value)}
+                placeholder="https://..."
                 className="mt-2 h-12 neon-input"
               />
             </div>
@@ -839,6 +929,51 @@ export default function OperatorToursNew() {
                 placeholder={t('operator.tags_placeholder', 'adventure, sunrise, hiking')}
                 className="mt-2 h-12 neon-input"
               />
+            </div>
+            <div>
+              <label htmlFor="tour-cover-image" className="text-sm text-[#e0e0e0]">
+                Cover image URL
+              </label>
+              <div className="mt-2 grid gap-3 md:grid-cols-[1fr_auto]">
+                <Input
+                  id="tour-cover-image"
+                  value={tourForm.cover_image_url}
+                  onChange={(event) => {
+                    handleTourChange('cover_image_url', event.target.value);
+                    setCoverPreview(event.target.value);
+                  }}
+                  placeholder="https://..."
+                  className="h-12 neon-input"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white"
+                  onClick={async () => {
+                    try {
+                      const imageUrl = await resolveDestinationCover(tourForm.city, tourForm.country_code);
+                      if (!imageUrl) {
+                        setTourMessage('No destination cover found for that city yet.');
+                        return;
+                      }
+                      handleTourChange('cover_image_url', imageUrl);
+                      setCoverPreview(imageUrl);
+                      setTourMessage('Destination cover applied.');
+                    } catch (error) {
+                      setTourMessage(error?.message || 'Could not resolve destination cover.');
+                    }
+                  }}
+                >
+                  Use destination cover
+                </Button>
+              </div>
+              {coverPreview || tourForm.cover_image_url ? (
+                <img
+                  src={coverPreview || tourForm.cover_image_url}
+                  alt="Tour cover preview"
+                  className="mt-3 h-48 w-full rounded-[20px] object-cover shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
+                />
+              ) : null}
             </div>
             <div className="flex items-center gap-2 text-sm text-[#e0e0e0]">
               <input

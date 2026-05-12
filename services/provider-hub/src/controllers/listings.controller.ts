@@ -116,7 +116,7 @@ export class ListingsController {
         orderBy,
         skip,
         take: limit,
-        include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true } } },
+        include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true, phone: true, instagram_handle: true, ratings_avg: true, ratings_count: true } } },
       }),
     ]);
 
@@ -128,6 +128,10 @@ export class ListingsController {
       provider_verified_level: item.provider?.verified_level ?? null,
       provider_photo_url: item.provider?.photo_url ?? null,
       provider_bio_short: item.provider?.bio_short ?? null,
+      provider_phone: item.provider?.phone ?? null,
+      provider_instagram_handle: item.provider?.instagram_handle ?? null,
+      provider_ratings_avg: item.provider?.ratings_avg ?? 0,
+      provider_ratings_count: item.provider?.ratings_count ?? 0,
     }));
 
     return { items: mapped, total, page, limit };
@@ -151,7 +155,7 @@ export class ListingsController {
     const prisma = getPrisma();
     const listing = await prisma.listings.findUnique({
       where: { id: String(id) },
-      include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true } } },
+      include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true, phone: true, instagram_handle: true, ratings_avg: true, ratings_count: true } } },
     });
     if (!listing) throw new BadRequestException('listing not found');
     return {
@@ -162,6 +166,10 @@ export class ListingsController {
       provider_verified_level: listing.provider?.verified_level ?? null,
       provider_photo_url: listing.provider?.photo_url ?? null,
       provider_bio_short: listing.provider?.bio_short ?? null,
+      provider_phone: listing.provider?.phone ?? null,
+      provider_instagram_handle: listing.provider?.instagram_handle ?? null,
+      provider_ratings_avg: listing.provider?.ratings_avg ?? 0,
+      provider_ratings_count: listing.provider?.ratings_count ?? 0,
     };
   }
 }

@@ -151,6 +151,7 @@ model providers {
   ratings_count     Int      @default(0)
   status            String   @default("pending")
   photo_url         String?
+  instagram_handle  String?
   bio_short         String?  @db.Text
   verified_level    String   @default("community")
   license_url       String?

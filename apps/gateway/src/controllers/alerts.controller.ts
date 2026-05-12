@@ -1,9 +1,30 @@
 import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
 import axios from 'axios';
-import { AlertsSubscribeRequest, AlertsSubscribeResponse, AlertRecord } from '@wadatrip/common/dtos';
 import { EventsGateway } from '../events.gateway';
 import { getPrisma } from '@wadatrip/db';
 import { getClaimsFromAuth } from '../utils/auth';
+
+type AlertsSubscribeRequest = {
+  itinerary_id?: string | null;
+  user_id?: string | null;
+  channel?: string;
+  rules?: any[];
+};
+
+type AlertsSubscribeResponse = {
+  ok: boolean;
+  subscription_id?: string | null;
+};
+
+type AlertRecord = {
+  id: string;
+  user_id: string;
+  itinerary_id?: string | null;
+  rule: any;
+  channel: string;
+  active: boolean;
+  created_at: Date;
+};
 
 const ALERTS_URL = process.env.ALERTS_URL || 'http://localhost:3013';
 const ALERTS_ENABLED = (process.env.FF_ALERTS || 'false').toLowerCase() === 'true';
@@ -70,7 +91,7 @@ export class AlertsController {
       orderBy: { created_at: 'desc' },
     });
     return {
-      items: items.map((item) => ({
+      items: items.map((item: any) => ({
         id: item.id,
         user_id: item.user_id,
         itinerary_id: item.itinerary_id,

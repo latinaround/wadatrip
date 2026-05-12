@@ -90,6 +90,7 @@ export class ProvidersController {
       name: String(body.name),
       email: String(body.email),
       phone: body.phone ?? null,
+      instagram_handle: body.instagram_handle ?? body.instagramHandle ?? null,
       languages,
       base_city: body.base_city,
       country_code: body.country_code,
@@ -168,6 +169,7 @@ export class ProvidersController {
     name: body.name,
     email: body.email,
     phone: body.phone ?? null,
+    instagram_handle: body.instagram_handle ?? body.instagramHandle ?? null,
     languages: body.languages ? body.languages.split(',') : [],
     base_city: body.base_city ?? null,
     country_code: body.country_code ?? null,
@@ -387,6 +389,7 @@ export class ProvidersController {
         match_faces: faceMatch,
         verification_notes: notes.join(' | ') || null,
         phone: body.phone ?? provider.phone,
+        instagram_handle: body.instagram_handle ?? body.instagramHandle ?? provider.instagram_handle,
         base_city: body.city ?? provider.base_city,
         country_code: body.country ?? provider.country_code,
         languages: Array.isArray(body.languages)

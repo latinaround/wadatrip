@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 import { findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
+import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import BrandLogo from '../components/BrandLogo';
@@ -33,9 +34,41 @@ const getInitials = (name) =>
     .slice(0, 2)
     .toUpperCase();
 
+const sanitizeWhatsAppNumber = (value) => {
+  const digits = String(value || '').replace(/\D+/g, '');
+  return digits || null;
+};
+
+const normalizeInstagramHandle = (value) => {
+  const normalized = String(value || '').trim().replace(/^@+/, '');
+  return normalized || null;
+};
+
+const formatGuideRating = (rating, count) => {
+  const value = Number(rating || 0);
+  const total = Number(count || 0);
+  if (!value) return 'New guide';
+  return `${value.toFixed(1)}★ guide rating${total ? ` · ${total} reviews` : ''}`;
+};
+
+const buildWhatsAppUrl = (phone, providerName, title) => {
+  const normalized = sanitizeWhatsAppNumber(phone);
+  if (!normalized) return null;
+  const text = encodeURIComponent(`Hi ${providerName || 'guide'}, I'm interested in "${title || 'this experience'}" on WadaTrip.`);
+  return `https://wa.me/${normalized}?text=${text}`;
+};
+
+const buildInstagramUrl = (handle) => {
+  const normalized = normalizeInstagramHandle(handle);
+  return normalized ? `https://www.instagram.com/${normalized}/` : null;
+};
+
 function HostOptionCard({ item, selected, onSelect }) {
   const freeTour = Array.isArray(item.tags) && item.tags.includes('free_tour');
   const initials = getInitials(item.provider_name);
+  const avatar = resolveProviderAvatar(item);
+  const whatsappUrl = buildWhatsAppUrl(item.provider_phone, item.provider_name, item.title);
+  const instagramUrl = buildInstagramUrl(item.provider_instagram_handle);
 
   return (
     <button
@@ -48,12 +81,19 @@ function HostOptionCard({ item, selected, onSelect }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#16d7d0_0%,#159291_100%)] text-sm font-black text-white shadow-[0_10px_24px_rgba(21,146,145,0.24)]">
-            {initials}
-          </div>
+          {avatar ? (
+            <img src={avatar} alt={item.provider_name || 'Host'} className="h-12 w-12 rounded-2xl object-cover shadow-[0_10px_24px_rgba(21,146,145,0.24)]" />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#16d7d0_0%,#159291_100%)] text-sm font-black text-white shadow-[0_10px_24px_rgba(21,146,145,0.24)]">
+              {initials}
+            </div>
+          )}
           <div>
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#7c8aa0]">Host</p>
             <h3 className="mt-1 text-lg font-semibold text-[#0f172a]">{item.provider_name || 'Verified local host'}</h3>
+            <p className="mt-1 text-xs font-semibold text-[#526173]">
+              {formatGuideRating(item.provider_ratings_avg, item.provider_ratings_count)}
+            </p>
           </div>
         </div>
         <span className="rounded-full border border-[#ecd0bc] bg-[#ffebdc] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
@@ -63,6 +103,32 @@ function HostOptionCard({ item, selected, onSelect }) {
       <p className="mt-3 text-sm leading-relaxed text-[#526173]">
         {item.provider_bio_short || item.description || 'Local operator ready to host this experience.'}
       </p>
+      {whatsappUrl || instagramUrl ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {whatsappUrl ? (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-[#8de1ac] bg-[#dcfce7] px-3 py-2 text-xs font-semibold text-[#106c38]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              WhatsApp
+            </a>
+          ) : null}
+          {instagramUrl ? (
+            <a
+              href={instagramUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-[#f7bfd8] bg-[#fff0f8] px-3 py-2 text-xs font-semibold text-[#b33b74]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              Instagram
+            </a>
+          ) : null}
+        </div>
+      ) : null}
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
         <span className="rounded-full bg-[#e7f7f5] px-3 py-2 text-[#167c7d]">Verified host</span>
         {item.duration_hours ? <span className="rounded-full bg-[#fff1e5] px-3 py-2 text-[#c36d1f]">{item.duration_hours}h</span> : null}
@@ -87,6 +153,7 @@ export default function TourDetail() {
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const [tour, setTour] = useState(null);
   const [experienceHosts, setExperienceHosts] = useState([]);
+  const [destinationCoverMap, setDestinationCoverMap] = useState({});
   const [selectedHost, setSelectedHost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -132,11 +199,13 @@ export default function TourDetail() {
         const groupedHosts = rows.filter((item) => buildExperienceKey(item) === experienceKey);
         const hosts = groupedHosts.length ? groupedHosts : [data];
         const selected = hosts.find((item) => String(item.id) === String(data.id)) || hosts[0] || data;
+        const covers = await fetchDestinationCoverMap(apiBase, hosts);
 
         if (mounted) {
           setTour(data);
           setExperienceHosts(hosts);
           setSelectedHost(selected);
+          setDestinationCoverMap(covers);
         }
       } catch (err) {
         if (mounted) setError(err?.message || 'Error loading tour');
@@ -152,6 +221,10 @@ export default function TourDetail() {
   const currentHost = selectedHost || tour;
   const isFreeTour = Array.isArray(currentHost?.tags) && currentHost.tags.includes('free_tour');
   const currentHostInitials = getInitials(currentHost?.provider_name);
+  const currentHostAvatar = resolveProviderAvatar(currentHost);
+  const heroImage = resolveListingImage(currentHost || tour, destinationCoverMap);
+  const currentHostWhatsappUrl = buildWhatsAppUrl(currentHost?.provider_phone, currentHost?.provider_name, currentHost?.title);
+  const currentHostInstagramUrl = buildInstagramUrl(currentHost?.provider_instagram_handle);
 
   const handleBookingChange = (field, value) => {
     setBookingForm((prev) => ({ ...prev, [field]: value }));
@@ -237,7 +310,18 @@ export default function TourDetail() {
         <Button variant="secondary" onClick={() => navigate(-1)}>Back</Button>
 
         <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-          <div className="overflow-hidden rounded-[32px] border border-white/12 bg-[linear-gradient(135deg,#0f7f77_0%,#14908d_42%,#dd8a63_100%)] p-8 shadow-[0_28px_80px_rgba(15,23,42,0.22)] md:p-10">
+          <div
+            className="overflow-hidden rounded-[32px] border border-white/12 bg-[linear-gradient(135deg,#0f7f77_0%,#14908d_42%,#dd8a63_100%)] p-8 shadow-[0_28px_80px_rgba(15,23,42,0.22)] md:p-10"
+            style={
+              heroImage
+                ? {
+                    backgroundImage: `linear-gradient(135deg, rgba(15,127,119,0.75) 0%, rgba(20,144,141,0.64) 42%, rgba(221,138,99,0.70) 100%), url(${heroImage})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }
+                : undefined
+            }
+          >
             <div className="space-y-5">
               <BrandLogo size="sm" light className="mb-2" />
               <p className="page-kicker text-[#dcfffb]">{tour.city || 'Destination'} {tour.country_code ? `· ${tour.country_code}` : ''}</p>
@@ -269,13 +353,44 @@ export default function TourDetail() {
 
             <div className="mt-5 rounded-[24px] border border-[#e4cbbb] bg-[linear-gradient(180deg,#f7e8db_0%,#fdf4ec_100%)] p-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#16d7d0_0%,#159291_100%)] text-base font-black text-white shadow-[0_12px_28px_rgba(21,146,145,0.22)]">
-                  {currentHostInitials}
-                </div>
+                {currentHostAvatar ? (
+                  <img src={currentHostAvatar} alt={currentHost?.provider_name || 'Host'} className="h-14 w-14 rounded-2xl object-cover shadow-[0_12px_28px_rgba(21,146,145,0.22)]" />
+                ) : (
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#16d7d0_0%,#159291_100%)] text-base font-black text-white shadow-[0_12px_28px_rgba(21,146,145,0.22)]">
+                    {currentHostInitials}
+                  </div>
+                )}
                 <div className="space-y-1">
                   <p className="text-[11px] uppercase tracking-[0.22em] text-[#7c8aa0]">Meet your host</p>
                   <h3 className="text-lg font-semibold text-[#0f172a]">{currentHost?.provider_name || 'Verified local host'}</h3>
+                  <p className="text-xs font-semibold text-[#526173]">
+                    {formatGuideRating(currentHost?.provider_ratings_avg, currentHost?.provider_ratings_count)}
+                  </p>
                   <p className="text-sm leading-relaxed text-[#526173]">{currentHost?.provider_bio_short || 'Verified local guide or operator ready to host this experience.'}</p>
+                  {currentHostWhatsappUrl || currentHostInstagramUrl ? (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {currentHostWhatsappUrl ? (
+                        <a
+                          href={currentHostWhatsappUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-full border border-[#8de1ac] bg-[#dcfce7] px-3 py-2 text-xs font-semibold text-[#106c38]"
+                        >
+                          Chat on WhatsApp
+                        </a>
+                      ) : null}
+                      {currentHostInstagramUrl ? (
+                        <a
+                          href={currentHostInstagramUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-full border border-[#f7bfd8] bg-[#fff0f8] px-3 py-2 text-xs font-semibold text-[#b33b74]"
+                        >
+                          View Instagram
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>

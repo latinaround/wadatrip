@@ -15,11 +15,17 @@ interface ProviderRow {
   id: string
   name: string
   email: string
+  phone?: string | null
+  instagram_handle?: string | null
   base_city?: string | null
   country_code?: string | null
   status: ProviderStatus
   created_at: string
   type?: string | null
+  photo_url?: string | null
+  bio_short?: string | null
+  ratings_avg?: number | null
+  ratings_count?: number | null
   documents?: ProviderDocument[]
 }
 
@@ -151,10 +157,12 @@ export default function ProvidersPage() {
           <thead className="bg-[#0a0e27] text-left">
             <tr>
               <th className="px-3 py-2">ID</th>
-              <th className="px-3 py-2">Name</th>
+              <th className="px-3 py-2">Guide</th>
               <th className="px-3 py-2">Email</th>
               <th className="px-3 py-2">City</th>
               <th className="px-3 py-2">Country</th>
+              <th className="px-3 py-2">Rating</th>
+              <th className="px-3 py-2">Contact</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Created</th>
               <th className="px-3 py-2">Actions</th>
@@ -163,7 +171,7 @@ export default function ProvidersPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-3 py-3" colSpan={8}>
+                <td className="px-3 py-3" colSpan={10}>
                   Loading
                 </td>
               </tr>
@@ -171,10 +179,41 @@ export default function ProvidersPage() {
               rows.map((p) => (
                 <tr key={p.id} className="border-t">
                   <td className="px-3 py-2 font-mono text-xs">{p.id}</td>
-                  <td className="px-3 py-2">{p.name}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      {p.photo_url ? (
+                        <img src={p.photo_url} alt={p.name} className="h-10 w-10 rounded-xl object-cover border" />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-xs font-bold text-teal-700">
+                          {String(p.name || 'G').slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-medium">{p.name}</div>
+                        {p.type ? <div className="text-xs text-[#a0a0a0] capitalize">{p.type}</div> : null}
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-3 py-2">{p.email}</td>
                   <td className="px-3 py-2">{p.base_city}</td>
                   <td className="px-3 py-2">{p.country_code}</td>
+                  <td className="px-3 py-2">
+                    {p.ratings_avg ? (
+                      <div className="font-medium text-white">
+                        {Number(p.ratings_avg).toFixed(1)}★
+                        <div className="text-xs text-[#a0a0a0]">{Number(p.ratings_count || 0)} reviews</div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-[#a0a0a0]">No ratings yet</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="space-y-1 text-xs">
+                      {p.phone ? <div>{p.phone}</div> : null}
+                      {p.instagram_handle ? <div className="text-[#7dd3fc]">@{p.instagram_handle}</div> : null}
+                      {!p.phone && !p.instagram_handle ? <span className="text-[#a0a0a0]">No contact</span> : null}
+                    </div>
+                  </td>
                   <td className="px-3 py-2">
                     <StatusBadge status={p.status} />
                   </td>
@@ -196,7 +235,7 @@ export default function ProvidersPage() {
               ))
             ) : (
               <tr>
-                <td className="px-3 py-3" colSpan={8}>
+                <td className="px-3 py-3" colSpan={10}>
                   No providers found.
                 </td>
               </tr>
@@ -242,7 +281,22 @@ export default function ProvidersPage() {
               <div><span className="font-medium">Type:</span> {selected.type}</div>
               <div><span className="font-medium">City:</span> {selected.base_city}</div>
               <div><span className="font-medium">Country:</span> {selected.country_code}</div>
+              <div><span className="font-medium">Phone:</span> {selected.phone || 'Not provided'}</div>
+              <div><span className="font-medium">Instagram:</span> {selected.instagram_handle ? `@${selected.instagram_handle}` : 'Not provided'}</div>
+              <div><span className="font-medium">Rating:</span> {selected.ratings_avg ? `${Number(selected.ratings_avg).toFixed(1)}★` : 'No ratings yet'}</div>
+              <div><span className="font-medium">Reviews:</span> {Number(selected.ratings_count || 0)}</div>
               <div className="col-span-2"><span className="font-medium">Status:</span> {selected.status}</div>
+              {selected.photo_url ? (
+                <div className="col-span-2">
+                  <span className="font-medium">Photo:</span>
+                  <img src={selected.photo_url} alt={selected.name} className="mt-2 h-36 w-36 rounded-2xl object-cover border" />
+                </div>
+              ) : null}
+              {selected.bio_short ? (
+                <div className="col-span-2">
+                  <span className="font-medium">Bio:</span> {selected.bio_short}
+                </div>
+              ) : null}
             </div>
             <div className="mt-4">
               <div className="font-semibold">Documents</div>

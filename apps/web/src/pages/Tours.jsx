@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
+import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -24,16 +25,23 @@ const buildExperienceKey = (item) => {
   return `${title}::${city}`;
 };
 
-function ExperienceCard({ experience }) {
+function ExperienceCard({ experience, destinationCoverMap }) {
   const cheapestHost = experience.hosts[0] || null;
   const hostCount = experience.hosts.length;
   const freeTour = experience.hosts.some((host) => Array.isArray(host.tags) && host.tags.includes('free_tour'));
+  const coverImage = resolveListingImage(cheapestHost || experience.primary, destinationCoverMap);
+  const providerAvatar = resolveProviderAvatar(cheapestHost || experience.primary);
 
   return (
     <Link
       to={buildTourHref(cheapestHost || experience.primary)}
       className="group overflow-hidden rounded-[30px] border border-[#ddc2ab] bg-[linear-gradient(145deg,#efd9c4_0%,#f7e9db_56%,#eef8f6_100%)] p-6 text-[#0f172a] shadow-[0_18px_52px_rgba(15,23,42,0.10)] transition-transform duration-200 hover:-translate-y-1"
     >
+      {coverImage ? (
+        <div className="mb-5 overflow-hidden rounded-[22px] border border-white/50 bg-white/40">
+          <img src={coverImage} alt={experience.title} className="h-52 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
+        </div>
+      ) : null}
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#167c7d]">{experience.city || 'Destination'}</p>
@@ -53,10 +61,19 @@ function ExperienceCard({ experience }) {
           <div className="inline-flex items-center rounded-full bg-[#e8faf8] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#167c7d]">
             {hostCount} {hostCount === 1 ? 'Host' : 'Hosts'} Available
           </div>
+          <div className="flex items-center gap-3">
+          {providerAvatar ? (
+            <img src={providerAvatar} alt={cheapestHost?.provider_name || 'Host'} className="h-11 w-11 rounded-2xl object-cover shadow-[0_8px_20px_rgba(15,23,42,0.14)]" />
+          ) : (
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0f172a] text-sm font-black text-white shadow-[0_8px_20px_rgba(15,23,42,0.14)]">
+              {String(cheapestHost?.provider_name || 'Host').slice(0, 1).toUpperCase()}
+            </div>
+          )}
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#6b7687]">Best match right now</p>
-            <p className="mt-1 text-sm font-semibold text-[#0f172a]">{cheapestHost?.provider_name || 'Verified local host'}</p>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[#6b7687]">Best match right now</p>
+              <p className="mt-1 text-sm font-semibold text-[#0f172a]">{cheapestHost?.provider_name || 'Verified local host'}</p>
           </div>
+        </div>
         </div>
         <span className="inline-flex items-center justify-center rounded-2xl bg-[#0f172a] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition-colors group-hover:bg-[#167c7d]">
           Compare Hosts
@@ -70,6 +87,7 @@ export default function Tours() {
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const location = useLocation();
   const [items, setItems] = useState([]);
+  const [destinationCoverMap, setDestinationCoverMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({ city: '', country: '' });
@@ -111,7 +129,11 @@ export default function Tours() {
           throw new Error(message);
         }
         const rows = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-        if (mounted) setItems(rows);
+        const covers = await fetchDestinationCoverMap(apiBase, rows);
+        if (mounted) {
+          setItems(rows);
+          setDestinationCoverMap(covers);
+        }
       } catch (err) {
         if (mounted) setError(err?.message || 'Error loading tours');
       } finally {
@@ -290,7 +312,7 @@ export default function Tours() {
 
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
           {experiences.map((experience) => (
-            <ExperienceCard key={experience.key} experience={experience} />
+            <ExperienceCard key={experience.key} experience={experience} destinationCoverMap={destinationCoverMap} />
           ))}
         </div>
       </div>
