@@ -181,17 +181,46 @@ export class AuthController {
     const next: any = {};
 
     if (body?.name != null) next.name = String(body.name);
-    if (body?.email != null) next.email = String(body.email).toLowerCase();
+    if (body?.email != null) {
+      next.email = String(body.email).trim().toLowerCase();
+      if (!next.email) throw new BadRequestException('email is required');
+    }
 
     if (next.email && next.email !== user.email) {
       const exists = await prisma.users.findUnique({ where: { email: next.email } });
       if (exists) throw new BadRequestException('email already registered');
+
+      const providerConflict = await prisma.providers.findFirst({
+        where: {
+          email: next.email,
+          NOT: { user_id: user.id },
+        },
+      });
+      if (providerConflict) {
+        throw new BadRequestException('email already registered for a guide profile');
+      }
     }
 
     const updated = await prisma.users.update({
       where: { id: user.id },
       data: next,
     });
+
+    const ownedProvider = await prisma.providers.findFirst({
+      where: {
+        OR: [{ user_id: user.id }, { email: user.email }],
+      },
+    });
+
+    if (ownedProvider) {
+      await prisma.providers.update({
+        where: { id: ownedProvider.id },
+        data: {
+          user_id: user.id,
+          email: updated.email,
+        },
+      });
+    }
 
     return updated;
   }

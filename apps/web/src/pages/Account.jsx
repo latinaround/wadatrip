@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
 import { useAuth } from '../context/AuthContext.jsx';
 import ItineraryCard from '../components/ItineraryCard.jsx';
 import { AppConfig } from '../config/appConfig';
@@ -9,6 +11,19 @@ import BookingsList from '../components/dashboard/BookingsList.jsx';
 import PaymentsList from '../components/dashboard/PaymentsList.jsx';
 
 const apiBase = (AppConfig.api.baseUrl || '').replace(/\/$/, '');
+
+const emptyGuideForm = {
+  type: 'guide',
+  name: '',
+  phone: '',
+  instagram_handle: '',
+  base_city: '',
+  country_code: '',
+  languages: '',
+  photo_url: '',
+  bio_short: '',
+  license_url: '',
+};
 
 const toArray = (payload, keys) => {
   if (!payload) return [];
@@ -128,8 +143,27 @@ const getStats = (itineraries, bookings, payments) => {
   };
 };
 
+const buildGuideForm = (provider, user) => ({
+  type: provider?.type || 'guide',
+  name: provider?.name || user?.name || '',
+  phone: provider?.phone || '',
+  instagram_handle: provider?.instagram_handle || '',
+  base_city: provider?.base_city || '',
+  country_code: provider?.country_code || '',
+  languages: Array.isArray(provider?.languages) ? provider.languages.join(', ') : '',
+  photo_url: provider?.photo_url || '',
+  bio_short: provider?.bio_short || '',
+  license_url: provider?.license_url || '',
+});
+
+const formatProviderStatus = (provider) => {
+  if (!provider) return 'No guide profile yet';
+  const status = provider.status || provider.verification_status || 'pending';
+  return String(status).replace(/_/g, ' ');
+};
+
 const Account = () => {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, refreshProfile } = useAuth();
   const [itineraries, setItineraries] = useState([]);
   const [itinerariesLoading, setItinerariesLoading] = useState(true);
   const [itinerariesError, setItinerariesError] = useState(null);
@@ -139,6 +173,14 @@ const Account = () => {
   const [payments, setPayments] = useState([]);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
   const [paymentsError, setPaymentsError] = useState(null);
+  const [accountForm, setAccountForm] = useState({ name: '', email: '' });
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountMessage, setAccountMessage] = useState(null);
+  const [guideProfile, setGuideProfile] = useState(null);
+  const [guideForm, setGuideForm] = useState(emptyGuideForm);
+  const [guideLoading, setGuideLoading] = useState(false);
+  const [guideSaving, setGuideSaving] = useState(false);
+  const [guideMessage, setGuideMessage] = useState(null);
 
   const fetchJson = useCallback(async (path, init = {}) => {
     if (!token) throw new Error('Usuario no autenticado');
@@ -243,22 +285,128 @@ const Account = () => {
     }
   }, [fetchFirstAvailable, logout, token]);
 
+  const loadGuideProfile = useCallback(async () => {
+    if (!token || !user) return;
+    setGuideLoading(true);
+    setGuideMessage(null);
+    try {
+      const data = await fetchJson('/providers/me');
+      setGuideProfile(data || null);
+      setGuideForm(buildGuideForm(data, user));
+    } catch (error) {
+      if (error?.status === 401) {
+        logout?.();
+        return;
+      }
+      setGuideProfile(null);
+      setGuideForm(buildGuideForm(null, user));
+      setGuideMessage(error?.message || 'No se pudo cargar tu perfil de guia.');
+    } finally {
+      setGuideLoading(false);
+    }
+  }, [fetchJson, logout, token, user]);
+
+  useEffect(() => {
+    if (!user) {
+      setAccountForm({ name: '', email: '' });
+      return;
+    }
+    setAccountForm({
+      name: user.name || '',
+      email: user.email || '',
+    });
+  }, [user]);
+
   useEffect(() => {
     if (!token) {
       setItineraries([]);
       setBookings([]);
       setPayments([]);
+      setGuideProfile(null);
+      setGuideForm(emptyGuideForm);
       setItinerariesLoading(false);
       setBookingsLoading(false);
       setPaymentsLoading(false);
+      setGuideLoading(false);
       return;
     }
     loadItineraries();
     loadBookings();
     loadPayments();
-  }, [token, loadItineraries, loadBookings, loadPayments]);
+    loadGuideProfile();
+  }, [token, loadItineraries, loadBookings, loadPayments, loadGuideProfile]);
 
   const stats = useMemo(() => getStats(itineraries, bookings, payments), [itineraries, bookings, payments]);
+
+  const guidePublicHref = guideProfile?.id ? `/guides/${guideProfile.id}` : null;
+  const guideStatusLabel = formatProviderStatus(guideProfile);
+  const guideSaveLabel = guideProfile ? 'Save guide profile' : 'Create my guide profile';
+
+  const handleAccountField = (field, value) => {
+    setAccountForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleGuideField = (field, value) => {
+    setGuideForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveAccount = async (event) => {
+    event.preventDefault();
+    setAccountSaving(true);
+    setAccountMessage(null);
+    try {
+      await fetchJson('/auth/update', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: accountForm.name.trim(),
+          email: accountForm.email.trim().toLowerCase(),
+        }),
+      });
+      await refreshProfile?.();
+      setAccountMessage('Your account identity was updated.');
+    } catch (error) {
+      setAccountMessage(error?.message || 'No se pudo guardar tu cuenta.');
+      if (error?.status === 401) logout?.();
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  const handleSaveGuide = async (event) => {
+    event.preventDefault();
+    setGuideSaving(true);
+    setGuideMessage(null);
+    try {
+      const payload = {
+        type: guideForm.type,
+        name: guideForm.name.trim(),
+        phone: guideForm.phone.trim(),
+        instagram_handle: guideForm.instagram_handle.trim().replace(/^@+/, ''),
+        base_city: guideForm.base_city.trim(),
+        country_code: guideForm.country_code.trim().toUpperCase(),
+        languages: guideForm.languages
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+        photo_url: guideForm.photo_url.trim(),
+        bio_short: guideForm.bio_short.trim(),
+        license_url: guideForm.license_url.trim(),
+      };
+
+      const data = await fetchJson('/providers/me', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      setGuideProfile(data);
+      setGuideForm(buildGuideForm(data, user));
+      setGuideMessage('Your guide profile now belongs to your account and was saved securely.');
+    } catch (error) {
+      setGuideMessage(error?.message || 'No se pudo guardar tu perfil de guia.');
+      if (error?.status === 401) logout?.();
+    } finally {
+      setGuideSaving(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -276,7 +424,213 @@ const Account = () => {
       <div className="container mx-auto px-4 space-y-10">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-white">Hola, {user.name || user.email}</h1>
-          <p className="text-[#a0a0a0]">Gestiona tus itinerarios generados, reservas y pagos recientes.</p>
+          <p className="text-[#a0a0a0]">Gestiona tus itinerarios, tu identidad y tu perfil publico desde una sola cuenta.</p>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Account identity</h2>
+                <p className="mt-1 text-sm text-[#a0a0a0]">
+                  Esta cuenta firma tus acciones con JWT. Desde aqui controlas tu nombre y el email principal.
+                </p>
+              </div>
+            </div>
+            <form className="mt-6 space-y-4" onSubmit={handleSaveAccount}>
+              <div>
+                <label htmlFor="account-name" className="text-sm text-[#e0e0e0]">Display name</label>
+                <Input
+                  id="account-name"
+                  value={accountForm.name}
+                  onChange={(event) => handleAccountField('name', event.target.value)}
+                  className="mt-2 h-12 neon-input"
+                />
+              </div>
+              <div>
+                <label htmlFor="account-email" className="text-sm text-[#e0e0e0]">Email</label>
+                <Input
+                  id="account-email"
+                  value={accountForm.email}
+                  onChange={(event) => handleAccountField('email', event.target.value)}
+                  className="mt-2 h-12 neon-input"
+                  type="email"
+                />
+                <p className="mt-2 text-xs text-[#a0a0a0]">
+                  Si cambias el email, tu perfil de guia queda sincronizado con esta identidad.
+                </p>
+              </div>
+              {accountMessage ? (
+                <div className="rounded-md border border-[#00D9FF]/20 bg-[#0a0e27]/70 px-3 py-2 text-sm text-[#7dd3fc]">
+                  {accountMessage}
+                </div>
+              ) : null}
+              <Button type="submit" className="h-12 neon-cta font-black" disabled={accountSaving}>
+                {accountSaving ? 'Saving...' : 'Save account'}
+              </Button>
+            </form>
+          </div>
+
+          <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Guide ownership</h2>
+                <p className="mt-1 text-sm text-[#a0a0a0]">
+                  Solo tu sesion autenticada puede editar este perfil. Ya no depende solo de un codigo compartido.
+                </p>
+              </div>
+              <div className="rounded-full border border-[#00D9FF]/30 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[#7dd3fc]">
+                {guideStatusLabel}
+              </div>
+            </div>
+
+            {guideLoading ? (
+              <div className="mt-6 text-sm text-[#a0a0a0]">Loading your guide profile...</div>
+            ) : (
+              <form className="mt-6 space-y-4" onSubmit={handleSaveGuide}>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="guide-type" className="text-sm text-[#e0e0e0]">Profile type</label>
+                    <select
+                      id="guide-type"
+                      value={guideForm.type}
+                      onChange={(event) => handleGuideField('type', event.target.value)}
+                      className="mt-2 h-12 w-full rounded-md border border-[#00D9FF]/30 bg-[#1a1f3a] px-3 text-sm text-white"
+                    >
+                      <option value="guide">Guide</option>
+                      <option value="operator">Operator</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="guide-email" className="text-sm text-[#e0e0e0]">Owner email</label>
+                    <Input
+                      id="guide-email"
+                      value={user.email || ''}
+                      readOnly
+                      className="mt-2 h-12 neon-input opacity-80"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="guide-name" className="text-sm text-[#e0e0e0]">Public name</label>
+                    <Input
+                      id="guide-name"
+                      value={guideForm.name}
+                      onChange={(event) => handleGuideField('name', event.target.value)}
+                      className="mt-2 h-12 neon-input"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="guide-phone" className="text-sm text-[#e0e0e0]">WhatsApp / phone</label>
+                    <Input
+                      id="guide-phone"
+                      value={guideForm.phone}
+                      onChange={(event) => handleGuideField('phone', event.target.value)}
+                      className="mt-2 h-12 neon-input"
+                      placeholder="+51..."
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="guide-instagram" className="text-sm text-[#e0e0e0]">Instagram</label>
+                    <Input
+                      id="guide-instagram"
+                      value={guideForm.instagram_handle}
+                      onChange={(event) => handleGuideField('instagram_handle', event.target.value)}
+                      className="mt-2 h-12 neon-input"
+                      placeholder="josleentrips"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="guide-city" className="text-sm text-[#e0e0e0]">Base city</label>
+                    <Input
+                      id="guide-city"
+                      value={guideForm.base_city}
+                      onChange={(event) => handleGuideField('base_city', event.target.value)}
+                      className="mt-2 h-12 neon-input"
+                      placeholder="Cusco"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="guide-country" className="text-sm text-[#e0e0e0]">Country (ISO2)</label>
+                    <Input
+                      id="guide-country"
+                      value={guideForm.country_code}
+                      onChange={(event) => handleGuideField('country_code', event.target.value)}
+                      className="mt-2 h-12 neon-input"
+                      placeholder="PE"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="guide-languages" className="text-sm text-[#e0e0e0]">Languages</label>
+                    <Input
+                      id="guide-languages"
+                      value={guideForm.languages}
+                      onChange={(event) => handleGuideField('languages', event.target.value)}
+                      className="mt-2 h-12 neon-input"
+                      placeholder="Spanish, English"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label htmlFor="guide-photo" className="text-sm text-[#e0e0e0]">Photo URL</label>
+                    <Input
+                      id="guide-photo"
+                      value={guideForm.photo_url}
+                      onChange={(event) => handleGuideField('photo_url', event.target.value)}
+                      className="mt-2 h-12 neon-input"
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label htmlFor="guide-license" className="text-sm text-[#e0e0e0]">License URL</label>
+                    <Input
+                      id="guide-license"
+                      value={guideForm.license_url}
+                      onChange={(event) => handleGuideField('license_url', event.target.value)}
+                      className="mt-2 h-12 neon-input"
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="guide-bio" className="text-sm text-[#e0e0e0]">Bio</label>
+                  <Textarea
+                    id="guide-bio"
+                    value={guideForm.bio_short}
+                    onChange={(event) => handleGuideField('bio_short', event.target.value)}
+                    className="mt-2 min-h-[120px] neon-input"
+                    placeholder="Cuentales por que deberian reservar contigo."
+                  />
+                </div>
+
+                {guideProfile?.verified_level ? (
+                  <div className="rounded-xl border border-[#2d3548] bg-[#0a0e27]/60 px-4 py-3 text-sm text-[#cad3df]">
+                    <div>Verification level: <span className="font-medium capitalize">{guideProfile.verified_level}</span></div>
+                    <div className="mt-1">Tours linked: <span className="font-medium">{Array.isArray(guideProfile.listings) ? guideProfile.listings.length : 0}</span></div>
+                  </div>
+                ) : null}
+
+                {guideMessage ? (
+                  <div className="rounded-md border border-[#00D9FF]/20 bg-[#0a0e27]/70 px-3 py-2 text-sm text-[#7dd3fc]">
+                    {guideMessage}
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
+                  <Button type="submit" className="h-12 neon-cta font-black" disabled={guideSaving}>
+                    {guideSaving ? 'Saving...' : guideSaveLabel}
+                  </Button>
+                  {guidePublicHref ? (
+                    <Button asChild variant="outline" className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
+                      <Link to={guidePublicHref}>View public profile</Link>
+                    </Button>
+                  ) : null}
+                  <Button asChild variant="outline" className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
+                    <Link to="/operator/tours/new">Manage tours</Link>
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
 
         <SummaryCards stats={stats} />
@@ -347,14 +701,15 @@ const Account = () => {
             />
 
             <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-white">Siguiente paso</h2>
+              <h2 className="text-lg font-semibold text-white">Security posture</h2>
               <p className="mt-2 text-sm text-[#a0a0a0]">
-                Usa el generador para crear un nuevo itinerario, confirma la reserva y veras la informacion consolidada aqui.
+                WadaTrip ya protege la cuenta con JWT y scope propio, pero todavia no es seguridad de banco.
               </p>
               <ul className="mt-4 space-y-2 text-sm text-[#a0a0a0]">
-                <li> Genera un itinerario desde la pagina principal.</li>
-                <li> Selecciona un plan y procesa el pago.</li>
-                <li> Revisa el estado de la reserva y los cobros en este panel.</li>
+                <li> Tu cuenta y tu perfil de guia ahora quedan ligados por `user_id`.</li>
+                <li> El perfil publico se edita desde tu propia sesion autenticada.</li>
+                <li> El email del guia hereda la identidad principal de tu cuenta.</li>
+                <li> Aun conviene reforzar XSS, rotacion de tokens y futuros cambios de contrasena/MFA.</li>
               </ul>
             </div>
           </div>
@@ -365,5 +720,3 @@ const Account = () => {
 };
 
 export default Account;
-
-

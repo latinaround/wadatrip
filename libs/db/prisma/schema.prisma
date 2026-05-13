@@ -23,6 +23,7 @@ model users {
   alert_subscriptions alert_subscriptions[]
   bookings            bookings[]
   operator_listings   listings[]            @relation("OperatorListings")
+  provider_profile    providers?           @relation("ProviderOwner")
 
   @@index([email])
 }
@@ -140,6 +141,7 @@ model adred_predictions {
 // ---------- Provider Hub ----------
 model providers {
   id                String   @id @default(cuid())
+  user_id           String?  @unique
   type              String
   name              String
   email             String   @unique
@@ -160,7 +162,7 @@ model providers {
   created_at        DateTime @default(now())
   stripe_account_id String?
 
-  // 🟦 Campos agregados para Identity Verification
+  // Identity verification fields
   verification_status String?  @default("pending")
   verification_score  Float?
   risk_level          String?
@@ -171,12 +173,14 @@ model providers {
   match_faces         Boolean? @default(false)
   verification_notes  String?
 
+  owner       users?                @relation("ProviderOwner", fields: [user_id], references: [id])
   documents provider_documents[]
   listings  listings[]
   bookings  bookings[]
   itineraries itineraries[] @relation("AgentItineraries")
 
   @@index([status], name: "idx_providers_status")
+  @@index([user_id], name: "idx_providers_user")
   @@index([base_city, country_code], name: "idx_providers_city_country")
 }
 
@@ -311,4 +315,5 @@ model OperatorWallet {
   updatedAt      DateTime @updatedAt
   createdAt      DateTime @default(now())
 }
+
 
