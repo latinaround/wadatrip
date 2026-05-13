@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 import { findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
+import { buildGuideHref, buildInstagramUrl, buildWhatsAppUrl, formatGuideRating } from '../utils/guideProfile';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import BrandLogo from '../components/BrandLogo';
@@ -34,41 +35,13 @@ const getInitials = (name) =>
     .slice(0, 2)
     .toUpperCase();
 
-const sanitizeWhatsAppNumber = (value) => {
-  const digits = String(value || '').replace(/\D+/g, '');
-  return digits || null;
-};
-
-const normalizeInstagramHandle = (value) => {
-  const normalized = String(value || '').trim().replace(/^@+/, '');
-  return normalized || null;
-};
-
-const formatGuideRating = (rating, count) => {
-  const value = Number(rating || 0);
-  const total = Number(count || 0);
-  if (!value) return 'New guide';
-  return `${value.toFixed(1)}★ guide rating${total ? ` · ${total} reviews` : ''}`;
-};
-
-const buildWhatsAppUrl = (phone, providerName, title) => {
-  const normalized = sanitizeWhatsAppNumber(phone);
-  if (!normalized) return null;
-  const text = encodeURIComponent(`Hi ${providerName || 'guide'}, I'm interested in "${title || 'this experience'}" on WadaTrip.`);
-  return `https://wa.me/${normalized}?text=${text}`;
-};
-
-const buildInstagramUrl = (handle) => {
-  const normalized = normalizeInstagramHandle(handle);
-  return normalized ? `https://www.instagram.com/${normalized}/` : null;
-};
-
 function HostOptionCard({ item, selected, onSelect }) {
   const freeTour = Array.isArray(item.tags) && item.tags.includes('free_tour');
   const initials = getInitials(item.provider_name);
   const avatar = resolveProviderAvatar(item);
   const whatsappUrl = buildWhatsAppUrl(item.provider_phone, item.provider_name, item.title);
   const instagramUrl = buildInstagramUrl(item.provider_instagram_handle);
+  const guideHref = buildGuideHref(item.provider_id);
 
   return (
     <button
@@ -103,8 +76,17 @@ function HostOptionCard({ item, selected, onSelect }) {
       <p className="mt-3 text-sm leading-relaxed text-[#526173]">
         {item.provider_bio_short || item.description || 'Local operator ready to host this experience.'}
       </p>
-      {whatsappUrl || instagramUrl ? (
+      {guideHref || whatsappUrl || instagramUrl ? (
         <div className="mt-4 flex flex-wrap gap-2">
+          {guideHref ? (
+            <a
+              href={guideHref}
+              className="rounded-full border border-[#c8e2de] bg-[#e7f7f5] px-3 py-2 text-xs font-semibold text-[#167c7d]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              Guide profile
+            </a>
+          ) : null}
           {whatsappUrl ? (
             <a
               href={whatsappUrl}
@@ -225,6 +207,7 @@ export default function TourDetail() {
   const heroImage = resolveListingImage(currentHost || tour, destinationCoverMap);
   const currentHostWhatsappUrl = buildWhatsAppUrl(currentHost?.provider_phone, currentHost?.provider_name, currentHost?.title);
   const currentHostInstagramUrl = buildInstagramUrl(currentHost?.provider_instagram_handle);
+  const currentGuideHref = buildGuideHref(currentHost?.provider_id);
 
   const handleBookingChange = (field, value) => {
     setBookingForm((prev) => ({ ...prev, [field]: value }));
@@ -367,8 +350,16 @@ export default function TourDetail() {
                     {formatGuideRating(currentHost?.provider_ratings_avg, currentHost?.provider_ratings_count)}
                   </p>
                   <p className="text-sm leading-relaxed text-[#526173]">{currentHost?.provider_bio_short || 'Verified local guide or operator ready to host this experience.'}</p>
-                  {currentHostWhatsappUrl || currentHostInstagramUrl ? (
+                  {currentGuideHref || currentHostWhatsappUrl || currentHostInstagramUrl ? (
                     <div className="flex flex-wrap gap-2 pt-2">
+                      {currentGuideHref ? (
+                        <a
+                          href={currentGuideHref}
+                          className="rounded-full border border-[#c8e2de] bg-[#e7f7f5] px-3 py-2 text-xs font-semibold text-[#167c7d]"
+                        >
+                          View guide profile
+                        </a>
+                      ) : null}
                       {currentHostWhatsappUrl ? (
                         <a
                           href={currentHostWhatsappUrl}

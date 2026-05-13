@@ -23,6 +23,7 @@ import Account from './pages/Account';
 import OperatorToursNew from './pages/OperatorToursNew.jsx';
 import Tours from './pages/Tours.jsx';
 import TourDetail from './pages/TourDetail.jsx';
+import GuideProfile from './pages/GuideProfile.jsx';
 import Home from './pages/Home.jsx';
 import CheckoutSuccess from './pages/CheckoutSuccess.jsx';
 import CheckoutCancel from './pages/CheckoutCancel.jsx';
@@ -318,6 +319,7 @@ function App() {
         <Route path="/account" element={<Account />} />
         <Route path="/tours" element={<Tours />} />
         <Route path="/tours/:id" element={<TourDetail />} />
+        <Route path="/guides/:id" element={<GuideProfile />} />
         <Route path="/operator/tours/new" element={<OperatorToursNew />} />
         <Route path="/checkout/success" element={<CheckoutSuccess />} />
         <Route path="/checkout/cancel" element={<CheckoutCancel />} />
