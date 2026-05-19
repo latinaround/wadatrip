@@ -7,6 +7,7 @@ import { buildGuideHref, buildInstagramUrl, buildWhatsAppUrl, formatGuideRating 
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import BrandLogo from '../components/BrandLogo';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -132,6 +133,7 @@ function TrustItem({ label, copy }) {
 export default function TourDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const [tour, setTour] = useState(null);
   const [experienceHosts, setExperienceHosts] = useState([]);
@@ -148,6 +150,14 @@ export default function TourDetail() {
     num_people: 1,
     date: '',
   });
+
+  useEffect(() => {
+    setBookingForm((prev) => ({
+      ...prev,
+      name: prev.name || user?.name || '',
+      email: prev.email || user?.email || '',
+    }));
+  }, [user?.email, user?.name]);
 
   useEffect(() => {
     let mounted = true;
@@ -224,13 +234,13 @@ export default function TourDetail() {
       const totalPrice = isFreeTour ? 0 : unitPrice > 0 ? unitPrice * numPeople : null;
       const amountCents = totalPrice != null ? Math.round(Number(totalPrice) * 100) : null;
 
-      const bookingResponse = await fetch(`${apiBase}/bookings/simple`, {
+      const bookingResponse = await fetch(`${apiBase}/bookings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listing_id: currentHost.id,
-          name: bookingForm.name || 'Guest User',
-          email: bookingForm.email || 'guest@wadatrip.com',
+          user_name: bookingForm.name || user?.name || 'Guest User',
+          user_email: bookingForm.email || user?.email || 'guest@wadatrip.com',
           num_people: numPeople,
           date: bookingForm.date || undefined,
           total_price: totalPrice,

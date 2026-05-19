@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppConfig } from '../config/appConfig';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { buildTourCode, buildTourSlug, findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
+import { useAuth } from '../context/AuthContext.jsx';
+import { uploadImageFile } from '../services/mediaUpload';
 
 const emptyProvider = {
   type: 'operator',
@@ -39,8 +41,14 @@ const emptyTour = {
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
+const normalizeNullable = (value) => {
+  const text = String(value || '').trim();
+  return text || '';
+};
+
 export default function OperatorToursNew() {
   const { t } = useTranslation();
+  const { user, token, logout } = useAuth();
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const siteOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const [accessCode, setAccessCode] = useState('');
@@ -59,8 +67,42 @@ export default function OperatorToursNew() {
   const [pendingEditId, setPendingEditId] = useState(null);
   const [isFreeTour, setIsFreeTour] = useState(false);
   const [coverPreview, setCoverPreview] = useState('');
+  const [loadingOwnedProvider, setLoadingOwnedProvider] = useState(false);
+  const [providerPhotoUploading, setProviderPhotoUploading] = useState(false);
+  const [tourCoverUploading, setTourCoverUploading] = useState(false);
 
   const accessCodeTrimmed = accessCode.trim();
+  const isAuthenticatedMode = Boolean(token);
+  const ownedProviderId = providerStatus?.id ? String(providerStatus.id) : '';
+  const providerApprovalStatus = String(providerStatus?.status || providerStatus?.verification_status || '').toLowerCase();
+  const providerApproved = ['approved', 'verified'].includes(providerApprovalStatus);
+
+  const authFetch = useCallback(async (path, init = {}) => {
+    const headers = new Headers(init.headers || {});
+    if (!headers.has('Content-Type') && init.method && init.method !== 'GET') {
+      headers.set('Content-Type', 'application/json');
+    }
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    if (accessCodeTrimmed) {
+      headers.set('x-operator-access-code', accessCodeTrimmed);
+    }
+
+    const response = await fetch(`${apiBase}${path}`, {
+      credentials: 'include',
+      ...init,
+      headers,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      const error = new Error(payload?.message || payload?.error || `Request failed with status ${response.status}`);
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
+    }
+    return payload;
+  }, [accessCodeTrimmed, apiBase, token]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -72,12 +114,112 @@ export default function OperatorToursNew() {
     }
   }, []);
 
+  const applyProviderProfile = useCallback((provider) => {
+    if (!provider) return;
+    setProviderStatus(provider);
+    setProviderForm({
+      type: provider?.type || 'guide',
+      name: normalizeNullable(provider?.name || user?.name || user?.email?.split('@')?.[0]),
+      email: normalizeNullable(provider?.email || user?.email),
+      phone: normalizeNullable(provider?.phone),
+      instagram_handle: normalizeNullable(provider?.instagram_handle),
+      base_city: normalizeNullable(provider?.base_city),
+      country_code: normalizeNullable(provider?.country_code),
+      languages: Array.isArray(provider?.languages) ? provider.languages.join(', ') : normalizeNullable(provider?.languages),
+      photo_url: normalizeNullable(provider?.photo_url),
+      bio_short: normalizeNullable(provider?.bio_short),
+      license_url: normalizeNullable(provider?.license_url),
+    });
+    setProviderLookupId(String(provider?.id || ''));
+    setTourForm((prev) => ({
+      ...prev,
+      provider_id: String(provider?.id || prev.provider_id || ''),
+      city: prev.city || normalizeNullable(provider?.base_city),
+      country_code: prev.country_code || normalizeNullable(provider?.country_code),
+    }));
+  }, [user?.email, user?.name]);
+
+  const loadOwnedProvider = useCallback(async () => {
+    if (!token) {
+      setProviderStatus(null);
+      setProviderForm((prev) => ({
+        ...prev,
+        name: normalizeNullable(user?.name || user?.email?.split('@')?.[0]),
+        email: normalizeNullable(user?.email),
+      }));
+      return null;
+    }
+
+    setLoadingOwnedProvider(true);
+    try {
+      const provider = await authFetch('/providers/me', { method: 'GET' });
+      if (provider?.id) {
+        applyProviderProfile(provider);
+        return provider;
+      }
+      setProviderStatus(null);
+      setProviderForm((prev) => ({
+        ...prev,
+        name: normalizeNullable(user?.name || user?.email?.split('@')?.[0]),
+        email: normalizeNullable(user?.email),
+      }));
+      return null;
+    } catch (error) {
+      if (error?.status === 401) logout?.();
+      setProviderStatus(null);
+      return null;
+    } finally {
+      setLoadingOwnedProvider(false);
+    }
+  }, [applyProviderProfile, authFetch, logout, token, user?.email, user?.name]);
+
+  useEffect(() => {
+    loadOwnedProvider();
+  }, [loadOwnedProvider]);
+
   const handleProviderChange = (field, value) => {
     setProviderForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleTourChange = (field, value) => {
     setTourForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const uploadGuidePhoto = async (file) => {
+    if (!file) return;
+    setProviderMessage(null);
+    setProviderPhotoUploading(true);
+    try {
+      const downloadURL = await uploadImageFile(file, {
+        folder: 'guides',
+        ownerId: user?.id || user?.email || providerForm.email || providerForm.name,
+      });
+      handleProviderChange('photo_url', downloadURL);
+      setProviderMessage('Guide photo uploaded.');
+    } catch (error) {
+      setProviderMessage(error?.message || 'Could not upload guide photo.');
+    } finally {
+      setProviderPhotoUploading(false);
+    }
+  };
+
+  const uploadTourCover = async (file) => {
+    if (!file) return;
+    setTourMessage(null);
+    setTourCoverUploading(true);
+    try {
+      const downloadURL = await uploadImageFile(file, {
+        folder: 'tour-covers',
+        ownerId: user?.id || user?.email || ownedProviderId || tourForm.provider_id || providerForm.email,
+      });
+      handleTourChange('cover_image_url', downloadURL);
+      setCoverPreview(downloadURL);
+      setTourMessage('Tour cover uploaded.');
+    } catch (error) {
+      setTourMessage(error?.message || 'Could not upload tour cover.');
+    } finally {
+      setTourCoverUploading(false);
+    }
   };
 
   const resolveDestinationCover = async (city, countryCode) => {
@@ -124,7 +266,6 @@ export default function OperatorToursNew() {
   const handleCreateProvider = async (event) => {
     event.preventDefault();
     setProviderMessage(null);
-    if (!ensureAccessCode()) return;
 
     setProviderLoading(true);
     try {
@@ -141,35 +282,41 @@ export default function OperatorToursNew() {
         photo_url: providerForm.photo_url.trim() || undefined,
         bio_short: providerForm.bio_short.trim() || undefined,
         license_url: providerForm.license_url.trim() || undefined,
-        access_code: accessCodeTrimmed,
       };
 
-      const response = await fetch(`${apiBase}/providers`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-operator-access-code': accessCodeTrimmed,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        const message = data?.message || data?.error || 'Operator could not be created.';
-        throw new Error(message);
+      let data = null;
+      if (isAuthenticatedMode) {
+        data = await authFetch('/providers/me', {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        if (!ensureAccessCode()) return;
+        data = await authFetch('/providers', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...payload,
+            access_code: accessCodeTrimmed,
+          }),
+        });
       }
 
-      const providerId = data?.provider?.id || data?.id;
+      const providerRecord = data?.provider || data || null;
+      const providerId = providerRecord?.id;
       if (providerId) {
         setTourForm((prev) => ({ ...prev, provider_id: providerId }));
         setProviderLookupId(providerId);
       }
 
-      setProviderStatus(data?.provider || data || null);
+      setProviderStatus(providerRecord);
+      applyProviderProfile(providerRecord);
       setProviderMessage(
-        t('operator.messages.operator_created', 'Operator created. Save the ID to publish tours.')
+        isAuthenticatedMode
+          ? 'Your guide profile was saved to your account.'
+          : t('operator.messages.operator_created', 'Operator created. Save the ID to publish tours.')
       );
     } catch (err) {
+      if (err?.status === 401) logout?.();
       setProviderMessage(
         err?.message || t('operator.messages.operator_create_error', 'Error creating operator.')
       );
@@ -181,18 +328,26 @@ export default function OperatorToursNew() {
   const handleLookupProvider = async (event) => {
     event.preventDefault();
     setProviderMessage(null);
+    if (isAuthenticatedMode) {
+      try {
+        const provider = await loadOwnedProvider();
+        if (!provider?.id) {
+          setProviderMessage('No guide profile is linked to this account yet.');
+          return;
+        }
+        setProviderMessage(`Guide profile loaded: ${provider.name || provider.id}`);
+      } catch (err) {
+        setProviderMessage(err?.message || 'Error loading your guide profile.');
+      }
+      return;
+    }
     if (!providerLookupId.trim()) {
       setProviderMessage(t('operator.messages.operator_id_required', 'Enter an operator ID.'));
       return;
     }
     setProviderLoading(true);
     try {
-      const response = await fetch(`${apiBase}/providers/${encodeURIComponent(providerLookupId.trim())}`);
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        const message = data?.message || data?.error || 'Operator could not be loaded.';
-        throw new Error(message);
-      }
+      const data = await authFetch(`/providers/${encodeURIComponent(providerLookupId.trim())}`, { method: 'GET' });
       setProviderStatus(data);
       setProviderMessage(
         t('operator.messages.operator_found', 'Operator found: {{name}}', {
@@ -217,8 +372,8 @@ export default function OperatorToursNew() {
       );
       return;
     }
-    if (!ensureAccessCode()) return;
-    if (!tourForm.provider_id.trim()) {
+    const providerId = String(tourForm.provider_id || ownedProviderId || '').trim();
+    if (!providerId) {
       setTourMessage(t('operator.messages.provider_id_required', 'Provider ID is required.'));
       return;
     }
@@ -233,7 +388,7 @@ export default function OperatorToursNew() {
     try {
       const coverImageUrl = await ensureTourCoverImage();
       const payload = {
-        provider_id: tourForm.provider_id.trim(),
+        provider_id: providerId,
         title: tourForm.title.trim(),
         category: tourForm.category.trim(),
         description: tourForm.description.trim() || null,
@@ -247,34 +402,35 @@ export default function OperatorToursNew() {
         tags: buildTagsPayload(),
         status: tourForm.publish_now ? 'published' : 'draft',
         cover_image_url: coverImageUrl || undefined,
-        access_code: accessCodeTrimmed,
       };
 
-      const response = await fetch(`${apiBase}/listings`, {
+      const data = await authFetch('/listings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-operator-access-code': accessCodeTrimmed,
-        },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(
+          isAuthenticatedMode
+            ? payload
+            : { ...payload, access_code: accessCodeTrimmed }
+        ),
       });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        const message = data?.message || data?.error || 'Tour could not be created.';
-        throw new Error(message);
-      }
 
       const created = data?.listing || data;
       setCreatedTour(created);
       setCoverPreview(created?.cover_image_url || coverImageUrl || '');
       setTourMessage(
-        t('operator.messages.tour_created', 'Tour created: {{title}}', {
-          title: created?.title || payload.title,
-        })
+        providerApproved
+          ? t('operator.messages.tour_created', 'Tour created: {{title}}', {
+              title: created?.title || payload.title,
+            })
+          : `Tour saved as ${String(created?.status || payload.status || 'draft')}. It will publish after approval.`
       );
-      setTourForm((prev) => ({ ...emptyTour, provider_id: prev.provider_id }));
+      setTourForm((prev) => ({
+        ...emptyTour,
+        provider_id: providerId,
+        city: prev.city,
+        country_code: prev.country_code,
+      }));
     } catch (err) {
+      if (err?.status === 401) logout?.();
       setTourMessage(
         err?.message || t('operator.messages.tour_create_error', 'Error creating tour.')
       );
@@ -285,7 +441,6 @@ export default function OperatorToursNew() {
 
   const handleLoadTourById = async (listingId) => {
     setEditMessage(null);
-    if (!ensureAccessCode()) return;
     if (!listingId) {
       setEditMessage(t('operator.messages.tour_link_required', 'Enter a tour link or ID.'));
       return;
@@ -293,13 +448,7 @@ export default function OperatorToursNew() {
 
     setTourLoading(true);
     try {
-      const response = await fetch(`${apiBase}/listings/${encodeURIComponent(listingId)}`);
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(
-          data?.message || data?.error || t('operator.messages.tour_load_error', 'Error loading tour.')
-        );
-      }
+      const data = await authFetch(`/listings/${encodeURIComponent(listingId)}`, { method: 'GET' });
       setEditingId(listingId);
       setCreatedTour(data);
       setTourForm({
@@ -322,6 +471,7 @@ export default function OperatorToursNew() {
       setCoverPreview(data?.cover_image_url || '');
       setEditMessage(t('operator.messages.tour_loaded', 'Tour loaded. Update the fields and save.'));
     } catch (err) {
+      if (err?.status === 401) logout?.();
       setEditMessage(err?.message || t('operator.messages.tour_load_error', 'Error loading tour.'));
     } finally {
       setTourLoading(false);
@@ -338,28 +488,33 @@ export default function OperatorToursNew() {
     slugOrId = slugOrId.split('?')[0].split('#')[0];
     if (isLikelyListingId(slugOrId)) return slugOrId;
 
-    const response = await fetch(`${apiBase}/listings/search?status=published&limit=200`);
-    const data = await response.json().catch(() => null);
-    const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+    const sources = [];
+    if (token) {
+      try {
+        const owned = await authFetch('/providers/me/listings?limit=200', { method: 'GET' });
+        sources.push(...(Array.isArray(owned?.items) ? owned.items : []));
+      } catch (error) {
+        if (error?.status === 401) logout?.();
+      }
+    }
+    const data = await authFetch('/listings/search?status=published&limit=200', { method: 'GET' });
+    const items = [
+      ...sources,
+      ...(Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : []),
+    ];
     return findListingIdFromSlug(slugOrId, items);
   };
 
   useEffect(() => {
-    if (pendingEditId && accessCodeTrimmed) {
+    if (pendingEditId && (accessCodeTrimmed || token)) {
       handleLoadTourById(pendingEditId);
       setPendingEditId(null);
     }
-  }, [pendingEditId, accessCodeTrimmed]);
+  }, [pendingEditId, accessCodeTrimmed, token]);
 
   const handleLoadTour = async (event) => {
     event.preventDefault();
     setEditMessage(null);
-    if (!accessCodeTrimmed) {
-      setEditMessage(
-        t('operator.messages.access_required_load', 'Access code is required to load a tour.')
-      );
-      return;
-    }
     if (!editLookup.trim()) {
       setEditMessage(t('operator.messages.tour_link_required', 'Enter a tour link or ID.'));
       return;
@@ -378,7 +533,6 @@ export default function OperatorToursNew() {
   const handleUpdateTour = async () => {
     setTourMessage(null);
     setEditMessage(null);
-    if (!ensureAccessCode()) return;
     if (!editingId) {
       setEditMessage(t('operator.messages.update_requires_load', 'Load a tour before updating.'));
       return;
@@ -399,27 +553,22 @@ export default function OperatorToursNew() {
         end_date: tourForm.end_date || null,
         tags: buildTagsPayload(),
         cover_image_url: coverImageUrl || null,
-        access_code: accessCodeTrimmed,
       };
 
-      const response = await fetch(`${apiBase}/listings/${encodeURIComponent(editingId)}`, {
+      const data = await authFetch(`/listings/${encodeURIComponent(editingId)}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-operator-access-code': accessCodeTrimmed,
-        },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(
+          isAuthenticatedMode
+            ? payload
+            : { ...payload, access_code: accessCodeTrimmed }
+        ),
       });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.message || data?.error || 'Tour could not be updated.');
-      }
 
       setCreatedTour(data);
       setCoverPreview(data?.cover_image_url || coverImageUrl || '');
       setTourMessage(t('operator.messages.tour_updated', 'Tour updated successfully.'));
     } catch (err) {
+      if (err?.status === 401) logout?.();
       setTourMessage(
         err?.message || t('operator.messages.tour_update_error', 'Error updating tour.')
       );
@@ -431,7 +580,6 @@ export default function OperatorToursNew() {
   const handleDeleteTour = async () => {
     setTourMessage(null);
     setEditMessage(null);
-    if (!ensureAccessCode()) return;
     if (!editingId) {
       setEditMessage(t('operator.messages.delete_requires_load', 'Load a tour before deleting.'));
       return;
@@ -440,23 +588,21 @@ export default function OperatorToursNew() {
     if (!confirmed) return;
     setTourLoading(true);
     try {
-      const response = await fetch(`${apiBase}/listings/${encodeURIComponent(editingId)}`, {
+      await authFetch(`/listings/${encodeURIComponent(editingId)}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-operator-access-code': accessCodeTrimmed,
-        },
       });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.message || data?.error || 'Tour could not be deleted.');
-      }
       setTourMessage(t('operator.messages.tour_deleted', 'Tour deleted.'));
       setEditingId(null);
       setCreatedTour(null);
-      setTourForm((prev) => ({ ...emptyTour, provider_id: prev.provider_id }));
+      setTourForm((prev) => ({
+        ...emptyTour,
+        provider_id: prev.provider_id,
+        city: prev.city,
+        country_code: prev.country_code,
+      }));
       setCoverPreview('');
     } catch (err) {
+      if (err?.status === 401) logout?.();
       setTourMessage(
         err?.message || t('operator.messages.tour_delete_error', 'Error deleting tour.')
       );
@@ -470,7 +616,7 @@ export default function OperatorToursNew() {
       <div className="page-container flex w-full flex-col gap-10">
         <header className="space-y-4 text-center">
           <div className="flex flex-col items-center gap-3">
-            <span className="page-kicker">{t('operator.kicker', 'Operator onboarding')}</span>
+            <span className="page-kicker">{t('operator.kicker', 'Guide publishing')}</span>
           </div>
           <h1 className="text-3xl font-semibold text-white md:text-4xl">
             {t('operator.publish_title', 'Publish tours on Wadatrip')}
@@ -478,7 +624,7 @@ export default function OperatorToursNew() {
           <p className="mx-auto max-w-2xl text-sm text-[#a0a0a0]">
             {t(
               'operator.subtitle',
-              'Start with your access code, add your operator details, then publish a tour in minutes.'
+              'Use your account-owned guide profile, then publish and manage tours from the same identity on web and mobile.'
             )}
           </p>
         </header>
@@ -488,22 +634,24 @@ export default function OperatorToursNew() {
             <div>
               <p className="text-sm text-[#00D9FF]">{t('operator.step1_label', 'Step 1')}</p>
               <h2 className="text-xl font-semibold text-white">
-                {t('operator.access_title', 'Access code')}
+                {isAuthenticatedMode ? 'Guide profile linked to your account' : t('operator.access_title', 'Legacy access code')}
               </h2>
               <p className="text-sm text-[#a0a0a0]">
-                {t('operator.access_help', 'Required to unlock self-serve publishing.')}
+                {isAuthenticatedMode
+                  ? 'This page now uses your authenticated owner profile first. Access code is only needed for older operator workflows.'
+                  : t('operator.access_help', 'Required to unlock self-serve publishing.')}
               </p>
             </div>
           </div>
           <div className="mt-6">
             <label htmlFor="access-code" className="text-sm text-[#e0e0e0]">
-              {t('operator.access_label', 'Access code')}
+              {isAuthenticatedMode ? 'Optional legacy access code' : t('operator.access_label', 'Access code')}
             </label>
             <Input
               id="access-code"
               value={accessCode}
               onChange={(event) => setAccessCode(event.target.value)}
-              placeholder={t('operator.access_placeholder', 'Enter your access code')}
+              placeholder={isAuthenticatedMode ? 'Only if you still need old operator tools' : t('operator.access_placeholder', 'Enter your access code')}
               className="mt-2 h-12 neon-input"
             />
           </div>
@@ -516,7 +664,9 @@ export default function OperatorToursNew() {
                 {t('operator.edit_kicker', 'Edit your tour')}
               </h2>
               <p className="text-sm text-[#a0a0a0]">
-                {t('operator.edit_kicker_help', 'Already published? Jump to the edit section.')}
+                {isAuthenticatedMode
+                  ? 'Load one of your existing tours by link or ID and update it securely with your session.'
+                  : t('operator.edit_kicker_help', 'Already published? Jump to the edit section.')}
               </p>
             </div>
           </div>
@@ -548,10 +698,12 @@ export default function OperatorToursNew() {
           <div className="space-y-1">
             <p className="text-sm text-[#00D9FF]">{t('operator.step2_label', 'Step 2 (optional)')}</p>
             <h2 className="text-xl font-semibold text-white">
-              {t('operator.operator_title', 'Operator details')}
+              {isAuthenticatedMode ? 'Guide profile' : t('operator.operator_title', 'Operator details')}
             </h2>
             <p className="text-sm text-[#a0a0a0]">
-              {t('operator.operator_help', 'Create or validate your operator profile.')}
+              {isAuthenticatedMode
+                ? 'This profile belongs to your logged-in account and will be reused by the mobile app.'
+                : t('operator.operator_help', 'Create or validate your operator profile.')}
             </p>
           </div>
 
@@ -607,15 +759,41 @@ export default function OperatorToursNew() {
             </div>
             <div>
               <label htmlFor="provider-photo-url" className="text-sm text-[#e0e0e0]">
-                Guide photo URL
+                Guide photo
               </label>
-              <Input
-                id="provider-photo-url"
-                value={providerForm.photo_url}
-                onChange={(event) => handleProviderChange('photo_url', event.target.value)}
-                placeholder="https://..."
-                className="mt-2 h-12 neon-input"
-              />
+              <div className="mt-2 grid gap-3 md:grid-cols-[1fr_auto]">
+                <Input
+                  id="provider-photo-url"
+                  value={providerForm.photo_url}
+                  onChange={(event) => handleProviderChange('photo_url', event.target.value)}
+                  placeholder="Upload from your device or paste a URL"
+                  className="h-12 neon-input"
+                />
+                <label
+                  htmlFor="provider-photo-file"
+                  className="flex h-12 cursor-pointer items-center justify-center rounded-md border border-[#00D9FF]/40 px-4 text-sm font-semibold text-[#00D9FF] transition hover:bg-[#00D9FF]/10 hover:text-white"
+                >
+                  {providerPhotoUploading ? 'Uploading...' : 'Upload photo'}
+                </label>
+                <input
+                  id="provider-photo-file"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    await uploadGuidePhoto(file);
+                    event.target.value = '';
+                  }}
+                />
+              </div>
+              {providerForm.photo_url ? (
+                <img
+                  src={providerForm.photo_url}
+                  alt="Guide preview"
+                  className="mt-3 h-28 w-28 rounded-[20px] object-cover shadow-[0_16px_36px_rgba(15,23,42,0.12)]"
+                />
+              ) : null}
             </div>
             <div>
               <label htmlFor="provider-base-city" className="text-sm text-[#e0e0e0]">
@@ -699,7 +877,7 @@ export default function OperatorToursNew() {
               >
                 {providerLoading
                   ? t('operator.creating_label', 'Creating...')
-                  : t('operator.create_button', 'Create operator')}
+                  : isAuthenticatedMode ? 'Save guide profile' : t('operator.create_button', 'Create operator')}
               </Button>
             </div>
           </form>
@@ -708,14 +886,15 @@ export default function OperatorToursNew() {
             <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleLookupProvider}>
               <div className="flex-1">
                 <label htmlFor="provider-lookup-id" className="text-sm text-[#e0e0e0]">
-                  {t('operator.verify_title', 'Verify operator by ID')}
+                  {isAuthenticatedMode ? 'Refresh my guide profile' : t('operator.verify_title', 'Verify operator by ID')}
                 </label>
                 <Input
                   id="provider-lookup-id"
                   value={providerLookupId}
                   onChange={(event) => setProviderLookupId(event.target.value)}
-                  placeholder={t('operator.provider_id_placeholder', 'provider_id')}
+                  placeholder={isAuthenticatedMode ? 'Your provider ID appears here after save' : t('operator.provider_id_placeholder', 'provider_id')}
                   className="mt-2 h-12 neon-input"
+                  readOnly={isAuthenticatedMode}
                 />
               </div>
               <Button
@@ -725,13 +904,14 @@ export default function OperatorToursNew() {
               >
                 {providerLoading
                   ? t('operator.checking_label', 'Checking...')
-                  : t('operator.verify_button', 'Verify')}
+                  : isAuthenticatedMode ? 'Refresh profile' : t('operator.verify_button', 'Verify')}
               </Button>
             </form>
             {providerStatus && (
               <div className="mt-4 text-sm text-[#a0a0a0]">
                 <div>ID: {providerStatus.id}</div>
                 <div>Status: {providerStatus.status || providerStatus.verification_status || 'pending'}</div>
+                {loadingOwnedProvider ? <div>Refreshing linked profile...</div> : null}
               </div>
             )}
             {providerMessage && <p className="mt-3 text-sm text-[#00D9FF]">{providerMessage}</p>}
@@ -743,7 +923,9 @@ export default function OperatorToursNew() {
             <p className="text-sm text-[#00D9FF]">{t('operator.step3_label', 'Step 3')}</p>
             <h2 className="text-xl font-semibold text-white">{t('operator.tour_title', 'Tour details')}</h2>
             <p className="text-sm text-[#a0a0a0]">
-              {t('operator.tour_help', 'Publish the experience you want to sell.')}
+              {isAuthenticatedMode
+                ? 'This tour will be published under your linked guide profile, just like in the mobile app.'
+                : t('operator.tour_help', 'Publish the experience you want to sell.')}
             </p>
           </div>
 
@@ -775,21 +957,28 @@ export default function OperatorToursNew() {
           <form className="mt-6 grid gap-5" onSubmit={handleCreateTour}>
             <div>
               <label htmlFor="tour-provider-id" className="text-sm text-[#e0e0e0]">
-                {t('operator.tour_provider_id_label', 'Provider ID')}
+                {isAuthenticatedMode ? 'Linked provider ID' : t('operator.tour_provider_id_label', 'Provider ID')}
               </label>
               <Input
                 id="tour-provider-id"
-                value={tourForm.provider_id}
+                value={tourForm.provider_id || ownedProviderId}
                 onChange={(event) => handleTourChange('provider_id', event.target.value)}
-                placeholder={t('operator.provider_id_placeholder', 'provider_id')}
+                placeholder={isAuthenticatedMode ? 'Saved automatically from your account' : t('operator.provider_id_placeholder', 'provider_id')}
                 className="mt-2 h-12 neon-input"
-                readOnly={Boolean(editingId)}
+                readOnly={Boolean(editingId) || isAuthenticatedMode}
               />
               {editingId && (
                 <p className="mt-2 text-xs text-[#a0a0a0]">
                   {t('operator.provider_id_locked', 'Provider ID is locked while editing.')}
                 </p>
               )}
+              {!editingId && isAuthenticatedMode ? (
+                <p className="mt-2 text-xs text-[#a0a0a0]">
+                  {ownedProviderId
+                    ? `This tour will use your account-owned provider profile (${ownedProviderId}).`
+                    : 'Save your guide profile first so tours belong to your account.'}
+                </p>
+              ) : null}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -932,9 +1121,9 @@ export default function OperatorToursNew() {
             </div>
             <div>
               <label htmlFor="tour-cover-image" className="text-sm text-[#e0e0e0]">
-                Cover image URL
+                Cover image
               </label>
-              <div className="mt-2 grid gap-3 md:grid-cols-[1fr_auto]">
+              <div className="mt-2 grid gap-3 md:grid-cols-[1fr_auto_auto]">
                 <Input
                   id="tour-cover-image"
                   value={tourForm.cover_image_url}
@@ -942,8 +1131,25 @@ export default function OperatorToursNew() {
                     handleTourChange('cover_image_url', event.target.value);
                     setCoverPreview(event.target.value);
                   }}
-                  placeholder="https://..."
+                  placeholder="Upload from your device, use a destination cover, or paste a URL"
                   className="h-12 neon-input"
+                />
+                <label
+                  htmlFor="tour-cover-file"
+                  className="flex h-12 cursor-pointer items-center justify-center rounded-md border border-[#00D9FF]/40 px-4 text-sm font-semibold text-[#00D9FF] transition hover:bg-[#00D9FF]/10 hover:text-white"
+                >
+                  {tourCoverUploading ? 'Uploading...' : 'Upload cover'}
+                </label>
+                <input
+                  id="tour-cover-file"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    await uploadTourCover(file);
+                    event.target.value = '';
+                  }}
                 />
                 <Button
                   type="button"
@@ -997,6 +1203,11 @@ export default function OperatorToursNew() {
                 {t('operator.publish_now_label', 'Publish immediately')}
               </label>
             </div>
+            {isAuthenticatedMode && !providerApproved ? (
+              <p className="text-sm text-[#f7c6a5]">
+                Your provider status is currently `{providerApprovalStatus || 'pending'}`. New tours may be saved as draft until approval.
+              </p>
+            ) : null}
             <Button
               type="submit"
               className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
