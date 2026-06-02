@@ -206,7 +206,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
                         setCode('');
                         setCodeNotice('');
                       }}
-                  disabled={submitting || authLoading}
+                  disabled={submitting}
                 >
                   {authMethod === 'code' ? 'Use password instead' : 'Use a 6-digit code instead'}
                 </Button>
@@ -252,7 +252,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
               <Button
                 type="button"
                 className="neon-cta font-black hover:scale-105 transition-all"
-                disabled={submitting || authLoading}
+                disabled={submitting}
                 onClick={runSubmit}
               >
                 {submitting
