@@ -24,6 +24,7 @@ import OperatorToursNew from './pages/OperatorToursNew.jsx';
 import Tours from './pages/Tours.jsx';
 import TourDetail from './pages/TourDetail.jsx';
 import GuideProfile from './pages/GuideProfile.jsx';
+import GuideSignupPage from './pages/GuideSignupPage.jsx';
 import Home from './pages/Home.jsx';
 import CheckoutSuccess from './pages/CheckoutSuccess.jsx';
 import CheckoutCancel from './pages/CheckoutCancel.jsx';
@@ -116,11 +117,7 @@ function App() {
     const params = new URLSearchParams(location.search);
     const authIntent = params.get('auth');
     if (authIntent === 'guide-register') {
-      setAuthDialogState({
-        open: true,
-        mode: 'register',
-        intent: 'guide',
-      });
+      navigate('/guide/register', { replace: true });
     } else if (authIntent === 'login') {
       setAuthDialogState({
         open: true,
@@ -284,11 +281,7 @@ function App() {
   };
 
   const openGuideAuth = (mode = 'register') => {
-    setAuthDialogState({
-      open: true,
-      mode,
-      intent: 'guide',
-    });
+    navigate('/guide/register');
   };
 
   const closeAuthDialog = () => {
@@ -380,6 +373,7 @@ function App() {
         <Route path="/tours" element={<Tours />} />
         <Route path="/tours/:id" element={<TourDetail />} />
         <Route path="/guides/:id" element={<GuideProfile />} />
+        <Route path="/guide/register" element={<GuideSignupPage />} />
         <Route path="/operator/tours/new" element={<OperatorToursNew />} />
         <Route path="/checkout/success" element={<CheckoutSuccess />} />
         <Route path="/checkout/cancel" element={<CheckoutCancel />} />

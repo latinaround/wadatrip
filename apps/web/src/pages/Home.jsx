@@ -154,7 +154,7 @@ export default function Home() {
   const paidTours = items.filter((item) => !Array.isArray(item.tags) || !item.tags.includes('free_tour'));
   const featuredPaid = paidTours.slice(0, 4);
   const editorPicks = paidTours.slice(4, 7);
-  const guideEntryHref = user ? '/operator/tours/new' : '/?auth=guide-register';
+  const guideEntryHref = user ? '/operator/tours/new' : '/guide/register';
 
   const uniqueCities = new Set(items.map((item) => String(item.city || '').trim()).filter(Boolean));
   const uniqueHosts = new Set(items.map(getHostKey).filter(Boolean));
