@@ -50,11 +50,13 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
     setForm(prev => ({ ...prev, [field]: event.target.value }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const runSubmit = async () => {
     setSubmitting(true);
     setError(null);
     try {
+      if (!form.email?.trim()) {
+        throw new Error('Enter your email first');
+      }
       if (authMethod === 'code') {
         if (!codeSent) {
           const payload = await requestCode({ email: form.email, name: form.name, role: isGuideIntent ? 'guide' : 'traveler' });
@@ -74,6 +76,11 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    await runSubmit();
   };
 
   return (
@@ -243,9 +250,10 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
             </Button>
             {emailStepOpen ? (
               <Button
-                type="submit"
+                type="button"
                 className="neon-cta font-black hover:scale-105 transition-all"
                 disabled={submitting || authLoading}
+                onClick={runSubmit}
               >
                 {submitting
                   ? 'Processing...'
