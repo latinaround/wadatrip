@@ -144,39 +144,40 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="auth-password">{authMethod === 'code' ? 'Code' : 'Password'}</Label>
-                {authMethod === 'code' ? (
-                  <Input
-                    id="auth-code"
-                    value={code}
-                    onChange={(event) => setCode(event.target.value)}
-                    placeholder="6-digit code"
-                    disabled={!codeSent}
-                    className="neon-input"
-                  />
-                ) : (
-                  <div className="flex gap-2">
+              {authMethod === 'password' || codeSent ? (
+                <div className="space-y-2">
+                  <Label htmlFor="auth-password">{authMethod === 'code' ? 'Code' : 'Password'}</Label>
+                  {authMethod === 'code' ? (
                     <Input
-                      id="auth-password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={form.password}
-                      onChange={handleInput('password')}
-                      required
-                      minLength={8}
+                      id="auth-code"
+                      value={code}
+                      onChange={(event) => setCode(event.target.value)}
+                      placeholder="6-digit code"
                       className="neon-input"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-[#2d3548] bg-transparent text-white hover:bg-[#13203c]"
-                      onClick={() => setShowPassword((value) => !value)}
-                    >
-                      {showPassword ? 'Hide' : 'Show'}
-                    </Button>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        id="auth-password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={form.password}
+                        onChange={handleInput('password')}
+                        required
+                        minLength={8}
+                        className="neon-input"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-[#2d3548] bg-transparent text-white hover:bg-[#13203c]"
+                        onClick={() => setShowPassword((value) => !value)}
+                      >
+                        {showPassword ? 'Hide' : 'Show'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               {codeNotice ? <div className="text-sm font-semibold text-[#8df3d8]">{codeNotice}</div> : null}
 
