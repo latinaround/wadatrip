@@ -10,6 +10,8 @@ const AuthContext = createContext({
   error: null,
   login: async () => {},
   register: async () => {},
+  requestCode: async () => {},
+  verifyCode: async () => {},
   logout: () => {},
   refreshProfile: async () => {},
 });
@@ -94,10 +96,31 @@ export function AuthProvider({ children }) {
     return payload;
   }, [persistToken]);
 
-  const register = useCallback(async ({ email, password, name }) => {
+  const register = useCallback(async ({ email, password, name, role = 'traveler' }) => {
     const payload = await jsonRequest('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, name, role }),
+    });
+    if (payload?.token) {
+      setToken(payload.token);
+      persistToken(payload.token);
+      setUser(payload.user);
+      setError(null);
+    }
+    return payload;
+  }, [persistToken]);
+
+  const requestCode = useCallback(async ({ email, role = 'traveler', name }) => {
+    return jsonRequest('/auth/request-code', {
+      method: 'POST',
+      body: JSON.stringify({ email, role, name }),
+    });
+  }, []);
+
+  const verifyCode = useCallback(async ({ email, code, role = 'traveler', name }) => {
+    const payload = await jsonRequest('/auth/verify-code', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, role, name }),
     });
     if (payload?.token) {
       setToken(payload.token);
@@ -123,9 +146,11 @@ export function AuthProvider({ children }) {
     error,
     login,
     register,
+    requestCode,
+    verifyCode,
     logout,
     refreshProfile,
-  }), [user, token, loading, error, login, register, logout, refreshProfile]);
+  }), [user, token, loading, error, login, register, requestCode, verifyCode, logout, refreshProfile]);
 
   return (
     <AuthContext.Provider value={value}>

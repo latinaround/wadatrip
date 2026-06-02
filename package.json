@@ -11,6 +11,7 @@
     "dev:all": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-up.ps1 || bash ./scripts/dev-up.sh",
     "dev:gateway": "cross-env TS_NODE_PROJECT=apps/gateway/tsconfig.json ts-node-dev -r tsconfig-paths/register --respawn --transpile-only apps/gateway/src/main.ts",
     "dev:alerts": "cross-env TS_NODE_PROJECT=services/alerts/tsconfig.json ts-node-dev -r tsconfig-paths/register --respawn --transpile-only services/alerts/src/main.ts",
+    "dev:operator-leads": "cross-env TS_NODE_PROJECT=services/operator-leads/tsconfig.json ts-node-dev -r tsconfig-paths/register --respawn --transpile-only services/operator-leads/src/main.ts",
     "dev:gateway-only": "yarn dev:gateway",
     "prisma:generate": "prisma generate --schema libs/db/prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema libs/db/prisma/schema.prisma",
@@ -27,7 +28,7 @@
     "test:pricing": "jest apps/gateway/src/services/pricing.service.spec.ts",
     "build:gateway": "yarn workspace @wadatrip/service-gateway build",
     "start:gateway": "cross-env TS_NODE_PROJECT=apps/gateway/tsconfig.json ts-node -r tsconfig-paths/register apps/gateway/src/main.ts",
-    "start:all": "concurrently -n pricing,itineraries,provider-hub,alerts,wadagent,gateway \"yarn workspace @wadatrip/service-pricing start\" \"yarn workspace @wadatrip/service-itineraries start\" \"yarn workspace @wadatrip/service-provider-hub start\" \"yarn workspace @wadatrip/service-alerts start\" \"yarn workspace @wadatrip/service-wadagent start\" \"yarn workspace @wadatrip/service-gateway start\""
+    "start:all": "concurrently -n pricing,itineraries,provider-hub,operator-leads,alerts,wadagent,gateway \"yarn workspace @wadatrip/service-pricing start\" \"yarn workspace @wadatrip/service-itineraries start\" \"yarn workspace @wadatrip/service-provider-hub start\" \"yarn workspace @wadatrip/service-operator-leads start\" \"yarn workspace @wadatrip/service-alerts start\" \"yarn workspace @wadatrip/service-wadagent start\" \"yarn workspace @wadatrip/service-gateway start\""
   },
   "devDependencies": {
     "@types/express": "^5.0.3",

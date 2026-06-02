@@ -24,8 +24,27 @@ model users {
   bookings            bookings[]
   operator_listings   listings[]            @relation("OperatorListings")
   provider_profile    providers?           @relation("ProviderOwner")
+  auth_login_codes    auth_login_codes[]
 
   @@index([email])
+}
+
+model auth_login_codes {
+  id         String   @id @default(cuid())
+  email      String
+  code_hash  String
+  role       String   @default("traveler")
+  expires_at DateTime
+  used_at    DateTime?
+  attempts   Int      @default(0)
+  created_at DateTime @default(now())
+  user_id    String?
+
+  user users? @relation(fields: [user_id], references: [id])
+
+  @@index([email, created_at])
+  @@index([expires_at])
+  @@index([user_id])
 }
 
 model itineraries {
@@ -280,6 +299,42 @@ model destination_covers {
 
   @@index([city, country_code, active], name: "idx_destination_covers_city_country_active")
   @@index([active], name: "idx_destination_covers_active")
+}
+
+model operator_leads {
+  id                 String   @id @default(cuid())
+  name               String
+  category           String?
+  address            String?
+  website            String?
+  phone              String?
+  rating             Float?
+  reviews_count      Int      @default(0)
+  latitude           Float?
+  longitude          Float?
+  city               String
+  country            String
+  source_query       String
+  source             String   @default("outscraper_google_maps")
+  email              String?
+  instagram          String?
+  whatsapp           String?
+  lead_status        String   @default("new")
+  lead_quality       String?
+  website_normalized String?
+  phone_normalized   String?
+  name_normalized    String
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@index([city, country], name: "idx_operator_leads_city_country")
+  @@index([category], name: "idx_operator_leads_category")
+  @@index([rating], name: "idx_operator_leads_rating")
+  @@index([lead_status], name: "idx_operator_leads_status")
+  @@index([created_at], name: "idx_operator_leads_created_at")
+  @@index([website_normalized], name: "idx_operator_leads_website_norm")
+  @@index([phone_normalized], name: "idx_operator_leads_phone_norm")
+  @@index([name_normalized, city, country], name: "idx_operator_leads_name_city_country")
 }
 
 model PaymentEvent {

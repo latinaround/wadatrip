@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import LanguageSwitcher from './LanguageSwitcher';
 import BrandLogo from './BrandLogo';
 
-const Header = ({ user, onLoginClick, onLogout }) => {
+const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -25,6 +25,11 @@ const Header = ({ user, onLoginClick, onLogout }) => {
   const handleLoginClick = () => {
     setIsMenuOpen(false);
     onLoginClick?.();
+  };
+
+  const handleGuideClick = () => {
+    setIsMenuOpen(false);
+    onGuideClick?.();
   };
 
   const handleLogout = () => {
@@ -90,9 +95,9 @@ const Header = ({ user, onLoginClick, onLogout }) => {
               variant="secondary"
               size="sm"
               className="hidden bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105 md:flex"
-              asChild
+              onClick={handleGuideClick}
             >
-              <Link to="/operator/tours/new">{t('nav.list_tour') ?? 'List your tour'}</Link>
+              {t('nav.list_tour') ?? 'Become a guide'}
             </Button>
             {user ? (
               <div className="hidden items-center gap-2 md:flex">
@@ -148,11 +153,9 @@ const Header = ({ user, onLoginClick, onLogout }) => {
                 <Button
                   size="sm"
                   className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105"
-                  asChild
+                  onClick={handleGuideClick}
                 >
-                  <Link to="/operator/tours/new" onClick={() => setIsMenuOpen(false)}>
-                    {t('nav.list_tour') ?? 'List your tour'}
-                  </Link>
+                  {t('nav.list_tour') ?? 'Become a guide'}
                 </Button>
                 {user ? (
                   <>

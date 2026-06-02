@@ -29,6 +29,8 @@ services:
         value: http://localhost:3012
       - key: PROVIDER_HUB_URL
         value: http://localhost:3014
+      - key: OPERATOR_LEADS_URL
+        value: http://localhost:3023
       - key: ALERTS_URL
         value: http://localhost:3013
       - key: WADAGENT_URL

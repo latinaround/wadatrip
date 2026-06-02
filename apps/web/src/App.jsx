@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import Header from './components/Header';
@@ -92,6 +92,7 @@ function App() {
   const { t } = useTranslation();
   const apiBase = useMemo(() => (AppConfig.api.baseUrl || '').replace(/\/$/, ''), []);
   const location = useLocation();
+  const navigate = useNavigate();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   const [searchData, setSearchData] = useState(null);
@@ -99,12 +100,35 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState(null);
   const [paymentNotice, setPaymentNotice] = useState(null);
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authDialogState, setAuthDialogState] = useState({
+    open: false,
+    mode: 'login',
+    intent: 'traveler',
+  });
   const [checkoutState, setCheckoutState] = useState(initialCheckoutState);
 
   useEffect(() => {
     notificationService.init();
   }, []);
+
+  useEffect(() => {
+    if (isAdminRoute) return;
+    const params = new URLSearchParams(location.search);
+    const authIntent = params.get('auth');
+    if (authIntent === 'guide-register') {
+      setAuthDialogState({
+        open: true,
+        mode: 'register',
+        intent: 'guide',
+      });
+    } else if (authIntent === 'login') {
+      setAuthDialogState({
+        open: true,
+        mode: 'login',
+        intent: 'traveler',
+      });
+    }
+  }, [isAdminRoute, location.search]);
 
   const handleSearch = async (formData) => {
     setSearchData(formData);
@@ -251,12 +275,48 @@ function App() {
     window.dispatchEvent(new Event('wadagent:open'));
   };
 
+  const openTravelerAuth = (mode = 'login') => {
+    setAuthDialogState({
+      open: true,
+      mode,
+      intent: 'traveler',
+    });
+  };
+
+  const openGuideAuth = (mode = 'register') => {
+    setAuthDialogState({
+      open: true,
+      mode,
+      intent: 'guide',
+    });
+  };
+
+  const closeAuthDialog = () => {
+    setAuthDialogState((prev) => ({ ...prev, open: false }));
+    const params = new URLSearchParams(location.search);
+    if (params.has('auth')) {
+      params.delete('auth');
+      const nextSearch = params.toString();
+      navigate({
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : '',
+      }, { replace: true });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {!isAdminRoute && (
         <Header
           user={user}
-          onLoginClick={() => setAuthDialogOpen(true)}
+          onLoginClick={() => openTravelerAuth('login')}
+          onGuideClick={() => {
+            if (user) {
+              window.location.assign('/operator/tours/new');
+              return;
+            }
+            openGuideAuth('register');
+          }}
           onLogout={logout}
         />
       )}
@@ -336,7 +396,12 @@ function App() {
             </div>
           )}
 
-          <AuthDialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)} />
+          <AuthDialog
+            open={authDialogState.open}
+            onClose={closeAuthDialog}
+            initialMode={authDialogState.mode}
+            initialIntent={authDialogState.intent}
+          />
 
           <CheckoutDialog
             open={checkoutState.open}

@@ -3,9 +3,15 @@ import { getPrisma } from '@wadatrip/db';
 import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { getJwtSecret, getUserIdFromAuth } from '../utils/auth';
 
 const TOKEN_TTL_SECONDS = Number(process.env.JWT_TTL_SECONDS) || 60 * 60 * 24 * 7;
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || '';
+const AUTH_CODE_TTL_MINUTES = Number(process.env.AUTH_CODE_TTL_MINUTES) || 10;
+const AUTH_CODE_MAX_ATTEMPTS = Number(process.env.AUTH_CODE_MAX_ATTEMPTS) || 5;
+const AUTH_CODE_PREVIEW = (process.env.AUTH_CODE_PREVIEW || '').toLowerCase() === 'true';
 
 function signToken(user: any) {
   const secret = getJwtSecret() as jwt.Secret;
@@ -14,6 +20,50 @@ function signToken(user: any) {
     secret,
     { expiresIn: TOKEN_TTL_SECONDS },
   );
+}
+
+function normalizeRole(value: any) {
+  return String(value || '').toLowerCase() === 'guide' ? 'guide' : 'traveler';
+}
+
+function generateLoginCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function hashLoginCode(code: string) {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+async function sendAuthCodeEmail(opts: { to: string; code: string; role: string }) {
+  if (!SENDGRID_API_KEY || !EMAIL_FROM) {
+    return { sent: false, reason: 'email_not_configured' };
+  }
+  const subject = opts.role === 'guide' ? 'Your WadaTrip guide sign-in code' : 'Your WadaTrip sign-in code';
+  const text = `Your WadaTrip code is ${opts.code}. It expires in ${AUTH_CODE_TTL_MINUTES} minutes.`;
+  try {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: opts.to }] }],
+        from: { email: EMAIL_FROM },
+        subject,
+        content: [{ type: 'text/plain', value: text }],
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      console.error('[auth.code] Email failed', response.status, errText);
+      return { sent: false, reason: 'email_failed' };
+    }
+    return { sent: true };
+  } catch (err: any) {
+    console.error('[auth.code] Email error', err?.message || err);
+    return { sent: false, reason: 'email_error' };
+  }
 }
 
 async function getUserFromRequest(req: any) {
@@ -63,6 +113,113 @@ async function verifyGoogleIdToken(idToken: string) {
 
 @Controller('auth')
 export class AuthController {
+  @Post('request-code')
+  async requestCode(@Body() body: any) {
+    const email = String(body?.email || '').trim().toLowerCase();
+    const role = normalizeRole(body?.role);
+    const name = body?.name ? String(body.name).trim() : null;
+    if (!email) {
+      throw new BadRequestException('email is required');
+    }
+
+    const prisma = getPrisma();
+    const existingUser = await prisma.users.findUnique({ where: { email } });
+    const code = generateLoginCode();
+    const expiresAt = new Date(Date.now() + AUTH_CODE_TTL_MINUTES * 60 * 1000);
+
+    await prisma.auth_login_codes.create({
+      data: {
+        email,
+        code_hash: hashLoginCode(code),
+        role,
+        expires_at: expiresAt,
+        user_id: existingUser?.id || null,
+      },
+    });
+
+    const emailResult = await sendAuthCodeEmail({ to: email, code, role });
+    return {
+      ok: true,
+      channel: 'email',
+      expires_in_minutes: AUTH_CODE_TTL_MINUTES,
+      account_hint: existingUser ? 'existing_user' : 'new_user',
+      name_hint: name || undefined,
+      ...(emailResult.sent ? {} : { delivery: emailResult.reason }),
+      ...(AUTH_CODE_PREVIEW ? { preview_code: code } : {}),
+    };
+  }
+
+  @Post('verify-code')
+  async verifyCode(@Body() body: any) {
+    const email = String(body?.email || '').trim().toLowerCase();
+    const code = String(body?.code || '').trim();
+    const role = normalizeRole(body?.role);
+    const name = body?.name ? String(body.name).trim() : null;
+    if (!email || !code) {
+      throw new BadRequestException('email and code are required');
+    }
+
+    const prisma = getPrisma();
+    const loginCode = await prisma.auth_login_codes.findFirst({
+      where: {
+        email,
+        used_at: null,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!loginCode) {
+      throw new UnauthorizedException('code is invalid');
+    }
+    if (loginCode.expires_at.getTime() < Date.now()) {
+      throw new UnauthorizedException('code expired');
+    }
+    if (loginCode.attempts >= AUTH_CODE_MAX_ATTEMPTS) {
+      throw new UnauthorizedException('too many attempts');
+    }
+
+    const matches = loginCode.code_hash === hashLoginCode(code);
+    if (!matches) {
+      await prisma.auth_login_codes.update({
+        where: { id: loginCode.id },
+        data: { attempts: { increment: 1 } },
+      });
+      throw new UnauthorizedException('code is invalid');
+    }
+
+    let user = await prisma.users.findUnique({ where: { email } });
+    if (!user) {
+      user = await prisma.users.create({
+        data: {
+          email,
+          name,
+          role,
+          status: 'active',
+          last_login_at: new Date(),
+        },
+      });
+    } else {
+      user = await prisma.users.update({
+        where: { id: user.id },
+        data: {
+          name: user.name || name || undefined,
+          last_login_at: new Date(),
+        },
+      });
+    }
+
+    await prisma.auth_login_codes.update({
+      where: { id: loginCode.id },
+      data: {
+        used_at: new Date(),
+        user_id: user.id,
+      },
+    });
+
+    const token = signToken(user);
+    return { token, user };
+  }
+
   @Post('register')
   async register(@Body() body: any) {
     const email = String(body?.email || '').toLowerCase();
@@ -84,7 +241,7 @@ export class AuthController {
         email,
         name,
         password_hash,
-        role: body?.role ? String(body.role) : 'traveler',
+        role: normalizeRole(body?.role),
         status: 'active',
       },
     });
@@ -146,7 +303,7 @@ export class AuthController {
         data: {
           email: googleUser.email,
           name: googleUser.name,
-          role: body?.role ? String(body.role) : 'traveler',
+          role: normalizeRole(body?.role),
           status: 'active',
           last_login_at: new Date(),
         },

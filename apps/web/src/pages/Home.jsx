@@ -5,6 +5,7 @@ import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
 import BrandLogo from '../components/BrandLogo';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -109,6 +110,7 @@ function ExperienceCard({ item, tone = 'warm', destinationCoverMap }) {
 
 export default function Home() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const [items, setItems] = useState([]);
   const [destinationCoverMap, setDestinationCoverMap] = useState({});
@@ -152,6 +154,7 @@ export default function Home() {
   const paidTours = items.filter((item) => !Array.isArray(item.tags) || !item.tags.includes('free_tour'));
   const featuredPaid = paidTours.slice(0, 4);
   const editorPicks = paidTours.slice(4, 7);
+  const guideEntryHref = user ? '/operator/tours/new' : '/?auth=guide-register';
 
   const uniqueCities = new Set(items.map((item) => String(item.city || '').trim()).filter(Boolean));
   const uniqueHosts = new Set(items.map(getHostKey).filter(Boolean));
@@ -214,10 +217,10 @@ export default function Home() {
                     {t('home.hero_primary', 'Explore tours')}
                   </Link>
                   <Link
-                    to="/operator/tours/new"
+                    to={guideEntryHref}
                     className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/30 px-6 text-sm font-semibold text-white transition-colors hover:bg-white/10"
                   >
-                    {t('home.hero_secondary', 'Start hosting')}
+                    {t('home.hero_secondary', 'Become a guide')}
                   </Link>
                 </div>
               </div>
@@ -364,10 +367,10 @@ export default function Home() {
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <Link
-                  to="/operator/tours/new"
+                  to={guideEntryHref}
                   className="inline-flex h-12 items-center justify-center rounded-2xl bg-[#0f172a] px-6 text-sm font-black uppercase tracking-[0.16em] text-white transition-transform hover:scale-[1.02]"
                 >
-                  {t('home.guide_cta', 'Start hosting')}
+                  {t('home.guide_cta', 'Become a guide')}
                 </Link>
                 <Link
                   to="/tours"

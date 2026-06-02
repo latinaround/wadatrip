@@ -230,6 +230,7 @@ async function bootstrap() {
   // ?? Registrar proxies solo para servicios inactivos cuando se habiliten
   const enableAlertsProxy = (process.env.ENABLE_ALERTS_PROXY || 'false').toLowerCase() === 'true';
   const enableProviderHubProxy = (process.env.ENABLE_PROVIDER_HUB_PROXY || 'false').toLowerCase() === 'true';
+  const enableOperatorLeadsProxy = (process.env.ENABLE_OPERATOR_LEADS_PROXY || 'true').toLowerCase() !== 'false';
   const enableWadagentProxy = (process.env.ENABLE_WADAGENT_PROXY || 'false').toLowerCase() === 'true';
   const proxyPrefixes: string[] = [];
 
@@ -241,6 +242,11 @@ async function bootstrap() {
   if (enableProviderHubProxy) {
     attachProxy('/providers', process.env.PROVIDER_HUB_URL || 'http://localhost:3014', 'provider-hub');
     proxyPrefixes.push('/providers');
+  }
+
+  if (enableOperatorLeadsProxy) {
+    attachProxy('/operator-leads', process.env.OPERATOR_LEADS_URL || 'http://localhost:3023', 'operator-leads');
+    proxyPrefixes.push('/operator-leads');
   }
 
   if (enableWadagentProxy) {
