@@ -181,27 +181,29 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
 
               {codeNotice ? <div className="text-sm font-semibold text-[#8df3d8]">{codeNotice}</div> : null}
 
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-fit px-0 text-sm text-[#00D9FF]"
-                onClick={authMethod === 'code'
-                  ? () => {
-                      setAuthMethod('password');
-                      setCodeSent(false);
-                      setCode('');
-                      setCodeNotice('');
-                    }
-                  : () => {
-                      setAuthMethod('code');
-                      setCodeSent(false);
-                      setCode('');
-                      setCodeNotice('');
-                    }}
-                disabled={submitting || authLoading}
-              >
-                {authMethod === 'code' ? 'Use password instead' : 'Use a 6-digit code instead'}
-              </Button>
+              {authMethod === 'code' && !codeSent ? null : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-fit px-0 text-sm text-[#00D9FF]"
+                  onClick={authMethod === 'code'
+                    ? () => {
+                        setAuthMethod('password');
+                        setCodeSent(false);
+                        setCode('');
+                        setCodeNotice('');
+                      }
+                    : () => {
+                        setAuthMethod('code');
+                        setCodeSent(false);
+                        setCode('');
+                        setCodeNotice('');
+                      }}
+                  disabled={submitting || authLoading}
+                >
+                  {authMethod === 'code' ? 'Use password instead' : 'Use a 6-digit code instead'}
+                </Button>
+              )}
 
               {authMethod === 'code' && !codeSent ? (
                 <div className="text-sm text-slate-300">
