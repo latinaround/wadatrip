@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -6,35 +6,36 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import ResultsSection from './components/ResultsSection';
 import AboutSection from './components/AboutSection';
-import FlightPricePredictor from './components/FlightPricePredictor';
-import FlightPriceAlert from './components/FlightPriceAlert';
 import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
-import TourAlerts from './pages/TourAlerts.jsx';
-import { FlightPriceNotifications } from './components/FlightPriceNotifications';
-import Products from './pages/Products';
-import Solutions from './pages/Solutions';
-import Contact from './pages/Contact';
-import AboutUs from './pages/AboutUs';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import RequestDemo from './pages/RequestDemo';
-import FlightAlerts from './pages/FlightAlerts';
-import Account from './pages/Account';
-import OperatorToursNew from './pages/OperatorToursNew.jsx';
-import Tours from './pages/Tours.jsx';
-import TourDetail from './pages/TourDetail.jsx';
-import GuideProfile from './pages/GuideProfile.jsx';
-import GuideSignupPage from './pages/GuideSignupPage.jsx';
-import Home from './pages/Home.jsx';
-import CheckoutSuccess from './pages/CheckoutSuccess.jsx';
-import CheckoutCancel from './pages/CheckoutCancel.jsx';
 import AuthDialog from './components/AuthDialog.jsx';
 import CheckoutDialog from './components/payments/CheckoutDialog.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 import { AppConfig } from './config/appConfig';
 import { notificationService } from './utils/notifications';
-import AdminApp from './admin/AdminApp.jsx';
-import WadaAgent from './components/WadaAgent';
+
+const TourAlerts = lazy(() => import('./pages/TourAlerts.jsx'));
+const FlightPricePredictor = lazy(() => import('./components/FlightPricePredictor.jsx'));
+const FlightPriceAlert = lazy(() => import('./components/FlightPriceAlert.jsx'));
+const FlightPriceNotifications = lazy(() => import('./components/FlightPriceNotifications').then((mod) => ({ default: mod.FlightPriceNotifications })));
+const Products = lazy(() => import('./pages/Products'));
+const Solutions = lazy(() => import('./pages/Solutions'));
+const Contact = lazy(() => import('./pages/Contact'));
+const AboutUs = lazy(() => import('./pages/AboutUs'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const RequestDemo = lazy(() => import('./pages/RequestDemo'));
+const FlightAlerts = lazy(() => import('./pages/FlightAlerts'));
+const Account = lazy(() => import('./pages/Account'));
+const OperatorToursNew = lazy(() => import('./pages/OperatorToursNew.jsx'));
+const Tours = lazy(() => import('./pages/Tours.jsx'));
+const TourDetail = lazy(() => import('./pages/TourDetail.jsx'));
+const GuideProfile = lazy(() => import('./pages/GuideProfile.jsx'));
+const GuideSignupPage = lazy(() => import('./pages/GuideSignupPage.jsx'));
+const Home = lazy(() => import('./pages/Home.jsx'));
+const CheckoutSuccess = lazy(() => import('./pages/CheckoutSuccess.jsx'));
+const CheckoutCancel = lazy(() => import('./pages/CheckoutCancel.jsx'));
+const AdminApp = lazy(() => import('./admin/AdminApp.jsx'));
+const WadaAgent = lazy(() => import('./components/WadaAgent'));
 
 const initialCheckoutState = {
   open: false,
@@ -88,6 +89,14 @@ function buildGeneratePayload(formData) {
   return { payload, meta };
 }
 
+function RouteFallback() {
+  return (
+    <div className="page-shell">
+      <div className="page-container text-[#cad3df]">Loading...</div>
+    </div>
+  );
+}
+
 function App() {
   const { user, token, logout } = useAuth();
   const { t } = useTranslation();
@@ -125,7 +134,7 @@ function App() {
         intent: 'traveler',
       });
     }
-  }, [isAdminRoute, location.search]);
+  }, [isAdminRoute, location.search, navigate]);
 
   const handleSearch = async (formData) => {
     setSearchData(formData);
@@ -196,7 +205,7 @@ function App() {
       }
 
       if (!data?.clientSecret) {
-        throw new Error('Stripe no devolvi un clientSecret vlido');
+        throw new Error('Stripe no devolvio un clientSecret valido');
       }
 
       setCheckoutState(prev => ({
@@ -221,7 +230,7 @@ function App() {
 
   const handleSelectScenario = ({ scenario, itineraryId, itineraryMeta }) => {
     if (!token) {
-      setAuthDialogOpen(true);
+      setAuthDialogState({ open: true, mode: 'login', intent: 'traveler' });
       return;
     }
 
@@ -272,18 +281,6 @@ function App() {
     window.dispatchEvent(new Event('wadagent:open'));
   };
 
-  const openTravelerAuth = (mode = 'login') => {
-    setAuthDialogState({
-      open: true,
-      mode,
-      intent: 'traveler',
-    });
-  };
-
-  const openGuideAuth = (mode = 'register') => {
-    navigate('/guide/register');
-  };
-
   const closeAuthDialog = () => {
     setAuthDialogState((prev) => ({ ...prev, open: false }));
     const params = new URLSearchParams(location.search);
@@ -302,82 +299,84 @@ function App() {
       {!isAdminRoute && (
         <Header
           user={user}
-          onLoginClick={() => openTravelerAuth('login')}
+          onLoginClick={() => setAuthDialogState({ open: true, mode: 'login', intent: 'traveler' })}
           onGuideClick={() => {
             if (user) {
               window.location.assign('/operator/tours/new');
               return;
             }
-            openGuideAuth('register');
+            navigate('/guide/register');
           }}
           onLogout={logout}
         />
       )}
 
-      <Routes>
-        <Route path="/admin/*" element={<AdminApp />} />
-        <Route path="/" element={<Home />} />
-        <Route
-          path="/plan"
-          element={
-            <>
-              <Hero onSubmit={handleSearch} />
-              <ResultsSection
-                searchData={searchData}
-                itinerary={currentItinerary}
-                isLoading={isLoading}
-                error={searchError}
-                notice={paymentNotice}
-                onStartNewSearch={handleStartNewSearch}
-                onSelectScenario={handleSelectScenario}
-              />
-              <section className="page-shell min-h-0 py-10 md:py-12">
-                <div className="page-container py-8 md:py-10">
-                  <div className="page-card grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-center">
-                    <div className="space-y-3">
-                      <p className="page-kicker text-[#00D9FF]">WadaAgent</p>
-                      <h2 className="text-2xl md:text-3xl font-semibold neon-title">
-                        Your AI travel assistant
-                      </h2>
-                      <p className="text-sm md:text-base text-[#e0e0e0] leading-relaxed">
-                        Ask WadaAgent to check operators, tours, and prices so you can book with confidence.
-                      </p>
-                    </div>
-                    <div className="flex md:justify-end">
-                      <button
-                        type="button"
-                        onClick={handleOpenWadaAgent}
-                        className="neon-cta w-full md:w-auto"
-                      >
-                        Open WadaAgent
-                      </button>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/admin/*" element={<AdminApp />} />
+          <Route path="/" element={<Home />} />
+          <Route
+            path="/plan"
+            element={
+              <>
+                <Hero onSubmit={handleSearch} />
+                <ResultsSection
+                  searchData={searchData}
+                  itinerary={currentItinerary}
+                  isLoading={isLoading}
+                  error={searchError}
+                  notice={paymentNotice}
+                  onStartNewSearch={handleStartNewSearch}
+                  onSelectScenario={handleSelectScenario}
+                />
+                <section className="page-shell min-h-0 py-10 md:py-12">
+                  <div className="page-container py-8 md:py-10">
+                    <div className="page-card grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+                      <div className="space-y-3">
+                        <p className="page-kicker text-[#00D9FF]">WadaAgent</p>
+                        <h2 className="text-2xl md:text-3xl font-semibold neon-title">
+                          Your AI travel assistant
+                        </h2>
+                        <p className="text-sm md:text-base text-[#e0e0e0] leading-relaxed">
+                          Ask WadaAgent to check operators, tours, and prices so you can book with confidence.
+                        </p>
+                      </div>
+                      <div className="flex md:justify-end">
+                        <button
+                          type="button"
+                          onClick={handleOpenWadaAgent}
+                          className="neon-cta w-full md:w-auto"
+                        >
+                          Open WadaAgent
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </section>
-              <FlightPricePredictor />
-              <AboutSection />
-            </>
-          }
-        />
-        <Route path="/products" element={<Products />} />
-        <Route path="/solutions" element={<Solutions />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/about-us" element={<AboutUs />} />
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/request-demo" element={<RequestDemo />} />
-        <Route path="/price-alerts" element={<FlightAlerts />} />
-        <Route path="/enhanced-search" element={<TourAlerts />} />
-        <Route path="/flight-notifications" element={<FlightPriceNotifications />} />
-        <Route path="/account" element={<Account />} />
-        <Route path="/tours" element={<Tours />} />
-        <Route path="/tours/:id" element={<TourDetail />} />
-        <Route path="/guides/:id" element={<GuideProfile />} />
-        <Route path="/guide/register" element={<GuideSignupPage />} />
-        <Route path="/operator/tours/new" element={<OperatorToursNew />} />
-        <Route path="/checkout/success" element={<CheckoutSuccess />} />
-        <Route path="/checkout/cancel" element={<CheckoutCancel />} />
-      </Routes>
+                </section>
+                <FlightPricePredictor />
+                <AboutSection />
+              </>
+            }
+          />
+          <Route path="/products" element={<Products />} />
+          <Route path="/solutions" element={<Solutions />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/request-demo" element={<RequestDemo />} />
+          <Route path="/price-alerts" element={<FlightAlerts />} />
+          <Route path="/enhanced-search" element={<TourAlerts />} />
+          <Route path="/flight-notifications" element={<FlightPriceNotifications />} />
+          <Route path="/account" element={<Account />} />
+          <Route path="/tours" element={<Tours />} />
+          <Route path="/tours/:id" element={<TourDetail />} />
+          <Route path="/guides/:id" element={<GuideProfile />} />
+          <Route path="/guide/register" element={<GuideSignupPage />} />
+          <Route path="/operator/tours/new" element={<OperatorToursNew />} />
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+          <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+        </Routes>
+      </Suspense>
 
       {!isAdminRoute && (
         <>
@@ -386,7 +385,9 @@ function App() {
 
           {location.pathname.startsWith('/plan') && (
             <div className="fixed bottom-4 right-4 z-50">
-              <WadaAgent />
+              <Suspense fallback={null}>
+                <WadaAgent />
+              </Suspense>
             </div>
           )}
 
@@ -419,4 +420,3 @@ function App() {
 }
 
 export default App;
-

@@ -53,7 +53,7 @@ const ItineraryCard = ({ scenario, itineraryId, itineraryMeta, onSelect, disable
         <div className="flex items-center gap-2 text-sm text-[#a0a0a0]">
           <MapPin size={16} />
           <span>
-            {itineraryMeta?.origin} -> {itineraryMeta?.destination}
+            {itineraryMeta?.origin} → {itineraryMeta?.destination}
             {itineraryMeta?.travelers ? ` | ${itineraryMeta.travelers} viajero${itineraryMeta.travelers > 1 ? 's' : ''}` : ''}
           </span>
         </div>
@@ -137,4 +137,5 @@ const ItineraryCard = ({ scenario, itineraryId, itineraryMeta, onSelect, disable
 };
 
 export default ItineraryCard;
+
 
