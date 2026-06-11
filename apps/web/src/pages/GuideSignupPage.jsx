@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import { AppConfig } from '../config/appConfig';
 
 const tokenStorageKey = 'wadatrip_token';
@@ -35,7 +34,6 @@ async function guideAuthRequest(path, body) {
 
 export default function GuideSignupPage() {
   const navigate = useNavigate();
-  const { loading: authLoading } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,7 +45,7 @@ export default function GuideSignupPage() {
   const [notice, setNotice] = useState('');
   const [mode, setMode] = useState('register');
 
-  const busy = submitting || authLoading;
+  const busy = submitting;
 
   const submit = async () => {
     setError('');
