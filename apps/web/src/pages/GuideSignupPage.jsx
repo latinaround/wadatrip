@@ -1,10 +1,43 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { AppConfig } from '../config/appConfig';
+
+const tokenStorageKey = 'wadatrip_token';
+
+async function guideAuthRequest(path, body) {
+  const baseUrl = AppConfig.api.baseUrl?.replace(/\/$/, '') || '';
+  const controller = new AbortController();
+  const timeoutMs = Number(AppConfig.api.timeout) || 10000;
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.message || `Request failed with status ${response.status}`);
+  }
+  return payload;
+}
 
 export default function GuideSignupPage() {
   const navigate = useNavigate();
-  const { requestCode, verifyCode, register, login, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +62,7 @@ export default function GuideSignupPage() {
 
       if (authMethod === 'code') {
         if (!codeSent) {
-          const payload = await requestCode({
+          const payload = await guideAuthRequest('/auth/request-code', {
             email: email.trim(),
             name: name.trim() || undefined,
             role: 'guide',
@@ -43,30 +76,45 @@ export default function GuideSignupPage() {
           throw new Error('Enter the 6-digit code');
         }
 
-        await verifyCode({
+        const payload = await guideAuthRequest('/auth/verify-code', {
           email: email.trim(),
           code: code.trim(),
           name: name.trim() || undefined,
           role: 'guide',
         });
+        if (payload?.token) {
+          window.localStorage.setItem(tokenStorageKey, payload.token);
+          window.location.assign('/operator/tours/new');
+          return;
+        }
       } else if (mode === 'register') {
         if (!password.trim()) {
           throw new Error('Create a password');
         }
-        await register({
+        const payload = await guideAuthRequest('/auth/register', {
           email: email.trim(),
           password,
           name: name.trim() || undefined,
           role: 'guide',
         });
+        if (payload?.token) {
+          window.localStorage.setItem(tokenStorageKey, payload.token);
+          window.location.assign('/operator/tours/new');
+          return;
+        }
       } else {
         if (!password.trim()) {
           throw new Error('Enter your password');
         }
-        await login({
+        const payload = await guideAuthRequest('/auth/login', {
           email: email.trim(),
           password,
         });
+        if (payload?.token) {
+          window.localStorage.setItem(tokenStorageKey, payload.token);
+          window.location.assign('/operator/tours/new');
+          return;
+        }
       }
 
       navigate('/operator/tours/new');
