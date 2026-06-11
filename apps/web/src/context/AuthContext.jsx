@@ -30,11 +30,26 @@ const AuthContext = createContext({
 
 async function jsonRequest(path, options = {}) {
   const baseUrl = AppConfig.api.baseUrl?.replace(/\/$/, '') || '';
-  const response = await fetch(`${baseUrl}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    credentials: 'include',
-    ...options,
-  });
+  const controller = new AbortController();
+  const timeoutMs = Number(AppConfig.api.timeout) || 10000;
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      signal: controller.signal,
+      ...options,
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     const error = new Error(payload?.message || `Request failed with status ${response.status}`);
