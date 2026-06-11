@@ -7,25 +7,23 @@ const tokenStorageKey = 'wadatrip_token';
 
 async function guideAuthRequest(path, body) {
   const baseUrl = AppConfig.api.baseUrl?.replace(/\/$/, '') || '';
-  const controller = new AbortController();
   const timeoutMs = Number(AppConfig.api.timeout) || 10000;
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutPromise = new Promise((_, reject) => {
+    window.setTimeout(() => reject(new Error('Request timed out. Please try again.')), timeoutMs);
+  });
 
   let response;
   try {
-    response = await fetch(`${baseUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify(body),
-    });
+    response = await Promise.race([
+      fetch(`${baseUrl}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      timeoutPromise,
+    ]);
   } catch (err) {
-    if (err?.name === 'AbortError') {
-      throw new Error('Request timed out. Please try again.');
-    }
     throw err;
-  } finally {
-    window.clearTimeout(timeoutId);
   }
 
   const payload = await response.json().catch(() => ({}));
