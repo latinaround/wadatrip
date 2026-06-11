@@ -3,6 +3,18 @@ import { AppConfig } from '../config/appConfig';
 
 const tokenStorageKey = 'wadatrip_token';
 
+function authCodeDeliveryMessage(reason) {
+  switch (String(reason || '')) {
+    case 'email_not_configured':
+      return 'Email sign-in is not configured right now. Use password sign-in or try again later.';
+    case 'email_failed':
+    case 'email_error':
+      return 'We could not send your code right now. Try again in a few minutes.';
+    default:
+      return 'We could not send your code right now.';
+  }
+}
+
 const AuthContext = createContext({
   user: null,
   token: null,
@@ -111,10 +123,14 @@ export function AuthProvider({ children }) {
   }, [persistToken]);
 
   const requestCode = useCallback(async ({ email, role = 'traveler', name }) => {
-    return jsonRequest('/auth/request-code', {
+    const payload = await jsonRequest('/auth/request-code', {
       method: 'POST',
       body: JSON.stringify({ email, role, name }),
     });
+    if (payload?.delivery && !payload?.preview_code) {
+      throw new Error(authCodeDeliveryMessage(payload.delivery));
+    }
+    return payload;
   }, []);
 
   const verifyCode = useCallback(async ({ email, code, role = 'traveler', name }) => {

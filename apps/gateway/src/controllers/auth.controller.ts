@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, BadRequestException, UnauthorizedException, ServiceUnavailableException } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
 import axios from 'axios';
 import bcrypt from 'bcryptjs';
@@ -66,6 +66,18 @@ async function sendAuthCodeEmail(opts: { to: string; code: string; role: string 
   }
 }
 
+function authCodeDeliveryMessage(reason: string) {
+  switch (reason) {
+    case 'email_not_configured':
+      return 'Email sign-in is not configured right now. Please use password sign-in or try again later.';
+    case 'email_failed':
+    case 'email_error':
+      return 'We could not send your sign-in code right now. Please try again in a few minutes.';
+    default:
+      return 'We could not send your sign-in code right now.';
+  }
+}
+
 async function getUserFromRequest(req: any) {
   const userId = getUserIdFromAuth(req);
   if (!userId) return null;
@@ -127,7 +139,7 @@ export class AuthController {
     const code = generateLoginCode();
     const expiresAt = new Date(Date.now() + AUTH_CODE_TTL_MINUTES * 60 * 1000);
 
-    await prisma.auth_login_codes.create({
+    const loginCode = await prisma.auth_login_codes.create({
       data: {
         email,
         code_hash: hashLoginCode(code),
@@ -138,6 +150,10 @@ export class AuthController {
     });
 
     const emailResult = await sendAuthCodeEmail({ to: email, code, role });
+    if (!emailResult.sent && !AUTH_CODE_PREVIEW) {
+      await prisma.auth_login_codes.delete({ where: { id: loginCode.id } }).catch(() => null);
+      throw new ServiceUnavailableException(authCodeDeliveryMessage(emailResult.reason || ''));
+    }
     return {
       ok: true,
       channel: 'email',
