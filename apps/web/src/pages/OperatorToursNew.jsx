@@ -70,12 +70,15 @@ export default function OperatorToursNew() {
   const [loadingOwnedProvider, setLoadingOwnedProvider] = useState(false);
   const [providerPhotoUploading, setProviderPhotoUploading] = useState(false);
   const [tourCoverUploading, setTourCoverUploading] = useState(false);
+  const [ownedListings, setOwnedListings] = useState([]);
+  const [loadingOwnedListings, setLoadingOwnedListings] = useState(false);
 
   const accessCodeTrimmed = accessCode.trim();
   const isAuthenticatedMode = Boolean(token);
   const ownedProviderId = providerStatus?.id ? String(providerStatus.id) : '';
   const providerApprovalStatus = String(providerStatus?.status || providerStatus?.verification_status || '').toLowerCase();
   const providerApproved = ['approved', 'verified'].includes(providerApprovalStatus);
+  const hasOwnedListings = ownedListings.length > 0;
 
   const authFetch = useCallback(async (path, init = {}) => {
     const headers = new Headers(init.headers || {});
@@ -176,6 +179,31 @@ export default function OperatorToursNew() {
   useEffect(() => {
     loadOwnedProvider();
   }, [loadOwnedProvider]);
+
+  const loadOwnedListings = useCallback(async () => {
+    if (!token) {
+      setOwnedListings([]);
+      return [];
+    }
+
+    setLoadingOwnedListings(true);
+    try {
+      const data = await authFetch('/providers/me/listings?limit=200', { method: 'GET' });
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setOwnedListings(items);
+      return items;
+    } catch (error) {
+      if (error?.status === 401) logout?.();
+      setOwnedListings([]);
+      return [];
+    } finally {
+      setLoadingOwnedListings(false);
+    }
+  }, [authFetch, logout, token]);
+
+  useEffect(() => {
+    loadOwnedListings();
+  }, [loadOwnedListings]);
 
   const handleProviderChange = (field, value) => {
     setProviderForm((prev) => ({ ...prev, [field]: value }));
@@ -423,6 +451,7 @@ export default function OperatorToursNew() {
             })
           : `Tour saved as ${String(created?.status || payload.status || 'draft')}. It will publish after approval.`
       );
+      loadOwnedListings();
       setTourForm((prev) => ({
         ...emptyTour,
         provider_id: providerId,
@@ -567,6 +596,7 @@ export default function OperatorToursNew() {
       setCreatedTour(data);
       setCoverPreview(data?.cover_image_url || coverImageUrl || '');
       setTourMessage(t('operator.messages.tour_updated', 'Tour updated successfully.'));
+      loadOwnedListings();
     } catch (err) {
       if (err?.status === 401) logout?.();
       setTourMessage(
@@ -601,6 +631,7 @@ export default function OperatorToursNew() {
         country_code: prev.country_code,
       }));
       setCoverPreview('');
+      loadOwnedListings();
     } catch (err) {
       if (err?.status === 401) logout?.();
       setTourMessage(
@@ -634,30 +665,114 @@ export default function OperatorToursNew() {
             <div>
               <p className="text-sm text-[#00D9FF]">{t('operator.step1_label', 'Step 1')}</p>
               <h2 className="text-xl font-semibold text-white">
-                {isAuthenticatedMode ? 'Guide profile linked to your account' : t('operator.access_title', 'Legacy access code')}
+                {isAuthenticatedMode
+                  ? hasOwnedListings
+                    ? 'Your tours'
+                    : 'Create your first tour'
+                  : t('operator.access_title', 'Legacy access code')}
               </h2>
               <p className="text-sm text-[#a0a0a0]">
                 {isAuthenticatedMode
-                  ? 'This page now uses your authenticated owner profile first. Access code is only needed for older operator workflows.'
+                  ? hasOwnedListings
+                    ? 'Your account is already linked to a guide profile. Pick an existing tour to edit or create a new one below.'
+                    : 'Your account is already linked to a guide profile. You do not have any tours yet, so start by creating your first one below.'
                   : t('operator.access_help', 'Required to unlock self-serve publishing.')}
               </p>
             </div>
           </div>
-          <div className="mt-6">
-            <label htmlFor="access-code" className="text-sm text-[#e0e0e0]">
-              {isAuthenticatedMode ? 'Optional legacy access code' : t('operator.access_label', 'Access code')}
-            </label>
-            <Input
-              id="access-code"
-              value={accessCode}
-              onChange={(event) => setAccessCode(event.target.value)}
-              placeholder={isAuthenticatedMode ? 'Only if you still need old operator tools' : t('operator.access_placeholder', 'Enter your access code')}
-              className="mt-2 h-12 neon-input"
-            />
-          </div>
+          {isAuthenticatedMode ? (
+            <div className="mt-6 rounded-2xl border border-[#00D9FF]/20 bg-[#0a0e27]/60 p-4 text-sm text-[#cad3df]">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-semibold text-white">{providerStatus?.name || user?.name || user?.email}</p>
+                  <p className="text-[#a0a0a0]">
+                    Status: {providerStatus?.status || providerStatus?.verification_status || 'pending'}
+                  </p>
+                </div>
+                <div className="text-[#a0a0a0]">
+                  {loadingOwnedListings ? 'Checking your tours...' : `${ownedListings.length} tour${ownedListings.length === 1 ? '' : 's'} linked to this account`}
+                </div>
+              </div>
+              {!hasOwnedListings ? (
+                <p className="mt-3 text-[#e0e0e0]">
+                  No tours yet. Go to Step 3 and fill out the form to create your first tour.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-6">
+              <label htmlFor="access-code" className="text-sm text-[#e0e0e0]">
+                {t('operator.access_label', 'Access code')}
+              </label>
+              <Input
+                id="access-code"
+                value={accessCode}
+                onChange={(event) => setAccessCode(event.target.value)}
+                placeholder={t('operator.access_placeholder', 'Enter your access code')}
+                className="mt-2 h-12 neon-input"
+              />
+            </div>
+          )}
         </section>
 
-        <section className="page-card">
+        {isAuthenticatedMode && hasOwnedListings ? (
+          <section className="page-card">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Your tours</h2>
+                <p className="text-sm text-[#a0a0a0]">
+                  Choose one of your tours to edit it, or paste a Wadatrip tour link if you prefer.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 space-y-3">
+              {ownedListings.map((listing) => (
+                <div
+                  key={listing.id}
+                  className="flex flex-col gap-3 rounded-2xl border border-[#00D9FF]/15 bg-[#0a0e27]/60 p-4 md:flex-row md:items-center md:justify-between"
+                >
+                  <div>
+                    <p className="font-semibold text-white">{listing.title || 'Untitled tour'}</p>
+                    <p className="text-sm text-[#a0a0a0]">
+                      {[listing.city, listing.country_code, listing.status].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
+                    onClick={() => handleLoadTourById(listing.id)}
+                    disabled={tourLoading}
+                  >
+                    {tourLoading && editingId === listing.id ? t('operator.loading_label', 'Loading...') : 'Edit this tour'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+              <div>
+                <label htmlFor="edit-tour-link" className="text-sm text-[#e0e0e0]">
+                  {t('operator.tour_link_label', 'Tour link or ID')}
+                </label>
+                <Input
+                  id="edit-tour-link"
+                  value={editLookup}
+                  onChange={(event) => setEditLookup(event.target.value)}
+                  placeholder={t('operator.tour_link_placeholder', 'https://wadatrip.com/tours/...')}
+                  className="mt-2 h-12 neon-input"
+                />
+              </div>
+              <Button
+                type="button"
+                className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
+                onClick={handleLoadTour}
+                disabled={tourLoading}
+              >
+                {tourLoading ? t('operator.loading_label', 'Loading...') : t('operator.load_tour', 'Load tour')}
+              </Button>
+            </div>
+          </section>
+        ) : !isAuthenticatedMode ? (
+          <section className="page-card">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">
@@ -692,17 +807,24 @@ export default function OperatorToursNew() {
               {tourLoading ? t('operator.loading_label', 'Loading...') : t('operator.load_tour', 'Load tour')}
             </Button>
           </div>
-        </section>
+          </section>
+        ) : null}
 
         <section className="page-card" id="edit-tour">
           <div className="space-y-1">
-            <p className="text-sm text-[#00D9FF]">{t('operator.step2_label', 'Step 2 (optional)')}</p>
+            <p className="text-sm text-[#00D9FF]">
+              {isAuthenticatedMode && !hasOwnedListings && !editingId
+                ? 'Step 2'
+                : t('operator.step2_label', 'Step 2 (optional)')}
+            </p>
             <h2 className="text-xl font-semibold text-white">
               {isAuthenticatedMode ? 'Guide profile' : t('operator.operator_title', 'Operator details')}
             </h2>
             <p className="text-sm text-[#a0a0a0]">
               {isAuthenticatedMode
-                ? 'This profile belongs to your logged-in account and will be reused by the mobile app.'
+                ? hasOwnedListings
+                  ? 'This profile belongs to your logged-in account and will be reused by the mobile app.'
+                  : 'Review your guide profile before publishing your first tour. Update anything that should appear publicly.'
                 : t('operator.operator_help', 'Create or validate your operator profile.')}
             </p>
           </div>
@@ -920,39 +1042,51 @@ export default function OperatorToursNew() {
 
         <section className="page-card">
           <div className="space-y-1">
-            <p className="text-sm text-[#00D9FF]">{t('operator.step3_label', 'Step 3')}</p>
-            <h2 className="text-xl font-semibold text-white">{t('operator.tour_title', 'Tour details')}</h2>
+            <p className="text-sm text-[#00D9FF]">
+              {isAuthenticatedMode && !hasOwnedListings && !editingId
+                ? 'Step 3'
+                : t('operator.step3_label', 'Step 3')}
+            </p>
+            <h2 className="text-xl font-semibold text-white">
+              {isAuthenticatedMode && !hasOwnedListings && !editingId ? 'Create your first tour' : t('operator.tour_title', 'Tour details')}
+            </h2>
             <p className="text-sm text-[#a0a0a0]">
               {isAuthenticatedMode
-                ? 'This tour will be published under your linked guide profile, just like in the mobile app.'
+                ? hasOwnedListings
+                  ? 'This tour will be published under your linked guide profile, just like in the mobile app.'
+                  : 'Add the basics for your first experience. You can save it now and come back later to edit it.'
                 : t('operator.tour_help', 'Publish the experience you want to sell.')}
             </p>
           </div>
 
-          <form className="mt-6 grid gap-4 md:grid-cols-[2fr_1fr]" onSubmit={handleLoadTour}>
-            <div>
-              <label htmlFor="tour-edit-lookup" className="text-sm text-[#e0e0e0]">
-                {t('operator.tour_link_label', 'Tour link or ID')}
-              </label>
-              <Input
-                id="tour-edit-lookup"
-                value={editLookup}
-                onChange={(event) => setEditLookup(event.target.value)}
-                placeholder={t('operator.tour_link_placeholder', 'https://wadatrip.com/tours/...')}
-                className="mt-2 h-12 neon-input"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                type="submit"
-                className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
-                disabled={tourLoading}
-              >
-                {tourLoading ? t('operator.loading_label', 'Loading...') : t('operator.load_tour', 'Load tour')}
-              </Button>
-            </div>
-          </form>
-          {editMessage && <p className="mt-3 text-sm text-[#00D9FF]">{editMessage}</p>}
+          {(!isAuthenticatedMode || hasOwnedListings) ? (
+            <>
+              <form className="mt-6 grid gap-4 md:grid-cols-[2fr_1fr]" onSubmit={handleLoadTour}>
+                <div>
+                  <label htmlFor="tour-edit-lookup" className="text-sm text-[#e0e0e0]">
+                    {t('operator.tour_link_label', 'Tour link or ID')}
+                  </label>
+                  <Input
+                    id="tour-edit-lookup"
+                    value={editLookup}
+                    onChange={(event) => setEditLookup(event.target.value)}
+                    placeholder={t('operator.tour_link_placeholder', 'https://wadatrip.com/tours/...')}
+                    className="mt-2 h-12 neon-input"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="submit"
+                    className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
+                    disabled={tourLoading}
+                  >
+                    {tourLoading ? t('operator.loading_label', 'Loading...') : t('operator.load_tour', 'Load tour')}
+                  </Button>
+                </div>
+              </form>
+              {editMessage && <p className="mt-3 text-sm text-[#00D9FF]">{editMessage}</p>}
+            </>
+          ) : null}
 
           <form className="mt-6 grid gap-5" onSubmit={handleCreateTour}>
             <div>
