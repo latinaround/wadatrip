@@ -672,7 +672,7 @@ export default function OperatorToursNew() {
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
-                to="/guide/register"
+                to="/guide/register?mode=login&next=/operator/tours/new"
                 className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] px-6 text-sm font-black uppercase tracking-[0.14em] text-white transition-transform hover:scale-[1.01]"
               >
                 Continue as guide

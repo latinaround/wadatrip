@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 
 const tokenStorageKey = 'wadatrip_token';
@@ -34,6 +34,13 @@ async function guideAuthRequest(path, body) {
 
 export default function GuideSignupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = useMemo(() => {
+    const next = searchParams.get('next');
+    if (!next || !next.startsWith('/')) return '/operator/tours/new';
+    return next;
+  }, [searchParams]);
+  const initialMode = searchParams.get('mode') === 'login' ? 'login' : 'register';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,7 +50,7 @@ export default function GuideSignupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [mode, setMode] = useState('register');
+  const [mode, setMode] = useState(initialMode);
 
   const busy = submitting;
 
@@ -80,7 +87,7 @@ export default function GuideSignupPage() {
         });
         if (payload?.token) {
           window.localStorage.setItem(tokenStorageKey, payload.token);
-          window.location.assign('/operator/tours/new');
+          window.location.assign(returnTo);
           return;
         }
       } else if (mode === 'register') {
@@ -95,7 +102,7 @@ export default function GuideSignupPage() {
         });
         if (payload?.token) {
           window.localStorage.setItem(tokenStorageKey, payload.token);
-          window.location.assign('/operator/tours/new');
+          window.location.assign(returnTo);
           return;
         }
       } else {
@@ -108,12 +115,12 @@ export default function GuideSignupPage() {
         });
         if (payload?.token) {
           window.localStorage.setItem(tokenStorageKey, payload.token);
-          window.location.assign('/operator/tours/new');
+          window.location.assign(returnTo);
           return;
         }
       }
 
-      navigate('/operator/tours/new');
+      navigate(returnTo);
     } catch (err) {
       setError(err?.message || 'Could not continue');
     } finally {
@@ -126,9 +133,13 @@ export default function GuideSignupPage() {
       <div className="page-container py-10">
         <div className="mx-auto max-w-xl rounded-[28px] border border-[#2d3548] bg-[#1a1f3a] p-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.28)] md:p-8">
           <p className="page-kicker text-[#16d7d0]">Become a guide</p>
-          <h1 className="mt-3 text-3xl font-semibold">Create your guide account</h1>
+          <h1 className="mt-3 text-3xl font-semibold">
+            {mode === 'login' ? 'Sign in as a guide' : 'Create your guide account'}
+          </h1>
           <p className="mt-3 text-sm leading-relaxed text-[#cad3df]">
-            Start with your email, enter a one-time code, and then publish your first tour.
+            {mode === 'login'
+              ? 'Use your email and 6-digit code to continue to tour publishing.'
+              : 'Start with your email, enter a one-time code, and then publish your first tour.'}
           </p>
 
           <div className="mt-6 rounded-2xl border border-[#00D9FF]/20 bg-[#0f172a]/50 px-4 py-3 text-sm text-[#c8f7f4]">
