@@ -78,6 +78,12 @@ function authCodeDeliveryMessage(reason: string) {
   }
 }
 
+function sanitizeUser(user: any) {
+  if (!user) return user;
+  const { password_hash, ...safeUser } = user;
+  return safeUser;
+}
+
 async function getUserFromRequest(req: any) {
   const userId = getUserIdFromAuth(req);
   if (!userId) return null;
@@ -233,7 +239,7 @@ export class AuthController {
     });
 
     const token = signToken(user);
-    return { token, user };
+    return { token, user: sanitizeUser(user) };
   }
 
   @Post('register')
@@ -263,7 +269,7 @@ export class AuthController {
     });
 
     const token = signToken(user);
-    return { token, user };
+    return { token, user: sanitizeUser(user) };
   }
 
   @Post('login')
@@ -291,7 +297,7 @@ export class AuthController {
     });
 
     const token = signToken(user);
-    return { token, user };
+    return { token, user: sanitizeUser(user) };
   }
 
   @Post('google')
@@ -335,14 +341,14 @@ export class AuthController {
     }
 
     const token = signToken(user);
-    return { token, user };
+    return { token, user: sanitizeUser(user) };
   }
 
   @Get('me')
   async me(@Req() req: any) {
     const user = await getUserFromRequest(req);
     if (!user) throw new UnauthorizedException('not authenticated');
-    return user;
+    return sanitizeUser(user);
   }
 
   @Patch('update')
@@ -395,6 +401,6 @@ export class AuthController {
       });
     }
 
-    return updated;
+    return sanitizeUser(updated);
   }
 }
