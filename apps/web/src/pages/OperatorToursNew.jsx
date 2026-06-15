@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -659,6 +660,35 @@ export default function OperatorToursNew() {
             )}
           </p>
         </header>
+
+        {!isAuthenticatedMode ? (
+          <section className="page-card">
+            <div className="space-y-3">
+              <p className="text-sm text-[#00D9FF]">Sign in required</p>
+              <h2 className="text-2xl font-semibold text-white">Sign in as a guide to create or edit tours</h2>
+              <p className="max-w-2xl text-sm text-[#a0a0a0]">
+                This page uses your guide account to load your profile and tours. If you are a new guide, create your account first. If you already signed up, use your 6-digit code to continue.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link
+                to="/guide/register"
+                className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] px-6 text-sm font-black uppercase tracking-[0.14em] text-white transition-transform hover:scale-[1.01]"
+              >
+                Continue as guide
+              </Link>
+              <Link
+                to="/tours"
+                className="inline-flex h-12 items-center justify-center rounded-2xl border border-[#00D9FF]/40 px-6 text-sm font-semibold text-[#00D9FF] transition hover:bg-[#00D9FF]/10 hover:text-white"
+              >
+                Explore tours instead
+              </Link>
+            </div>
+          </section>
+        ) : null}
+
+        {isAuthenticatedMode ? (
+          <>
 
         <section className="page-card">
           <div className="flex items-center justify-between">
@@ -1438,6 +1468,8 @@ export default function OperatorToursNew() {
             </div>
           )}
         </section>
+          </>
+        ) : null}
       </div>
     </div>
   );
