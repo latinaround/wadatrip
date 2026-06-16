@@ -132,13 +132,15 @@ export default function GuideSignupPage() {
     <div className="page-shell">
       <div className="page-container py-10">
         <div className="mx-auto max-w-xl rounded-[28px] border border-[#2d3548] bg-[#1a1f3a] p-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.28)] md:p-8">
-          <p className="page-kicker text-[#16d7d0]">Become a guide</p>
+          <p className="page-kicker text-[#16d7d0]">
+            {mode === 'login' ? 'Step 1 of 2' : 'Become a guide'}
+          </p>
           <h1 className="mt-3 text-3xl font-semibold">
-            {mode === 'login' ? 'Sign in as a guide' : 'Create your guide account'}
+            {mode === 'login' ? 'Sign in to publish your tour' : 'Create your guide account'}
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-[#cad3df]">
             {mode === 'login'
-              ? 'Use your email and 6-digit code to continue to tour publishing.'
+              ? 'Enter your email, receive a 6-digit code, and then we will take you straight to Publish tours.'
               : 'Start with your email, enter a one-time code, and then publish your first tour.'}
           </p>
 
@@ -201,7 +203,13 @@ export default function GuideSignupPage() {
                 {busy
                   ? 'Processing...'
                   : authMethod === 'code'
-                    ? codeSent ? 'Continue with code' : 'Email me a code'
+                    ? codeSent
+                      ? mode === 'login'
+                        ? 'Continue to publish tours'
+                        : 'Continue with code'
+                      : mode === 'login'
+                        ? 'Send code to continue'
+                        : 'Email me a code'
                     : mode === 'register'
                       ? 'Create account'
                       : 'Sign in'}
