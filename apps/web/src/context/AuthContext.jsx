@@ -3,6 +3,15 @@ import { AppConfig } from '../config/appConfig';
 
 const tokenStorageKey = 'wadatrip_token';
 
+function readInitialToken() {
+  if (typeof window === 'undefined') return null;
+  const hash = String(window.location.hash || '');
+  if (hash.startsWith('#auth_token=')) {
+    return decodeURIComponent(hash.slice('#auth_token='.length)) || null;
+  }
+  return window.localStorage.getItem(tokenStorageKey);
+}
+
 function authCodeDeliveryMessage(reason) {
   switch (String(reason || '')) {
     case 'email_not_configured':
@@ -62,8 +71,7 @@ async function jsonRequest(path, options = {}) {
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => {
-    if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(tokenStorageKey);
+    return readInitialToken();
   });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -105,6 +113,9 @@ export function AuthProvider({ children }) {
   }, [persistToken]);
 
   useEffect(() => {
+    if (token) {
+      persistToken(token);
+    }
     setLoading(true);
     fetchProfile(token);
   }, [token, fetchProfile]);
