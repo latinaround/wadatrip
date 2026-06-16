@@ -9,6 +9,8 @@ import { buildTourCode, buildTourSlug, findListingIdFromSlug, isLikelyListingId 
 import { useAuth } from '../context/AuthContext.jsx';
 import { uploadImageFile } from '../services/mediaUpload';
 
+const tokenStorageKey = 'wadatrip_token';
+
 const emptyProvider = {
   type: 'operator',
   name: '',
@@ -80,6 +82,17 @@ export default function OperatorToursNew() {
   const providerApprovalStatus = String(providerStatus?.status || providerStatus?.verification_status || '').toLowerCase();
   const providerApproved = ['approved', 'verified'].includes(providerApprovalStatus);
   const hasOwnedListings = ownedListings.length > 0;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = String(window.location.hash || '');
+    if (!hash.startsWith('#auth_token=')) return;
+    const incomingToken = decodeURIComponent(hash.slice('#auth_token='.length));
+    if (!incomingToken) return;
+    window.localStorage.setItem(tokenStorageKey, incomingToken);
+    const cleanUrl = `${window.location.pathname}${window.location.search}`;
+    window.location.replace(cleanUrl);
+  }, []);
 
   const authFetch = useCallback(async (path, init = {}) => {
     const headers = new Headers(init.headers || {});

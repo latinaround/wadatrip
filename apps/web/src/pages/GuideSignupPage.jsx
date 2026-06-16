@@ -4,6 +4,10 @@ import { AppConfig } from '../config/appConfig';
 
 const tokenStorageKey = 'wadatrip_token';
 
+function buildGuideReturnUrl(path, token) {
+  return `${path}#auth_token=${encodeURIComponent(token)}`;
+}
+
 async function guideAuthRequest(path, body) {
   const baseUrl = AppConfig.api.baseUrl?.replace(/\/$/, '') || '';
   const timeoutMs = Number(AppConfig.api.timeout) || 10000;
@@ -87,7 +91,7 @@ export default function GuideSignupPage() {
         });
         if (payload?.token) {
           window.localStorage.setItem(tokenStorageKey, payload.token);
-          window.location.assign(returnTo);
+          window.location.assign(buildGuideReturnUrl(returnTo, payload.token));
           return;
         }
       } else if (mode === 'register') {
@@ -102,7 +106,7 @@ export default function GuideSignupPage() {
         });
         if (payload?.token) {
           window.localStorage.setItem(tokenStorageKey, payload.token);
-          window.location.assign(returnTo);
+          window.location.assign(buildGuideReturnUrl(returnTo, payload.token));
           return;
         }
       } else {
@@ -115,7 +119,7 @@ export default function GuideSignupPage() {
         });
         if (payload?.token) {
           window.localStorage.setItem(tokenStorageKey, payload.token);
-          window.location.assign(returnTo);
+          window.location.assign(buildGuideReturnUrl(returnTo, payload.token));
           return;
         }
       }
