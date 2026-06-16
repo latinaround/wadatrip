@@ -11,6 +11,15 @@ import { uploadImageFile } from '../services/mediaUpload';
 
 const tokenStorageKey = 'wadatrip_token';
 
+function readOperatorSessionToken() {
+  if (typeof window === 'undefined') return null;
+  const hash = String(window.location.hash || '');
+  if (hash.startsWith('#auth_token=')) {
+    return decodeURIComponent(hash.slice('#auth_token='.length)) || null;
+  }
+  return window.localStorage.getItem(tokenStorageKey);
+}
+
 const emptyProvider = {
   type: 'operator',
   name: '',
@@ -54,6 +63,7 @@ export default function OperatorToursNew() {
   const { user, token, logout } = useAuth();
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const siteOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+  const sessionToken = useMemo(() => token || readOperatorSessionToken(), [token]);
   const [accessCode, setAccessCode] = useState('');
   const [providerForm, setProviderForm] = useState(emptyProvider);
   const [providerStatus, setProviderStatus] = useState(null);
@@ -77,7 +87,7 @@ export default function OperatorToursNew() {
   const [loadingOwnedListings, setLoadingOwnedListings] = useState(false);
 
   const accessCodeTrimmed = accessCode.trim();
-  const isAuthenticatedMode = Boolean(token);
+  const isAuthenticatedMode = Boolean(sessionToken);
   const ownedProviderId = providerStatus?.id ? String(providerStatus.id) : '';
   const providerApprovalStatus = String(providerStatus?.status || providerStatus?.verification_status || '').toLowerCase();
   const providerApproved = ['approved', 'verified'].includes(providerApprovalStatus);
@@ -99,8 +109,8 @@ export default function OperatorToursNew() {
     if (!headers.has('Content-Type') && init.method && init.method !== 'GET') {
       headers.set('Content-Type', 'application/json');
     }
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
+    if (sessionToken) {
+      headers.set('Authorization', `Bearer ${sessionToken}`);
     }
     if (accessCodeTrimmed) {
       headers.set('x-operator-access-code', accessCodeTrimmed);
@@ -119,7 +129,7 @@ export default function OperatorToursNew() {
       throw error;
     }
     return payload;
-  }, [accessCodeTrimmed, apiBase, token]);
+  }, [accessCodeTrimmed, apiBase, sessionToken]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -157,7 +167,7 @@ export default function OperatorToursNew() {
   }, [user?.email, user?.name]);
 
   const loadOwnedProvider = useCallback(async () => {
-    if (!token) {
+    if (!sessionToken) {
       setProviderStatus(null);
       setProviderForm((prev) => ({
         ...prev,
@@ -188,14 +198,14 @@ export default function OperatorToursNew() {
     } finally {
       setLoadingOwnedProvider(false);
     }
-  }, [applyProviderProfile, authFetch, logout, token, user?.email, user?.name]);
+  }, [applyProviderProfile, authFetch, logout, sessionToken, user?.email, user?.name]);
 
   useEffect(() => {
     loadOwnedProvider();
   }, [loadOwnedProvider]);
 
   const loadOwnedListings = useCallback(async () => {
-    if (!token) {
+    if (!sessionToken) {
       setOwnedListings([]);
       return [];
     }
@@ -213,7 +223,7 @@ export default function OperatorToursNew() {
     } finally {
       setLoadingOwnedListings(false);
     }
-  }, [authFetch, logout, token]);
+  }, [authFetch, logout, sessionToken]);
 
   useEffect(() => {
     loadOwnedListings();
@@ -549,11 +559,11 @@ export default function OperatorToursNew() {
   };
 
   useEffect(() => {
-    if (pendingEditId && (accessCodeTrimmed || token)) {
+    if (pendingEditId && (accessCodeTrimmed || sessionToken)) {
       handleLoadTourById(pendingEditId);
       setPendingEditId(null);
     }
-  }, [pendingEditId, accessCodeTrimmed, token]);
+  }, [pendingEditId, accessCodeTrimmed, sessionToken]);
 
   const handleLoadTour = async (event) => {
     event.preventDefault();
