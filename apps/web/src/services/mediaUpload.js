@@ -10,18 +10,65 @@ const fallbackConfig = {
   appId: '1:981114942208:web:5cf9e5f1f4d0a1f9000000',
 };
 
+function resolveFirebaseAppId() {
+  const envAppId = String(import.meta.env.VITE_FB_APP_ID || '').trim();
+  if (envAppId.includes(':web:')) return envAppId;
+  return fallbackConfig.appId;
+}
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FB_API_KEY || fallbackConfig.apiKey,
   authDomain: import.meta.env.VITE_FB_AUTH_DOMAIN || fallbackConfig.authDomain,
   projectId: import.meta.env.VITE_FB_PROJECT_ID || fallbackConfig.projectId,
   storageBucket: import.meta.env.VITE_FB_STORAGE_BUCKET || fallbackConfig.storageBucket,
   messagingSenderId: import.meta.env.VITE_FB_MESSAGING_SENDER_ID || fallbackConfig.messagingSenderId,
-  appId: import.meta.env.VITE_FB_APP_ID || fallbackConfig.appId,
+  appId: resolveFirebaseAppId(),
 };
 
+function ensureFirebaseConfig() {
+  const missing = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'appId'].filter(
+    (key) => !String(firebaseConfig[key] || '').trim()
+  );
+  if (missing.length) {
+    throw new Error('Image upload is not configured right now. Paste an image URL instead.');
+  }
+}
+
+function formatUploadError(error) {
+  const code = String(error?.code || '').toLowerCase();
+  const serverResponse = String(error?.serverResponse || error?.customData?.serverResponse || '').trim();
+
+  if (code.includes('retry-limit-exceeded')) {
+    return 'Image upload took too long. Try again, or paste an image URL instead.';
+  }
+  if (code.includes('unauthorized') || code.includes('unauthenticated')) {
+    return 'Image upload is not authorized right now. Paste an image URL instead.';
+  }
+  if (code.includes('quota-exceeded')) {
+    return 'Image upload is temporarily unavailable. Paste an image URL or use a destination cover instead.';
+  }
+  if (
+    code.includes('invalid-default-bucket') ||
+    code.includes('no-default-bucket') ||
+    code.includes('bucket-not-found') ||
+    code.includes('project-not-found')
+  ) {
+    return 'Image storage is not configured correctly right now. Paste an image URL instead.';
+  }
+  if (serverResponse) {
+    return `Image upload failed. ${serverResponse}`;
+  }
+  return 'Image upload failed. Paste an image URL instead.';
+}
+
 function ensureFirebaseStorage() {
+  ensureFirebaseConfig();
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  return getStorage(app);
+  const bucket = String(firebaseConfig.storageBucket || '').trim().replace(/^gs:\/\//, '');
+  const storage = bucket ? getStorage(app, `gs://${bucket}`) : getStorage(app);
+  storage.maxUploadRetryTime = 15000;
+  storage.maxOperationRetryTime = 10000;
+  return storage;
 }
 
 function sanitizePathPart(value, fallback = 'guest') {
@@ -54,14 +101,18 @@ export async function uploadImageFile(file, { folder = 'uploads', ownerId = 'gue
   const extension = inferExtension(file);
   const safeFolder = sanitizePathPart(folder, 'uploads');
   const safeOwner = sanitizePathPart(ownerId, 'guest');
-  const storage = ensureFirebaseStorage();
-  const storageRef = ref(storage, `${safeFolder}/${safeOwner}/${Date.now()}.${extension}`);
+  try {
+    const storage = ensureFirebaseStorage();
+    const storageRef = ref(storage, `${safeFolder}/${safeOwner}/${Date.now()}.${extension}`);
 
-  await uploadBytes(storageRef, file, {
-    contentType: file.type || `image/${extension}`,
-  });
+    await uploadBytes(storageRef, file, {
+      contentType: file.type || `image/${extension}`,
+    });
 
-  return getDownloadURL(storageRef);
+    return getDownloadURL(storageRef);
+  } catch (error) {
+    throw new Error(formatUploadError(error));
+  }
 }
 
 export default {

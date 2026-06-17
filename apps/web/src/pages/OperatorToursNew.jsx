@@ -1065,6 +1065,9 @@ export default function OperatorToursNew() {
                   className="mt-3 h-28 w-28 rounded-[20px] object-cover shadow-[0_16px_36px_rgba(15,23,42,0.12)]"
                 />
               ) : null}
+              <p className="mt-2 text-xs text-[#a0a0a0]">
+                If upload fails, paste a public image URL instead.
+              </p>
             </div>
             <div>
               <label htmlFor="provider-base-city" className="text-sm text-[#e0e0e0]">
@@ -1491,6 +1494,9 @@ export default function OperatorToursNew() {
                   className="mt-3 h-48 w-full rounded-[20px] object-cover shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
                 />
               ) : null}
+              <p className="mt-2 text-xs text-[#a0a0a0]">
+                If upload fails, paste a public image URL or use the destination cover.
+              </p>
             </div>
             <div className="flex items-center gap-2 text-sm text-[#e0e0e0]">
               <input
