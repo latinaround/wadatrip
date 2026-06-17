@@ -1,3 +1,5 @@
+import { getFirebaseAuth } from './firebase'
+
 export function getApiBase() {
   const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
   return base.replace(/\/$/, '')
@@ -5,8 +7,7 @@ export function getApiBase() {
 
 async function getIdToken() {
   try {
-    const { getFirebaseAuth } = await import('./firebase')
-    const auth = getFirebaseAuth()
+    const auth = await getFirebaseAuth()
     const user = auth?.currentUser
     if (user && user.getIdToken) return await user.getIdToken()
   } catch {}
@@ -26,4 +27,3 @@ export async function apiFetch(path, init = {}) {
   }
   return res.json()
 }
-

@@ -116,12 +116,12 @@ const CheckoutDialog = ({
   const mockMessage = useMemo(() => {
     if (!mock) return null;
     if (mockReason === 'stripe_disabled') {
-      return `Stripe is not configured (missing STRIPE_SECRET_KEY). Demo intent ${amountLabel(amountCents, currency)} with no real charge.`;
+      return `Preview booking only. Payments are not fully enabled yet, so no real charge will be made for ${amountLabel(amountCents, currency)}.`;
     }
     if (mockReason === 'provider_missing_connect') {
-      return `The provider does not have a connected Stripe account. Demo intent ${amountLabel(amountCents, currency)} with no real charge.`;
+      return `Preview booking only. This host is not ready for live payouts yet, so no real charge will be made for ${amountLabel(amountCents, currency)}.`;
     }
-    return `Payments in demo mode. Intent ${amountLabel(amountCents, currency)} with no real charge.`;
+    return `Preview booking only. No real charge will be made for ${amountLabel(amountCents, currency)}.`;
   }, [mock, mockReason, amountCents, currency]);
 
   return (
@@ -168,7 +168,7 @@ const CheckoutDialog = ({
           <div className="space-y-4">
             {mock ? (
               <Button className="w-full" onClick={() => { onPaymentSuccess?.({ status: 'succeeded', mock: true, mockReason }); }}>
-                Confirm booking (demo mode)
+                Continue in preview mode
               </Button>
             ) : stripePromise ? (
               <Elements stripe={stripePromise} options={{ clientSecret }}>

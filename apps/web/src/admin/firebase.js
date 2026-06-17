@@ -1,5 +1,4 @@
 import { initializeApp, getApps } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
 
 const cfg = {
   apiKey: import.meta.env.VITE_FB_API_KEY,
@@ -16,14 +15,16 @@ export function ensureFirebase() {
   return app
 }
 
-export function getFirebaseAuth() {
+export async function getFirebaseAuth() {
   ensureFirebase()
-  return getAuth()
+  const mod = await import('firebase/auth')
+  if (!mod?.getAuth) throw new Error('firebase/auth not available')
+  return mod.getAuth()
 }
 
 // Helper para login por email que evita import estático en Login.jsx
 export async function signInEmail(email, password) {
-  const auth = getFirebaseAuth()
+  const auth = await getFirebaseAuth()
   try {
     const mod = await import('firebase/auth')
     if (!mod?.signInWithEmailAndPassword) throw new Error('firebase/auth not available')

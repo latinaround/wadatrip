@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth'
 import { getFirebaseAuth } from './firebase'
 
 const AdminContext = createContext({ user: null, isAdmin: false, ready: false })
@@ -25,12 +24,25 @@ export function AdminProvider({ children }) {
       setReady(true)
       return () => {}
     }
-    const auth = getFirebaseAuth()
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u || null)
-      setReady(true)
-    })
-    return unsub
+    let unsub = () => {}
+    let active = true
+    ;(async () => {
+      try {
+        const auth = await getFirebaseAuth()
+        const mod = await import('firebase/auth')
+        if (!active || !mod?.onAuthStateChanged) return
+        unsub = mod.onAuthStateChanged(auth, (u) => {
+          setUser(u || null)
+          setReady(true)
+        })
+      } catch {
+        if (active) setReady(true)
+      }
+    })()
+    return () => {
+      active = false
+      unsub()
+    }
   }, [])
 
   const isAdmin = useMemo(() => {
@@ -43,7 +55,15 @@ export function AdminProvider({ children }) {
     setUser,
     isAdmin,
     ready,
-    signOut: () => DEV_BYPASS ? setUser(null) : fbSignOut(getFirebaseAuth())
+    signOut: async () => {
+      if (DEV_BYPASS) {
+        setUser(null)
+        return
+      }
+      const auth = await getFirebaseAuth()
+      const mod = await import('firebase/auth')
+      return mod.signOut(auth)
+    }
   }), [user, isAdmin, ready])
   return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>
 }

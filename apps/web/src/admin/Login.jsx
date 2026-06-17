@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getFirebaseAuth, signInEmail } from './firebase'
+import { signInEmail } from './firebase'
 import { useAdmin } from './auth'
 import { Button } from '@/components/ui/button'
 
