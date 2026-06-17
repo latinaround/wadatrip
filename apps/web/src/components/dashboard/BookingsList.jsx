@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import StatusBadge from './StatusBadge.jsx';
 
 const formatDate = (value) => {
-  if (!value) return 'Sin fecha';
+  if (!value) return 'No date';
   try {
-    return new Date(value).toLocaleString('es-ES', {
+    return new Date(value).toLocaleString(undefined, {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',
@@ -34,11 +34,11 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
   <Card className="border border-[#2d3548]/60 shadow-sm">
     <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <div>
-        <CardTitle className="text-lg font-semibold text-white">Tus reservas</CardTitle>
-        <p className="text-sm text-[#a0a0a0]">Resumen de las reservas creadas desde la web.</p>
+        <CardTitle className="text-lg font-semibold text-white">Your bookings</CardTitle>
+        <p className="text-sm text-[#a0a0a0]">Recent bookings created from the web marketplace.</p>
       </div>
       <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
-        {loading ? 'Actualizando...' : 'Actualizar'}
+        {loading ? 'Refreshing...' : 'Refresh'}
       </Button>
     </CardHeader>
     <CardContent>
@@ -49,25 +49,25 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
       )}
       {!loading && bookings.length === 0 ? (
         <div className="py-8 text-center text-sm text-[#a0a0a0]">
-          Aun no tienes reservas confirmadas.
+          No bookings yet.
         </div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tour / itinerario</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Personas</TableHead>
+              <TableHead>Tour / itinerary</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Guests</TableHead>
               <TableHead>Total</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Pago</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Payment</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {(loading ? Array.from({ length: 3 }).map((_, index) => ({ id: `loading-${index}`, loading: true })) : bookings).map((booking) => (
               <TableRow key={booking.id || booking.internalId}>
                 <TableCell className="max-w-[220px] truncate font-medium text-slate-800">
-                  {booking.loading ? skeleton('w-32') : (booking.title || 'Reserva sin titulo')}
+                  {booking.loading ? skeleton('w-32') : (booking.title || 'Untitled booking')}
                   {booking.provider && !booking.loading && (
                     <span className="block text-xs text-[#a0a0a0]">{booking.provider}</span>
                   )}
@@ -76,7 +76,7 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
                 <TableCell>{booking.loading ? skeleton('w-10') : (booking.people ?? '-')}</TableCell>
                 <TableCell>{booking.loading ? skeleton('w-16') : formatCurrency(booking.total, booking.currency)}</TableCell>
                 <TableCell>{booking.loading ? skeleton('w-20') : <StatusBadge status={booking.status} />}</TableCell>
-                <TableCell>{booking.loading ? skeleton('w-24') : <StatusBadge status={booking.paymentStatus} fallback="sin pago" />}</TableCell>
+                <TableCell>{booking.loading ? skeleton('w-24') : <StatusBadge status={booking.paymentStatus} fallback="unpaid" />}</TableCell>
               </TableRow>
             ))}
           </TableBody>

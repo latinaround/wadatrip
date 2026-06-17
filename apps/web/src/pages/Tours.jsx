@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
 import { getListingPriceBadge, isFreeTour } from '../utils/listingMode';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
@@ -218,6 +220,7 @@ export default function Tours() {
   const activeCities = useMemo(() => {
     return Array.from(new Set(experiences.map((item) => String(item.city || '').trim()).filter(Boolean))).slice(0, 6);
   }, [experiences]);
+  const suggestedCities = useMemo(() => getCitySuggestions(filters.country), [filters.country]);
 
   return (
     <div className="page-shell">
@@ -254,17 +257,33 @@ export default function Tours() {
                     value={filters.city}
                     onChange={(event) => handleFilterChange('city', event.target.value)}
                     placeholder="Lima"
+                    list="tours-city-suggestions"
                     className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
                   />
+                  <datalist id="tours-city-suggestions">
+                    {suggestedCities.map((city) => <option key={city} value={city} />)}
+                  </datalist>
                 </div>
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">Country</label>
-                  <input
-                    value={filters.country}
-                    onChange={(event) => handleFilterChange('country', event.target.value)}
-                    placeholder="PE"
-                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
-                  />
+                  <div className="mt-2">
+                    <Select
+                      value={normalizeCountryCode(filters.country) || 'all'}
+                      onValueChange={(value) => handleFilterChange('country', value === 'all' ? '' : value)}
+                    >
+                      <SelectTrigger className="h-[50px] w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 text-sm text-[#172033]">
+                        <SelectValue placeholder="Choose a country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All countries</SelectItem>
+                        {COUNTRY_OPTIONS.map((country) => (
+                          <SelectItem key={country.code} value={country.code}>
+                            {country.label} ({country.code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <button
                   type="button"

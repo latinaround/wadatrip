@@ -185,7 +185,7 @@ const Account = () => {
   const [guideMessage, setGuideMessage] = useState(null);
 
   const fetchJson = useCallback(async (path, init = {}) => {
-    if (!token) throw new Error('Usuario no autenticado');
+    if (!token) throw new Error('User is not authenticated');
     const headers = new Headers(init.headers || {});
     headers.set('Accept', 'application/json');
     headers.set('Content-Type', 'application/json');
@@ -240,7 +240,7 @@ const Account = () => {
       setItineraries(normalizeItineraries(data));
     } catch (error) {
       setItineraries([]);
-      setItinerariesError(error?.message || 'No se pudieron cargar los itinerarios');
+      setItinerariesError(error?.message || 'Could not load itineraries');
       if (error?.status === 401) logout?.();
     } finally {
       setItinerariesLoading(false);
@@ -260,7 +260,7 @@ const Account = () => {
       setBookings(normalizeBookings(data));
     } catch (error) {
       setBookings([]);
-      setBookingsError(error?.message || 'No se pudieron cargar las reservas');
+      setBookingsError(error?.message || 'Could not load bookings');
       if (error?.status === 401) logout?.();
     } finally {
       setBookingsLoading(false);
@@ -302,7 +302,7 @@ const Account = () => {
       }
       setGuideProfile(null);
       setGuideForm(buildGuideForm(null, user));
-      setGuideMessage(error?.message || 'No se pudo cargar tu perfil de guia.');
+      setGuideMessage(error?.message || 'Could not load your guide profile.');
     } finally {
       setGuideLoading(false);
     }
@@ -371,7 +371,7 @@ const Account = () => {
       await refreshProfile?.();
       setAccountMessage('Your account identity was updated.');
     } catch (error) {
-      setAccountMessage(error?.message || 'No se pudo guardar tu cuenta.');
+      setAccountMessage(error?.message || 'Could not save your account.');
       if (error?.status === 401) logout?.();
     } finally {
       setAccountSaving(false);
@@ -407,7 +407,7 @@ const Account = () => {
       setGuideForm(buildGuideForm(data, user));
       setGuideMessage('Your guide profile now belongs to your account and was saved securely.');
     } catch (error) {
-      setGuideMessage(error?.message || 'No se pudo guardar tu perfil de guia.');
+      setGuideMessage(error?.message || 'Could not save your guide profile.');
       if (error?.status === 401) logout?.();
     } finally {
       setGuideSaving(false);
@@ -416,10 +416,10 @@ const Account = () => {
 
   if (!user) {
     return (
-      <section className="py-20 bg-[#0a0e27]">
+        <section className="py-20 bg-[#0a0e27]">
         <div className="container mx-auto px-4 text-center max-w-xl">
-          <h1 className="text-3xl font-bold mb-4 text-white">Inicia sesion para ver tus viajes</h1>
-          <p className="text-[#a0a0a0]">Guarda itinerarios personalizados y retomalos cuando quieras.</p>
+          <h1 className="text-3xl font-bold mb-4 text-white">Sign in to view your trips</h1>
+          <p className="text-[#a0a0a0]">Save custom itineraries and come back to them whenever you want.</p>
         </div>
       </section>
     );
@@ -430,7 +430,7 @@ const Account = () => {
       <div className="container mx-auto px-4 space-y-10">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-white">Hola, {user.name || user.email}</h1>
-          <p className="text-[#a0a0a0]">Gestiona tus itinerarios, tu identidad y tu perfil publico desde una sola cuenta.</p>
+          <p className="text-[#a0a0a0]">Manage your itineraries, account identity, and public guide profile from one place.</p>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
@@ -463,7 +463,7 @@ const Account = () => {
                   type="email"
                 />
                 <p className="mt-2 text-xs text-[#a0a0a0]">
-                  Si cambias el email, tu perfil de guia queda sincronizado con esta identidad.
+                  If you change this email, your guide profile stays linked to the same account identity.
                 </p>
               </div>
               {accountMessage ? (
@@ -482,7 +482,7 @@ const Account = () => {
               <div>
                 <h2 className="text-lg font-semibold text-white">Guide ownership</h2>
                 <p className="mt-1 text-sm text-[#a0a0a0]">
-                  Solo tu sesion autenticada puede editar este perfil. Ya no depende solo de un codigo compartido.
+                  Only your authenticated session can edit this profile. It no longer depends on a shared code alone.
                 </p>
               </div>
               <div className="rounded-full border border-[#00D9FF]/30 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[#7dd3fc]">
@@ -618,7 +618,7 @@ const Account = () => {
                     value={guideForm.bio_short}
                     onChange={(event) => handleGuideField('bio_short', event.target.value)}
                     className="mt-2 min-h-[120px] neon-input"
-                    placeholder="Cuentales por que deberian reservar contigo."
+                    placeholder="Tell travelers why they should book with you."
                   />
                 </div>
 
@@ -681,7 +681,7 @@ const Account = () => {
                 </div>
               )}
 
-              {itinerariesLoading ? (
+                {itinerariesLoading ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {Array.from({ length: 3 }).map((_, index) => (
                     <div key={index} className="h-60 rounded-xl border border-[#2d3548] bg-[#1a1f3a]/60 animate-pulse" />
@@ -689,7 +689,7 @@ const Account = () => {
                 </div>
               ) : itineraries.length === 0 ? (
                 <div className="py-8 text-center text-sm text-[#a0a0a0]">
-                  Cuando generes itinerarios con proveedores reales apareceran aqui.
+                  Saved itineraries will appear here after you generate them.
                 </div>
               ) : (
                 <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -723,13 +723,13 @@ const Account = () => {
             <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-white">Security posture</h2>
               <p className="mt-2 text-sm text-[#a0a0a0]">
-                WadaTrip ya protege la cuenta con JWT y scope propio, pero todavia no es seguridad de banco.
+                WadaTrip already protects the account with JWT-based auth and account ownership, but this is still not bank-grade security.
               </p>
               <ul className="mt-4 space-y-2 text-sm text-[#a0a0a0]">
-                <li> Tu cuenta y tu perfil de guia ahora quedan ligados por `user_id`.</li>
-                <li> El perfil publico se edita desde tu propia sesion autenticada.</li>
-                <li> El email del guia hereda la identidad principal de tu cuenta.</li>
-                <li> Aun conviene reforzar XSS, rotacion de tokens y futuros cambios de contrasena/MFA.</li>
+                <li>Your account and guide profile are now linked through `user_id`.</li>
+                <li>Your public guide profile is edited from your own authenticated session.</li>
+                <li>The guide email inherits your main account identity.</li>
+                <li>There is still room to harden XSS protection, token rotation, and future password reset / MFA flows.</li>
               </ul>
             </div>
           </div>

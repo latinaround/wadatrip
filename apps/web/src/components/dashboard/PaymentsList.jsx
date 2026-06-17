@@ -3,9 +3,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import StatusBadge from './StatusBadge.jsx';
 
 const formatDate = (value) => {
-  if (!value) return 'Sin fecha';
+  if (!value) return 'No date';
   try {
-    return new Date(value).toLocaleString('es-ES', {
+    return new Date(value).toLocaleString(undefined, {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -30,8 +30,8 @@ const skeleton = (className) => (
 const PaymentsList = ({ payments = [], loading, error }) => (
   <Card className="border border-[#2d3548]/60 shadow-sm">
     <CardHeader>
-      <CardTitle className="text-lg font-semibold text-white">Pagos recientes</CardTitle>
-      <p className="text-sm text-[#a0a0a0]">Historial de intents y cargos asociados a tus reservas.</p>
+      <CardTitle className="text-lg font-semibold text-white">Recent payments</CardTitle>
+      <p className="text-sm text-[#a0a0a0]">Payment history connected to your bookings.</p>
     </CardHeader>
     <CardContent>
       {error && (
@@ -41,17 +41,17 @@ const PaymentsList = ({ payments = [], loading, error }) => (
       )}
       {!loading && payments.length === 0 ? (
         <div className="py-8 text-center text-sm text-[#a0a0a0]">
-          No se encontraron pagos asociados a tu cuenta.
+          No payments found for this account.
         </div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Monto</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Metodo</TableHead>
-              <TableHead>Reserva</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Method</TableHead>
+              <TableHead>Booking</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -63,7 +63,7 @@ const PaymentsList = ({ payments = [], loading, error }) => (
                 <TableCell>{payment.loading ? skeleton('w-20') : (payment.method || 'card')}</TableCell>
                 <TableCell>{payment.loading ? skeleton('w-28') : (payment.bookingId || payment.reference || '-')}
                   {payment.mock && !payment.loading && (
-                    <span className="block text-xs text-amber-600">Modo demostracion</span>
+                    <span className="block text-xs text-amber-600">Demo mode</span>
                   )}
                 </TableCell>
               </TableRow>
