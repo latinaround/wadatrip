@@ -14,7 +14,7 @@ const ResultsSection = ({ searchData, itinerary, isLoading, error, notice, onSta
       <section className="py-20 bg-[#0a0e27]">
         <div className="container mx-auto px-4 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00D9FF] mx-auto mb-4"></div>
-          <p className="text-[#a0a0a0]">Buscando itinerarios reales</p>
+          <p className="text-[#a0a0a0]">Checking live itinerary options...</p>
         </div>
       </section>
     );
@@ -71,7 +71,7 @@ const ResultsSection = ({ searchData, itinerary, isLoading, error, notice, onSta
 
         {scenarios.length === 0 ? (
           <div className="text-center text-[#a0a0a0]">
-            {t('results.no_real_data') ?? 'No encontramos itinerarios para los filtros seleccionados. Ajusta tu bsqueda e intenta nuevamente.'}
+            {t('results.no_real_data') ?? 'We could not find itinerary options for those filters. Adjust your search and try again.'}
             <div className="mt-4">
               <Button asChild variant="secondary" className="border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
                 <Link to="/tours">Explore real tours from local operators</Link>

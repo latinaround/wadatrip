@@ -160,13 +160,13 @@ function App() {
         const providerMessage = data && typeof data === 'object'
           ? (data.message || data.detail || data.error || data.reason)
           : null;
-        const fallback = t('errors.generate_failed', 'No se pudo generar el itinerario con proveedores reales.');
+        const fallback = t('errors.generate_failed', 'We could not build this itinerary right now. Try again in a moment.');
         throw new Error(typeof providerMessage === 'string' && providerMessage.trim() ? providerMessage : fallback);
       }
 
       setCurrentItinerary({ itineraryId: data.itinerary_id, id: data.itinerary_id, scenarios: data.scenarios, meta });
     } catch (err) {
-      setSearchError(err?.message || 'Error generando el itinerario');
+      setSearchError(err?.message || 'We could not build this itinerary right now.');
       setCurrentItinerary(null);
     } finally {
       setIsLoading(false);
@@ -191,7 +191,7 @@ function App() {
         body: JSON.stringify({
           amount: amountCents,
           currency,
-          description: `Itinerario ${itineraryId} - ${scenario.type}`,
+          description: `Travel itinerary ${itineraryId} - ${scenario.type}`,
         }),
       });
 
@@ -201,11 +201,11 @@ function App() {
         const message = data && typeof data === 'object'
           ? (data.message || data.error || data.detail)
           : null;
-        throw new Error(message && message.trim() ? message : 'No se pudo crear el intent de pago');
+        throw new Error(message && message.trim() ? message : 'We could not start checkout for this itinerary.');
       }
 
       if (!data?.clientSecret) {
-        throw new Error('Stripe no devolvio un clientSecret valido');
+        throw new Error('Checkout is temporarily unavailable for this itinerary.');
       }
 
       setCheckoutState(prev => ({
@@ -221,7 +221,7 @@ function App() {
         ...prev,
         loading: false,
         clientSecret: null,
-        error: err?.message || 'Error al inicializar el pago',
+        error: err?.message || 'We could not start checkout for this itinerary.',
         mock: false,
         mockReason: null,
       }));
@@ -261,7 +261,7 @@ function App() {
   };
 
   const handlePaymentSuccess = () => {
-    setPaymentNotice('Pago confirmado. El itinerario qued reservado en tu cuenta.');
+    setPaymentNotice('Booking confirmed. This itinerary is now saved in your account.');
     setCheckoutState(() => ({ ...initialCheckoutState }));
   };
 

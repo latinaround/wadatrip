@@ -105,7 +105,7 @@ const CheckoutDialog = ({
 }) => {
   const [localError, setLocalError] = useState(null);
 
-  useMemo(() => {
+  useEffect(() => {
     if (!open) {
       setLocalError(null);
     }
@@ -116,7 +116,7 @@ const CheckoutDialog = ({
   const mockMessage = useMemo(() => {
     if (!mock) return null;
     if (mockReason === 'stripe_disabled') {
-      return `Preview booking only. Payments are not fully enabled yet, so no real charge will be made for ${amountLabel(amountCents, currency)}.`;
+      return `Preview booking only. Live checkout is not available for this itinerary yet, so no real charge will be made for ${amountLabel(amountCents, currency)}.`;
     }
     if (mockReason === 'provider_missing_connect') {
       return `Preview booking only. This host is not ready for live payouts yet, so no real charge will be made for ${amountLabel(amountCents, currency)}.`;
@@ -168,7 +168,7 @@ const CheckoutDialog = ({
           <div className="space-y-4">
             {mock ? (
               <Button className="w-full" onClick={() => { onPaymentSuccess?.({ status: 'succeeded', mock: true, mockReason }); }}>
-                Continue in preview mode
+                Save preview booking
               </Button>
             ) : stripePromise ? (
               <Elements stripe={stripePromise} options={{ clientSecret }}>
@@ -186,7 +186,7 @@ const CheckoutDialog = ({
             ) : (
               <Alert variant="destructive">
                 <AlertDescription>
-                  Configure VITE_STRIPE_PUBLISHABLE_KEY to enable payments.
+                  Live checkout is temporarily unavailable for this itinerary. Please try again later or choose another tour.
                 </AlertDescription>
               </Alert>
             )}
