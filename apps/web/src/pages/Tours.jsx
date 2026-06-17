@@ -58,6 +58,9 @@ function ExperienceCard({ experience, destinationCoverMap }) {
       <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#435164]">
         {experience.description || 'Compare verified local hosts offering the same experience in one clean view.'}
       </p>
+      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#167c7d]">
+        {freeTour ? 'Join flow, no checkout first' : 'Online checkout available'}
+      </p>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="space-y-2">
@@ -246,7 +249,7 @@ export default function Tours() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="page-kicker text-[#167c7d]">Filters</p>
-                  <p className="text-sm text-[#64748b]">Search by city, country, or free walking tours.</p>
+                  <p className="text-sm text-[#64748b]">Search by city, country, and whether you want free join flows or paid checkout tours.</p>
                 </div>
                 <div className="text-xs uppercase tracking-[0.18em] text-[#6b7687]">{experiences.length} experiences</div>
               </div>

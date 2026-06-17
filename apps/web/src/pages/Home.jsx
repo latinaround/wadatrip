@@ -218,12 +218,15 @@ export default function Home() {
                     {t('home.hero_primary', 'Explore tours')}
                   </Link>
                   <Link
-                    to={guideEntryHref}
+                    to="/tours?free_tour=true"
                     className="inline-flex h-12 items-center justify-center rounded-2xl border border-white/30 px-6 text-sm font-semibold text-white transition-colors hover:bg-white/10"
                   >
-                    {t('home.hero_secondary', 'Become a guide')}
+                    Start with free tours
                   </Link>
                 </div>
+                <p className="text-sm text-white/75">
+                  Start with free walking tours to meet hosts first, then book paid experiences when you are ready.
+                </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">

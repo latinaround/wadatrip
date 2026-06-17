@@ -381,7 +381,18 @@ export default function TourDetail() {
                   </p>
                   <p className="text-sm leading-relaxed text-[#526173]">{currentHost?.provider_bio_short || 'Verified local guide or operator ready to host this experience.'}</p>
                   {currentGuideHref || currentHostWhatsappUrl || currentHostInstagramUrl ? (
-                    <div className="flex flex-wrap gap-2 pt-2">
+              <div className="flex flex-wrap gap-2 pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full border border-[#d8ecea] bg-white/70 px-3 py-2 text-xs font-semibold text-[#167c7d] hover:bg-white"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          void handleCopyPublicLink()
+                        }}
+                      >
+                        Copy public link
+                      </Button>
                       {currentGuideHref ? (
                         <a
                           href={currentGuideHref}
@@ -467,6 +478,25 @@ export default function TourDetail() {
           <TrustItem label="Why travelers book" copy="Cleaner listings, verified hosts, and less duplicated marketplace noise." />
           <TrustItem label="What changes here" copy="You choose the experience first, then pick the host that fits your style and budget." />
           <TrustItem label={freeTour ? 'Before you join' : 'Before you pay'} copy={freeTour ? getListingShareCopy(currentHost) : 'Confirm the date, traveler count, and host you want before moving to checkout.'} />
+        </section>
+
+        <section className="rounded-[26px] border border-[#ddc2ae] bg-[linear-gradient(180deg,#f6e7da_0%,#fcf4ec_100%)] p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="page-kicker text-[#167c7d]">Share this tour</p>
+              <h2 className="mt-2 text-2xl font-semibold text-[#0f172a]">Send one clean link to travelers</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#526173]">
+                {getListingShareCopy(currentHost)}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="h-12 rounded-2xl border border-[#167c7d]/30 px-5 text-[#167c7d] hover:bg-[#e7f7f5]"
+              onClick={handleCopyPublicLink}
+            >
+              Copy public tour link
+            </Button>
+          </div>
         </section>
 
         <section className="space-y-5">
