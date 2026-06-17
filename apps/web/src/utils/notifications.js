@@ -17,7 +17,7 @@ export class NotificationService {
    */
   async init() {
     if (!this.isSupported) {
-      console.warn('Las notificaciones no están soportadas en este navegador');
+      console.warn('Notifications are not supported in this browser');
       return false;
     }
 
@@ -33,7 +33,7 @@ export class NotificationService {
    */
   async showNotification(title, options = {}) {
     if (!await this.init()) {
-      console.warn('Permisos de notificación no concedidos');
+      console.warn('Notification permission was not granted');
       return null;
     }
 
@@ -57,7 +57,7 @@ export class NotificationService {
 
       return notification;
     } catch (error) {
-      console.error('Error al mostrar notificación:', error);
+      console.error('Could not show notification:', error);
       return null;
     }
   }
@@ -68,8 +68,8 @@ export class NotificationService {
   async showFlightPriceAlert(flightInfo) {
     const { destination, currentPrice, previousPrice, savings } = flightInfo;
     
-    const title = `Precio de vuelo actualizado!`;
-    const body = `${destination}: $${currentPrice} (antes $${previousPrice}). Ahorra $${savings}!`;
+    const title = 'Flight price updated';
+    const body = `${destination}: $${currentPrice} (before $${previousPrice}). Save $${savings}.`;
     
     return await this.showNotification(title, {
       body,
@@ -77,8 +77,8 @@ export class NotificationService {
       tag: 'flight-price-alert',
       requireInteraction: true,
       actions: [
-        { action: 'view', title: 'Ver detalles' },
-        { action: 'dismiss', title: 'Descartar' }
+        { action: 'view', title: 'View details' },
+        { action: 'dismiss', title: 'Dismiss' }
       ]
     });
   }
@@ -87,8 +87,8 @@ export class NotificationService {
    * Notificación para itinerarios guardados
    */
   async showSavedItineraryNotification(itinerary) {
-    const title = 'Itinerario guardado';
-    const body = `Tu itinerario a ${itinerary.destination} ha sido guardado exitosamente.`;
+    const title = 'Itinerary saved';
+    const body = `Your itinerary to ${itinerary.destination} was saved successfully.`;
     
     return await this.showNotification(title, {
       body,
@@ -103,8 +103,8 @@ export class NotificationService {
   async showTripReminder(tripInfo) {
     const { destination, departureDate, daysLeft } = tripInfo;
     
-    const title = 'Recordatorio de viaje';
-    const body = `Tu viaje a ${destination} es en ${daysLeft} días (${departureDate}).`;
+    const title = 'Trip reminder';
+    const body = `Your trip to ${destination} is in ${daysLeft} days (${departureDate}).`;
     
     return await this.showNotification(title, {
       body,
@@ -130,7 +130,7 @@ export class NotificationService {
       try {
         callback(data);
       } catch (error) {
-        console.error('Error en callback de notificación:', error);
+        console.error('Notification callback failed:', error);
       }
     });
   }

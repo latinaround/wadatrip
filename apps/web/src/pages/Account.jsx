@@ -228,7 +228,7 @@ const Account = () => {
       }
     }
     if (lastError) throw lastError;
-    throw new Error('No hay datos disponibles');
+    throw new Error('No data is available right now.');
   }, [fetchJson]);
 
   const loadItineraries = useCallback(async () => {
@@ -280,7 +280,7 @@ const Account = () => {
       setPayments(normalizePayments(data));
     } catch (error) {
       setPayments([]);
-      setPaymentsError(error?.message || 'No se pudieron cargar los pagos');
+      setPaymentsError(error?.message || 'Could not load payments');
       if (error?.status === 401) logout?.();
     } finally {
       setPaymentsLoading(false);
@@ -429,7 +429,7 @@ const Account = () => {
     <section className="bg-[#0a0e27] py-16">
       <div className="container mx-auto px-4 space-y-10">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-white">Hola, {user.name || user.email}</h1>
+          <h1 className="text-3xl font-bold text-white">Hi, {user.name || user.email}</h1>
           <p className="text-[#a0a0a0]">Manage your itineraries, account identity, and public guide profile from one place.</p>
         </div>
 
@@ -439,7 +439,7 @@ const Account = () => {
               <div>
                 <h2 className="text-lg font-semibold text-white">Account identity</h2>
                 <p className="mt-1 text-sm text-[#a0a0a0]">
-                  Esta cuenta firma tus acciones con JWT. Desde aqui controlas tu nombre y el email principal.
+                  This account signs your actions with JWT. Manage your display name and primary email here.
                 </p>
               </div>
             </div>
@@ -667,11 +667,11 @@ const Account = () => {
             <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
               <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Itinerarios generados</h2>
-                  <p className="text-sm text-[#a0a0a0]">Todos los planes que guardaste desde el generador.</p>
+                  <h2 className="text-lg font-semibold text-white">Generated itineraries</h2>
+                  <p className="text-sm text-[#a0a0a0]">All the travel plans you saved from the itinerary builder.</p>
                 </div>
                 <Button size="sm" variant="outline" asChild>
-                  <Link to="/">Buscar nuevo viaje</Link>
+                  <Link to="/">Start a new trip</Link>
                 </Button>
               </div>
 

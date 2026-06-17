@@ -12,32 +12,32 @@ const defaultStats = {
 const cards = [
   {
     id: 'totalTrips',
-    label: 'Itinerarios guardados',
+    label: 'Saved itineraries',
     icon: Plane,
     accent: 'bg-teal-500/10 text-teal-500',
     formatter: (value) => value,
   },
   {
     id: 'upcomingTrips',
-    label: 'Viajes por venir',
+    label: 'Upcoming trips',
     icon: CalendarClock,
     accent: 'bg-sky-500/10 text-sky-500',
     formatter: (value) => value,
   },
   {
     id: 'pendingPayments',
-    label: 'Pagos pendientes',
+    label: 'Pending payments',
     icon: CreditCard,
     accent: 'bg-amber-500/10 text-amber-500',
     formatter: (value) => value,
   },
   {
     id: 'totalSpentCents',
-    label: 'Total invertido',
+    label: 'Total spent',
     icon: TrendingUp,
     accent: 'bg-emerald-500/10 text-emerald-500',
     formatter: (value, currency) => {
-      const formatter = new Intl.NumberFormat('es-ES', {
+      const formatter = new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency,
         maximumFractionDigits: 0,
