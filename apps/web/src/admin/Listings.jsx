@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from './api'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { COUNTRY_OPTIONS, normalizeCountryCode } from '@/utils/geoOptions'
 
 export default function ListingsPage() {
   const [rows, setRows] = useState([])
@@ -29,7 +31,7 @@ export default function ListingsPage() {
       params.set('sort', sort)
       if (q) params.set('q', q)
       if (city) params.set('city', city)
-      if (country) params.set('country', country)
+      if (country) params.set('country', normalizeCountryCode(country))
       if (category) params.set('category', category)
       if (status) params.set('status', status)
       const res = await apiFetch(`/listings/search?${params.toString()}`)
@@ -60,7 +62,21 @@ export default function ListingsPage() {
         </div>
         <div>
           <label className="block text-xs text-gray-600">Country</label>
-          <input className="border rounded px-2 py-1" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="US" />
+          <div className="mt-1 min-w-[170px]">
+            <Select value={normalizeCountryCode(country) || 'all'} onValueChange={(value) => setCountry(value === 'all' ? '' : value)}>
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder="All countries" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All countries</SelectItem>
+                {COUNTRY_OPTIONS.map((item) => (
+                  <SelectItem key={item.code} value={item.code}>
+                    {item.label} ({item.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div>
           <label className="block text-xs text-gray-600">Category</label>
@@ -104,7 +120,7 @@ export default function ListingsPage() {
           <thead className="bg-gray-50 text-left">
             <tr>
               <th className="px-3 py-2">ID</th>
-              <th className="px-3 py-2">Provider</th>
+              <th className="px-3 py-2">Provider ID</th>
               <th className="px-3 py-2">Title</th>
               <th className="px-3 py-2">City</th>
               <th className="px-3 py-2">Price from</th>

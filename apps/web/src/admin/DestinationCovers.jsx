@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { apiFetch } from './api'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { COUNTRY_OPTIONS, normalizeCountryCode } from '@/utils/geoOptions'
 
 const emptyForm = {
   slug: '',
@@ -39,7 +41,7 @@ export default function DestinationCoversPage() {
       params.set('limit', String(limit))
       if (q) params.set('q', q)
       if (city) params.set('city', city)
-      if (countryCode) params.set('country_code', countryCode.toUpperCase())
+      if (countryCode) params.set('country_code', normalizeCountryCode(countryCode))
       const res = await apiFetch(`/destination-covers?${params.toString()}`)
       const items = Array.isArray(res?.items) ? res.items : []
       setRows(items)
@@ -60,7 +62,7 @@ export default function DestinationCoversPage() {
     setForm({
       slug: item.slug || '',
       city: item.city || '',
-      country_code: item.country_code || '',
+      country_code: normalizeCountryCode(item.country_code),
       title: item.title || '',
       eyebrow: item.eyebrow || '',
       image_url: item.image_url || '',
@@ -86,7 +88,7 @@ export default function DestinationCoversPage() {
       const payload = {
         ...form,
         city: String(form.city || '').trim(),
-        country_code: String(form.country_code || '').trim().toUpperCase() || undefined,
+        country_code: normalizeCountryCode(form.country_code) || undefined,
         image_url: String(form.image_url || '').trim(),
         title: String(form.title || '').trim() || undefined,
         eyebrow: String(form.eyebrow || '').trim() || undefined,
@@ -131,7 +133,21 @@ export default function DestinationCoversPage() {
             </div>
             <div>
               <label className="block text-xs text-gray-600">Country</label>
-              <input className="border rounded px-2 py-1" placeholder="PE" value={countryCode} onChange={(e) => setCountryCode(e.target.value)} />
+              <div className="mt-1 min-w-[170px]">
+                <Select value={normalizeCountryCode(countryCode) || 'all'} onValueChange={(value) => setCountryCode(value === 'all' ? '' : value)}>
+                  <SelectTrigger className="h-9 w-full">
+                    <SelectValue placeholder="All countries" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All countries</SelectItem>
+                    {COUNTRY_OPTIONS.map((item) => (
+                      <SelectItem key={item.code} value={item.code}>
+                        {item.label} ({item.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <label className="block text-xs text-gray-600">Page size</label>
@@ -212,7 +228,21 @@ export default function DestinationCoversPage() {
             </div>
             <div>
               <label className="block text-xs text-gray-600">Country (ISO2)</label>
-              <input className="w-full border rounded px-2 py-2" value={form.country_code} onChange={(e) => setForm((prev) => ({ ...prev, country_code: e.target.value.toUpperCase() }))} placeholder="PE" />
+              <div className="mt-1">
+                <Select value={normalizeCountryCode(form.country_code) || 'none'} onValueChange={(value) => setForm((prev) => ({ ...prev, country_code: value === 'none' ? '' : value }))}>
+                  <SelectTrigger className="h-10 w-full">
+                    <SelectValue placeholder="Choose a country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No country</SelectItem>
+                    {COUNTRY_OPTIONS.map((item) => (
+                      <SelectItem key={item.code} value={item.code}>
+                        {item.label} ({item.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <label className="block text-xs text-gray-600">Slug (optional)</label>

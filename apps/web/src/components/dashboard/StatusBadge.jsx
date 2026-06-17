@@ -13,11 +13,11 @@ const STATUS_MAP = {
 };
 
 const prettify = (status) => {
-  if (!status) return 'desconocido';
+  if (!status) return 'unknown';
   return status.replace(/_/g, ' ');
 };
 
-const StatusBadge = ({ status, fallback = 'desconocido' }) => {
+const StatusBadge = ({ status, fallback = 'unknown' }) => {
   if (!status) {
     return <Badge variant="outline" className="bg-[#1a1f3a] text-[#a0a0a0] border-[#2d3548]">{fallback}</Badge>;
   }
