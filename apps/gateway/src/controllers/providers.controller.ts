@@ -60,6 +60,79 @@ function normalizeType(value: any): 'guide' | 'operator' {
   return String(value || '').toLowerCase() === 'operator' ? 'operator' : 'guide';
 }
 
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  peru: 'PE',
+  'perú': 'PE',
+  us: 'US',
+  usa: 'US',
+  'united states': 'US',
+  'united states of america': 'US',
+  mexico: 'MX',
+  colombia: 'CO',
+  argentina: 'AR',
+  chile: 'CL',
+  ecuador: 'EC',
+  bolivia: 'BO',
+  brazil: 'BR',
+  brasil: 'BR',
+  spain: 'ES',
+  españa: 'ES',
+  italy: 'IT',
+  italia: 'IT',
+  france: 'FR',
+  francia: 'FR',
+  portugal: 'PT',
+  'united kingdom': 'GB',
+  uk: 'GB',
+  england: 'GB',
+};
+
+function normalizeCountryCode(value: any): string | null {
+  const text = normalizeNullableString(value);
+  if (!text) return null;
+  const upper = text.toUpperCase();
+  if (/^[A-Z]{2}$/.test(upper)) return upper;
+  return COUNTRY_NAME_TO_CODE[text.toLowerCase()] || null;
+}
+
+function requireListingText(value: any, field: string): string {
+  const text = normalizeNullableString(value);
+  if (!text) throw new BadRequestException(`${field} is required`);
+  return text;
+}
+
+function normalizeListingNumber(value: any, field: string, { allowZero = false, integer = false } = {}): number | null {
+  if (value == null || value === '') return null;
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) {
+    throw new BadRequestException(`${field} must be a valid number`);
+  }
+  if (integer && !Number.isInteger(numberValue)) {
+    throw new BadRequestException(`${field} must be a whole number`);
+  }
+  if (allowZero ? numberValue < 0 : numberValue <= 0) {
+    throw new BadRequestException(`${field} must be greater than ${allowZero ? 'or equal to ' : ''}0`);
+  }
+  return numberValue;
+}
+
+function normalizeListingDate(value: any, field: string): Date | null {
+  if (value == null || value === '') return null;
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) {
+    throw new BadRequestException(`${field} must be a valid date`);
+  }
+  return date;
+}
+
+function normalizeListingStatus(value: any, fallback = 'draft') {
+  const status = String(value || fallback).toLowerCase();
+  if (!['draft', 'published', 'inactive'].includes(status)) {
+    throw new BadRequestException('invalid status');
+  }
+  return status;
+}
+
 function hasValidAccessCode(req: Request, body: any) {
   if (!ACCESS_CODE) return false;
   const headerCode = req.headers['x-operator-access-code'];
@@ -490,10 +563,27 @@ export class ProvidersController {
   @Post('listings')
   async createListing(@Req() req: Request, @Body() body: any) {
     const prisma = getPrisma();
-    const required = ['provider_id', 'title', 'category', 'city', 'country_code'];
-    for (const k of required) if (!body?.[k]) throw new BadRequestException(`missing ${k}`);
+    const providerId = requireListingText(body?.provider_id, 'provider_id');
+    const title = requireListingText(body?.title, 'title');
+    const category = requireListingText(body?.category, 'category');
+    const city = requireListingText(body?.city, 'city');
+    const countryCode = normalizeCountryCode(body?.country_code);
+    if (!countryCode) {
+      throw new BadRequestException('country_code must be a valid ISO2 code');
+    }
+    const tags = normalizeTags(body?.tags);
+    const isFreeTour = tags.includes('free_tour');
+    const durationMinutes = normalizeListingNumber(body?.duration_minutes, 'duration_minutes', { integer: true });
+    const priceFrom = isFreeTour
+      ? null
+      : normalizeListingNumber(body?.price_from, 'price_from', { allowZero: false });
+    const startDate = normalizeListingDate(body?.startDate ?? body?.start_date, 'start_date');
+    const endDate = normalizeListingDate(body?.endDate ?? body?.end_date, 'end_date');
+    if (startDate && endDate && endDate < startDate) {
+      throw new BadRequestException('end_date must be after start_date');
+    }
 
-    const provider = await prisma.providers.findUnique({ where: { id: String(body.provider_id) } });
+    const provider = await prisma.providers.findUnique({ where: { id: providerId } });
     if (!provider) throw new BadRequestException('provider not found');
 
     const authenticatedUser = await getAuthenticatedUser(req);
@@ -505,7 +595,7 @@ export class ProvidersController {
       throw new UnauthorizedException('not authorized');
     }
 
-    const requestedStatus = body.status ? String(body.status).toLowerCase() : 'draft';
+    const requestedStatus = normalizeListingStatus(body?.status, 'draft');
     const providerApproved = ['approved', 'verified'].includes(String(provider.status || '').toLowerCase());
     const finalStatus = !providerApproved && !hasValidAccessCode(req, body) && requestedStatus === 'published'
       ? 'draft'
@@ -513,29 +603,21 @@ export class ProvidersController {
 
     const listing = await prisma.listings.create({
       data: {
-        provider_id: String(body.provider_id),
+        provider_id: providerId,
         operator_id: isOwner ? String(authenticatedUser?.id) : body.operator_id ? String(body.operator_id) : undefined,
-        title: String(body.title),
-        description: body.description != null ? String(body.description) : null,
-        category: String(body.category),
-        city: String(body.city),
-        country_code: String(body.country_code),
-        duration_minutes: body.duration_minutes != null ? Number(body.duration_minutes) : null,
-        price_from: body.price_from != null ? String(body.price_from) : null,
-        currency: body.currency ? String(body.currency) : undefined,
-        start_date: body.startDate
-          ? new Date(String(body.startDate))
-          : body.start_date
-            ? new Date(String(body.start_date))
-            : null,
-        end_date: body.endDate
-          ? new Date(String(body.endDate))
-          : body.end_date
-            ? new Date(String(body.end_date))
-            : null,
-        tags: normalizeTags(body.tags),
+        title,
+        description: normalizeNullableString(body.description),
+        category,
+        city,
+        country_code: countryCode,
+        duration_minutes: durationMinutes,
+        price_from: priceFrom != null ? String(priceFrom) : null,
+        currency: isFreeTour ? undefined : normalizeNullableString(body.currency) ?? undefined,
+        start_date: startDate,
+        end_date: endDate,
+        tags,
         status: finalStatus,
-        cover_image_url: body.cover_image_url ?? body.coverImageUrl ?? null,
+        cover_image_url: normalizeNullableString(body.cover_image_url ?? body.coverImageUrl),
       },
     });
 
@@ -702,24 +784,40 @@ export class ProvidersController {
     const { listing, user } = await authorizeListingMutation(prisma, req, body, id);
 
     const updateData: any = {};
-    if (body?.title != null) updateData.title = String(body.title);
-    if (body?.description != null) updateData.description = body.description === '' ? null : String(body.description);
-    if (body?.category != null) updateData.category = String(body.category);
-    if (body?.city != null) updateData.city = String(body.city);
-    if (body?.country_code != null) updateData.country_code = String(body.country_code).toUpperCase();
-    if (body?.duration_minutes != null) updateData.duration_minutes = Number(body.duration_minutes);
-    if (body?.price_from != null) updateData.price_from = Number(body.price_from);
-    if (body?.currency != null) updateData.currency = String(body.currency);
-    if (body?.start_date != null) updateData.start_date = body.start_date ? new Date(String(body.start_date)) : null;
-    if (body?.end_date != null) updateData.end_date = body.end_date ? new Date(String(body.end_date)) : null;
-    if (body?.tags != null) updateData.tags = normalizeTags(body.tags);
+    if (body?.title != null) updateData.title = requireListingText(body.title, 'title');
+    if (body?.description != null) updateData.description = normalizeNullableString(body.description);
+    if (body?.category != null) updateData.category = requireListingText(body.category, 'category');
+    if (body?.city != null) updateData.city = requireListingText(body.city, 'city');
+    if (body?.country_code != null) {
+      const countryCode = normalizeCountryCode(body.country_code);
+      if (!countryCode) throw new BadRequestException('country_code must be a valid ISO2 code');
+      updateData.country_code = countryCode;
+    }
+    if (body?.duration_minutes != null) {
+      updateData.duration_minutes = normalizeListingNumber(body.duration_minutes, 'duration_minutes', { integer: true });
+    }
+    const nextTags = body?.tags != null ? normalizeTags(body.tags) : Array.isArray(listing.tags) ? listing.tags : [];
+    const nextFreeTour = nextTags.includes('free_tour');
+    if (body?.price_from != null) {
+      const price = nextFreeTour ? null : normalizeListingNumber(body.price_from, 'price_from', { allowZero: false });
+      updateData.price_from = price != null ? String(price) : null;
+    } else if (body?.tags != null && nextFreeTour) {
+      updateData.price_from = null;
+    }
+    if (body?.currency != null) updateData.currency = nextFreeTour ? null : normalizeNullableString(body.currency);
+    if (body?.start_date != null) updateData.start_date = normalizeListingDate(body.start_date, 'start_date');
+    if (body?.end_date != null) updateData.end_date = normalizeListingDate(body.end_date, 'end_date');
+    if (body?.tags != null) updateData.tags = nextTags;
     if (body?.cover_image_url != null || body?.coverImageUrl != null) {
-      updateData.cover_image_url = body.cover_image_url ?? body.coverImageUrl ?? null;
+      updateData.cover_image_url = normalizeNullableString(body.cover_image_url ?? body.coverImageUrl);
     }
     if (user) updateData.operator_id = String(user.id);
 
     if (!Object.keys(updateData).length) {
       throw new BadRequestException('no editable fields provided');
+    }
+    if (updateData.start_date && updateData.end_date && updateData.end_date < updateData.start_date) {
+      throw new BadRequestException('end_date must be after start_date');
     }
 
     const updated = await prisma.listings.update({ where: { id: listing.id }, data: updateData });

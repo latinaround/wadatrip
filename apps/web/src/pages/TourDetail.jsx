@@ -144,6 +144,7 @@ export default function TourDetail() {
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [shareMessage, setShareMessage] = useState(null);
   const [bookingForm, setBookingForm] = useState({
     name: '',
     email: '',
@@ -218,9 +219,20 @@ export default function TourDetail() {
   const currentHostWhatsappUrl = buildWhatsAppUrl(currentHost?.provider_phone, currentHost?.provider_name, currentHost?.title);
   const currentHostInstagramUrl = buildInstagramUrl(currentHost?.provider_instagram_handle);
   const currentGuideHref = buildGuideHref(currentHost?.provider_id);
+  const publicTourUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   const handleBookingChange = (field, value) => {
     setBookingForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCopyPublicLink = async () => {
+    if (!publicTourUrl) return;
+    try {
+      await navigator.clipboard?.writeText(publicTourUrl);
+      setShareMessage('Public tour link copied.');
+    } catch {
+      setShareMessage('Copy the URL from your browser and share it with travelers.');
+    }
   };
 
   const handleBooking = async () => {
@@ -255,7 +267,7 @@ export default function TourDetail() {
       }
 
       if (isFreeTour) {
-        setBookingSuccess('Registration confirmed. Your host will contact you.');
+        setBookingSuccess('Spot requested. Your host will confirm by email or WhatsApp.');
         return;
       }
 
@@ -325,16 +337,18 @@ export default function TourDetail() {
               <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">{experienceHosts.length} host options</span>
                 <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">Verified marketplace</span>
-                <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">Secure checkout</span>
+                <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                  {isFreeTour ? 'Join without checkout' : 'Secure checkout'}
+                </span>
               </div>
             </div>
           </div>
 
           <div className="rounded-[30px] border border-[#dcc2ae] bg-[linear-gradient(180deg,#f1dcc8_0%,#f7e9db_52%,#fdf3eb_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)] lg:sticky lg:top-24">
-            <p className="page-kicker text-[#167c7d]">Reserve this experience</p>
+            <p className="page-kicker text-[#167c7d]">{isFreeTour ? 'Join this free tour' : 'Book this experience'}</p>
             <div className="mt-4 flex items-end justify-between gap-4">
               <div>
-                <p className="text-sm text-[#64748b]">Starting from</p>
+                <p className="text-sm text-[#64748b]">{isFreeTour ? 'Cost' : 'Starting from'}</p>
                 <p className="mt-1 text-3xl font-semibold text-[#0f172a]">
                   {isFreeTour ? 'Free' : formatPrice(currentHost?.price_from, currentHost?.currency || 'USD')}
                 </p>
@@ -343,6 +357,11 @@ export default function TourDetail() {
                 {currentHost?.provider_name || 'Verified host'}
               </div>
             </div>
+            <p className="mt-4 text-sm leading-relaxed text-[#526173]">
+              {isFreeTour
+                ? 'Travelers request a spot first. The host confirms the details directly.'
+                : 'Travelers confirm the date and guest count here, then pay securely online.'}
+            </p>
 
             <div className="mt-5 rounded-[24px] border border-[#e4cbbb] bg-[linear-gradient(180deg,#f7e8db_0%,#fdf4ec_100%)] p-4">
               <div className="flex items-start gap-3">
@@ -428,9 +447,17 @@ export default function TourDetail() {
 
             {bookingError && <p className="mt-4 text-sm text-[#d15371]">{bookingError}</p>}
             {bookingSuccess && <p className="mt-4 text-sm text-[#167c7d]">{bookingSuccess}</p>}
+            {shareMessage && <p className="mt-4 text-sm text-[#167c7d]">{shareMessage}</p>}
 
             <Button className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={handleBooking} disabled={bookingLoading}>
-              {bookingLoading ? 'Processing...' : isFreeTour ? 'Reserve Your Spot' : 'Book And Pay'}
+              {bookingLoading ? 'Processing...' : isFreeTour ? 'Join free tour' : 'Book and pay securely'}
+            </Button>
+            <Button
+              variant="outline"
+              className="mt-3 h-12 w-full rounded-2xl border border-[#167c7d]/30 text-[#167c7d] hover:bg-[#e7f7f5]"
+              onClick={handleCopyPublicLink}
+            >
+              Copy public tour link
             </Button>
           </div>
         </section>

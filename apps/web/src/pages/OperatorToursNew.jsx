@@ -328,6 +328,16 @@ export default function OperatorToursNew() {
     }));
   };
 
+  const selectTourType = (nextIsFree) => {
+    setIsFreeTour(nextIsFree);
+    if (nextIsFree) {
+      setTourForm((prev) => ({
+        ...prev,
+        price_from: '',
+      }));
+    }
+  };
+
   const uploadGuidePhoto = async (file) => {
     if (!file) return;
     setProviderMessage(null);
@@ -1281,6 +1291,39 @@ export default function OperatorToursNew() {
               ) : null}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <p className="text-sm text-[#e0e0e0]">Tour type</p>
+                <div className="mt-2 grid gap-3 md:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => selectTourType(false)}
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      !isFreeTour
+                        ? 'border-[#00D9FF]/60 bg-[#00D9FF]/12 shadow-[0_16px_36px_rgba(0,217,255,0.12)]'
+                        : 'border-white/10 bg-[#071120]'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-white">Paid experience</p>
+                    <p className="mt-1 text-xs leading-relaxed text-[#a0a0a0]">
+                      Travelers pay online and the public page shows a clear booking price.
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectTourType(true)}
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      isFreeTour
+                        ? 'border-[#00D9FF]/60 bg-[#00D9FF]/12 shadow-[0_16px_36px_rgba(0,217,255,0.12)]'
+                        : 'border-white/10 bg-[#071120]'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-white">Free walking tour</p>
+                    <p className="mt-1 text-xs leading-relaxed text-[#a0a0a0]">
+                      Travelers see a join flow instead of checkout. Use this for pay-what-you-want tours.
+                    </p>
+                  </button>
+                </div>
+              </div>
               <div>
                 <label htmlFor="tour-title" className="text-sm text-[#e0e0e0]">
                   {t('operator.tour_title_label', 'Tour title')}
@@ -1356,31 +1399,42 @@ export default function OperatorToursNew() {
                   className="mt-2 h-12 neon-input"
                 />
               </div>
-              <div>
-                <label htmlFor="tour-price" className="text-sm text-[#e0e0e0]">
-                  {t('operator.price_label', 'Starting price')}
-                </label>
-                <Input
-                  id="tour-price"
-                  value={tourForm.price_from}
-                  onChange={(event) => handleTourChange('price_from', event.target.value)}
-                  placeholder={t('operator.price_placeholder', '120')}
-                  type="number"
-                  className="mt-2 h-12 neon-input"
-                />
-              </div>
-              <div>
-                <label htmlFor="tour-currency" className="text-sm text-[#e0e0e0]">
-                  {t('operator.currency_label', 'Currency')}
-                </label>
-                <Input
-                  id="tour-currency"
-                  value={tourForm.currency}
-                  onChange={(event) => handleTourChange('currency', event.target.value)}
-                  placeholder={t('operator.currency_placeholder', 'USD')}
-                  className="mt-2 h-12 neon-input"
-                />
-              </div>
+              {!isFreeTour ? (
+                <>
+                  <div>
+                    <label htmlFor="tour-price" className="text-sm text-[#e0e0e0]">
+                      {t('operator.price_label', 'Starting price')}
+                    </label>
+                    <Input
+                      id="tour-price"
+                      value={tourForm.price_from}
+                      onChange={(event) => handleTourChange('price_from', event.target.value)}
+                      placeholder={t('operator.price_placeholder', '120')}
+                      type="number"
+                      className="mt-2 h-12 neon-input"
+                    />
+                    <p className="mt-2 text-xs text-[#a0a0a0]">
+                      Travelers will pay this tour online from the public tour page.
+                    </p>
+                  </div>
+                  <div>
+                    <label htmlFor="tour-currency" className="text-sm text-[#e0e0e0]">
+                      {t('operator.currency_label', 'Currency')}
+                    </label>
+                    <Input
+                      id="tour-currency"
+                      value={tourForm.currency}
+                      onChange={(event) => handleTourChange('currency', event.target.value)}
+                      placeholder={t('operator.currency_placeholder', 'USD')}
+                      className="mt-2 h-12 neon-input"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="md:col-span-2 rounded-2xl border border-[#00D9FF]/20 bg-[#071120] p-4 text-sm text-[#cad3df]">
+                  This free tour will show a join flow instead of online checkout. Travelers can open the public link and reserve their spot without paying first.
+                </div>
+              )}
               <div>
                 <label htmlFor="tour-start-date" className="text-sm text-[#e0e0e0]">
                   {t('operator.start_date_label', 'Start date')}
@@ -1500,17 +1554,6 @@ export default function OperatorToursNew() {
             </div>
             <div className="flex items-center gap-2 text-sm text-[#e0e0e0]">
               <input
-                id="tour-free"
-                type="checkbox"
-                checked={isFreeTour}
-                onChange={(event) => setIsFreeTour(event.target.checked)}
-              />
-              <label htmlFor="tour-free">
-                {t('operator.free_tour_label', 'Free walking tour (pay-what-you-want)')}
-              </label>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-[#e0e0e0]">
-              <input
                 id="tour-publish-now"
                 type="checkbox"
                 checked={tourForm.publish_now}
@@ -1532,7 +1575,9 @@ export default function OperatorToursNew() {
             >
               {tourLoading
                 ? t('operator.publishing_label', 'Publishing...')
-                : t('operator.publish_button', 'Publish tour')}
+                : isFreeTour
+                  ? 'Publish free tour'
+                  : t('operator.publish_button', 'Publish tour')}
             </Button>
             <Button
               type="button"
@@ -1563,7 +1608,9 @@ export default function OperatorToursNew() {
               </p>
               <p className="mt-1 text-[#a0a0a0]">
                 {String(createdTour?.status || '').toLowerCase() === 'published'
-                  ? 'This is the public link you share with travelers so they can open the tour and book it.'
+                  ? Array.isArray(createdTour?.tags) && createdTour.tags.includes('free_tour')
+                    ? 'This is the public link you share with travelers so they can open the tour and join without paying first.'
+                    : 'This is the public link you share with travelers so they can open the tour and book it.'
                   : 'Your tour is saved. You can keep editing it before publishing.'}
               </p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
