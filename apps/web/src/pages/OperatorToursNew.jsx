@@ -53,6 +53,12 @@ const emptyTour = {
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
+const buildPublicTourUrl = (siteOrigin, listing) => `${siteOrigin}/tours/${buildTourSlug({
+  title: listing?.title,
+  city: listing?.city,
+  id: listing?.id,
+})}`;
+
 const normalizeNullable = (value) => {
   const text = String(value || '').trim();
   return text || '';
@@ -466,6 +472,7 @@ export default function OperatorToursNew() {
       });
 
       const created = data?.listing || data;
+      const createdStatus = String(created?.status || payload.status || '').toLowerCase();
       setCreatedTour(created);
       setCoverPreview(created?.cover_image_url || coverImageUrl || '');
       setTourMessage(
@@ -476,6 +483,10 @@ export default function OperatorToursNew() {
           : `Tour saved as ${String(created?.status || payload.status || 'draft')}. It will publish after approval.`
       );
       loadOwnedListings();
+      if (created?.id && createdStatus === 'published' && siteOrigin) {
+        window.location.assign(buildPublicTourUrl(siteOrigin, created));
+        return;
+      }
       setTourForm((prev) => ({
         ...emptyTour,
         provider_id: providerId,
@@ -1425,69 +1436,68 @@ export default function OperatorToursNew() {
           </form>
           {tourMessage && <p className="mt-4 text-sm text-[#00D9FF]">{tourMessage}</p>}
           {createdTour?.id && (
-            <div className="mt-4 space-y-2 text-sm text-[#a0a0a0]">
-              <p>{t('operator.shareable_link_label', 'Shareable link (no internal ID):')}</p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Input
-                  readOnly
-                  value={`${siteOrigin}/tours/${buildTourSlug({
-                    title: createdTour.title,
-                    city: createdTour.city,
-                    id: createdTour.id,
-                  })}`}
-                  className="h-12 neon-input"
-                />
+            <div className="mt-4 rounded-2xl border border-[#00D9FF]/20 bg-[#0a0e27]/60 p-5 text-sm text-[#cad3df]">
+              <p className="text-sm font-semibold text-white">
+                {String(createdTour?.status || '').toLowerCase() === 'published'
+                  ? 'Tour published successfully'
+                  : 'Tour saved successfully'}
+              </p>
+              <p className="mt-1 text-[#a0a0a0]">
+                {String(createdTour?.status || '').toLowerCase() === 'published'
+                  ? 'Your public tour link is ready to share.'
+                  : 'Your tour is saved. You can keep editing it before publishing.'}
+              </p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <Button
                   type="button"
                   className="h-12 neon-cta font-black hover:scale-105 transition-all"
+                  onClick={() => window.location.assign(buildPublicTourUrl(siteOrigin, createdTour))}
+                >
+                  View public tour
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white"
                   onClick={() => {
-                    const url = `${siteOrigin}/tours/${buildTourSlug({
-                      title: createdTour.title,
-                      city: createdTour.city,
-                      id: createdTour.id,
-                    })}`;
+                    const url = buildPublicTourUrl(siteOrigin, createdTour);
                     navigator.clipboard?.writeText(url);
                   }}
                 >
-                  {t('operator.copy_tour_link', 'Copy tour link')}
+                  Copy public link
                 </Button>
               </div>
-              <p>
-                {t('operator.tour_code_label', 'Tour code')}:{' '}
-                {buildTourCode({ city: createdTour.city, id: createdTour.id })}
-              </p>
-              <div className="mt-4 rounded-xl border border-[#00D9FF]/20 bg-[#0a0e27]/60 p-4">
-                <p className="text-sm font-semibold text-white">
-                  {t('operator.edit_title', 'Edit this tour')}
-                </p>
-                <p className="text-xs text-[#a0a0a0]">
-                  {t('operator.edit_help', 'Use this link to edit later.')}
-                </p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Input
-                    readOnly
-                    value={`${siteOrigin}/operator/tours/new?edit=${createdTour.id}`}
-                    className="h-12 neon-input"
-                  />
-                  <Button
-                    type="button"
-                    className="h-12 neon-cta font-black hover:scale-105 transition-all"
-                    onClick={() => {
-                      const url = `${siteOrigin}/operator/tours/new?edit=${createdTour.id}`;
-                      navigator.clipboard?.writeText(url);
-                    }}
-                  >
-                    {t('operator.copy_edit_link', 'Copy edit link')}
-                  </Button>
+              <details className="mt-4 rounded-xl border border-[#00D9FF]/15 bg-[#050816]/50 p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-white">
+                  Advanced tour links
+                </summary>
+                <div className="mt-3 space-y-3 text-[#a0a0a0]">
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.12em] text-[#7dddf2]">Edit link</p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <Input
+                        readOnly
+                        value={`${siteOrigin}/operator/tours/new?edit=${createdTour.id}`}
+                        className="h-12 neon-input"
+                      />
+                      <Button
+                        type="button"
+                        className="h-12 neon-cta font-black hover:scale-105 transition-all"
+                        onClick={() => {
+                          const url = `${siteOrigin}/operator/tours/new?edit=${createdTour.id}`;
+                          navigator.clipboard?.writeText(url);
+                        }}
+                      >
+                        {t('operator.copy_edit_link', 'Copy edit link')}
+                      </Button>
+                    </div>
+                  </div>
+                  <p>
+                    {t('operator.tour_code_label', 'Tour code')}:{' '}
+                    {buildTourCode({ city: createdTour.city, id: createdTour.id })}
+                  </p>
                 </div>
-                <Button
-                  type="button"
-                  className="mt-3 h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
-                  onClick={() => handleLoadTourById(createdTour.id)}
-                >
-                  {t('operator.edit_button', 'Load for editing')}
-                </Button>
-              </div>
+              </details>
             </div>
           )}
         </section>
