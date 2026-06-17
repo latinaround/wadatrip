@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
+import { getListingPriceBadge, isFreeTour } from '../utils/listingMode';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -28,7 +29,7 @@ const buildExperienceKey = (item) => {
 function ExperienceCard({ experience, destinationCoverMap }) {
   const cheapestHost = experience.hosts[0] || null;
   const hostCount = experience.hosts.length;
-  const freeTour = experience.hosts.some((host) => Array.isArray(host.tags) && host.tags.includes('free_tour'));
+  const freeTour = experience.hosts.some((host) => isFreeTour(host));
   const coverImage = resolveListingImage(cheapestHost || experience.primary, destinationCoverMap);
   const providerAvatar = resolveProviderAvatar(cheapestHost || experience.primary);
 
@@ -48,7 +49,7 @@ function ExperienceCard({ experience, destinationCoverMap }) {
           <h2 className="mt-2 text-2xl font-semibold leading-tight text-[#0f172a]">{experience.title}</h2>
         </div>
         <div className="rounded-full border border-[#f1d6c1] bg-[#ffecde] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
-          {freeTour ? 'Free option' : formatPrice(cheapestHost?.price_from, cheapestHost?.currency || 'USD')}
+          {getListingPriceBadge(cheapestHost || experience.primary, formatPrice)}
         </div>
       </div>
 
@@ -76,7 +77,7 @@ function ExperienceCard({ experience, destinationCoverMap }) {
         </div>
         </div>
         <span className="inline-flex items-center justify-center rounded-2xl bg-[#0f172a] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition-colors group-hover:bg-[#167c7d]">
-          Compare Hosts
+          {freeTour ? 'Compare guides to join' : 'Compare guides to book'}
         </span>
       </div>
     </Link>

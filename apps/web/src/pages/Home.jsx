@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
+import { getListingPriceBadge, isFreeTour } from '../utils/listingMode';
 import BrandLogo from '../components/BrandLogo';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -80,7 +81,7 @@ function ExperienceCard({ item, tone = 'warm', destinationCoverMap }) {
           <h3 className="mt-2 text-xl font-semibold leading-tight text-[#0f172a]">{item.title}</h3>
         </div>
         <div className="rounded-full border border-[#efd0bb] bg-[#fff0e4] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
-          {Array.isArray(item.tags) && item.tags.includes('free_tour') ? 'Free' : formatPrice(item.price_from, item.currency || 'USD')}
+          {getListingPriceBadge(item, formatPrice)}
         </div>
       </div>
       <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#475569]">
@@ -101,7 +102,7 @@ function ExperienceCard({ item, tone = 'warm', destinationCoverMap }) {
           </div>
         </div>
         <span className="inline-flex items-center rounded-full bg-[#0f172a] px-3 py-2 text-xs font-semibold text-white transition-colors group-hover:bg-[#167c7d]">
-          View Details
+          {isFreeTour(item) ? 'Join free tour' : 'View details'}
         </span>
       </div>
     </Link>
@@ -353,7 +354,7 @@ export default function Home() {
                     ) : null}
                     <p className="text-[11px] uppercase tracking-[0.22em] text-white/45">{item.city || 'Destination'}</p>
                     <h3 className="mt-2 text-base font-semibold text-white">{item.title}</h3>
-                    <p className="mt-3 text-sm text-[#cad3df]">{formatPrice(item.price_from, item.currency || 'USD')}</p>
+                    <p className="mt-3 text-sm text-[#cad3df]">{getListingPriceBadge(item, formatPrice)}</p>
                   </Link>
                 ))}
               </div>

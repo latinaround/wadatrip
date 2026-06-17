@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { useAuth } from '../context/AuthContext.jsx';
 import ItineraryCard from '../components/ItineraryCard.jsx';
 import { AppConfig } from '../config/appConfig';
 import SummaryCards from '../components/dashboard/SummaryCards.jsx';
 import BookingsList from '../components/dashboard/BookingsList.jsx';
 import PaymentsList from '../components/dashboard/PaymentsList.jsx';
+import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
 
 const apiBase = (AppConfig.api.baseUrl || '').replace(/\/$/, '');
 
@@ -149,7 +151,7 @@ const buildGuideForm = (provider, user) => ({
   phone: provider?.phone || '',
   instagram_handle: provider?.instagram_handle || '',
   base_city: provider?.base_city || '',
-  country_code: provider?.country_code || '',
+  country_code: normalizeCountryCode(provider?.country_code),
   languages: Array.isArray(provider?.languages) ? provider.languages.join(', ') : '',
   photo_url: provider?.photo_url || '',
   bio_short: provider?.bio_short || '',
@@ -341,13 +343,17 @@ const Account = () => {
   const guidePublicHref = guideProfile?.id ? `/guides/${guideProfile.id}` : null;
   const guideStatusLabel = formatProviderStatus(guideProfile);
   const guideSaveLabel = guideProfile ? 'Save guide profile' : 'Create my guide profile';
+  const guideCitySuggestions = useMemo(() => getCitySuggestions(guideForm.country_code), [guideForm.country_code]);
 
   const handleAccountField = (field, value) => {
     setAccountForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleGuideField = (field, value) => {
-    setGuideForm((prev) => ({ ...prev, [field]: value }));
+    setGuideForm((prev) => ({
+      ...prev,
+      [field]: field === 'country_code' ? normalizeCountryCode(value) : value,
+    }));
   };
 
   const handleSaveAccount = async (event) => {
@@ -383,7 +389,7 @@ const Account = () => {
         phone: guideForm.phone.trim(),
         instagram_handle: guideForm.instagram_handle.trim().replace(/^@+/, ''),
         base_city: guideForm.base_city.trim(),
-        country_code: guideForm.country_code.trim().toUpperCase(),
+        country_code: normalizeCountryCode(guideForm.country_code),
         languages: guideForm.languages
           .split(',')
           .map((item) => item.trim())
@@ -547,17 +553,31 @@ const Account = () => {
                       onChange={(event) => handleGuideField('base_city', event.target.value)}
                       className="mt-2 h-12 neon-input"
                       placeholder="Cusco"
+                      list="account-guide-city-suggestions"
                     />
+                    <datalist id="account-guide-city-suggestions">
+                      {guideCitySuggestions.map((city) => <option key={city} value={city} />)}
+                    </datalist>
                   </div>
                   <div>
                     <label htmlFor="guide-country" className="text-sm text-[#e0e0e0]">Country (ISO2)</label>
-                    <Input
-                      id="guide-country"
-                      value={guideForm.country_code}
-                      onChange={(event) => handleGuideField('country_code', event.target.value)}
-                      className="mt-2 h-12 neon-input"
-                      placeholder="PE"
-                    />
+                    <div className="mt-2">
+                      <Select
+                        value={normalizeCountryCode(guideForm.country_code) || undefined}
+                        onValueChange={(value) => handleGuideField('country_code', value)}
+                      >
+                        <SelectTrigger className="h-12 w-full neon-input text-white">
+                          <SelectValue placeholder="Choose a country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COUNTRY_OPTIONS.map((country) => (
+                            <SelectItem key={country.code} value={country.code}>
+                              {country.label} ({country.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div>
                     <label htmlFor="guide-languages" className="text-sm text-[#e0e0e0]">Languages</label>

@@ -7,71 +7,12 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { buildTourCode, buildTourSlug, findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
+import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
+import { getListingShareCopy } from '../utils/listingMode';
 import { useAuth } from '../context/AuthContext.jsx';
 import { uploadImageFile } from '../services/mediaUpload';
 
 const tokenStorageKey = 'wadatrip_token';
-
-const COUNTRY_OPTIONS = [
-  { code: 'PE', label: 'Peru' },
-  { code: 'US', label: 'United States' },
-  { code: 'MX', label: 'Mexico' },
-  { code: 'CO', label: 'Colombia' },
-  { code: 'AR', label: 'Argentina' },
-  { code: 'CL', label: 'Chile' },
-  { code: 'EC', label: 'Ecuador' },
-  { code: 'BO', label: 'Bolivia' },
-  { code: 'BR', label: 'Brazil' },
-  { code: 'ES', label: 'Spain' },
-  { code: 'IT', label: 'Italy' },
-  { code: 'FR', label: 'France' },
-  { code: 'GB', label: 'United Kingdom' },
-  { code: 'PT', label: 'Portugal' },
-];
-
-const COUNTRY_NAME_TO_CODE = {
-  peru: 'PE',
-  perú: 'PE',
-  usa: 'US',
-  us: 'US',
-  'united states': 'US',
-  'united states of america': 'US',
-  mexico: 'MX',
-  colombia: 'CO',
-  argentina: 'AR',
-  chile: 'CL',
-  ecuador: 'EC',
-  bolivia: 'BO',
-  brazil: 'BR',
-  brasil: 'BR',
-  spain: 'ES',
-  españa: 'ES',
-  italy: 'IT',
-  italia: 'IT',
-  france: 'FR',
-  francia: 'FR',
-  portugal: 'PT',
-  'united kingdom': 'GB',
-  uk: 'GB',
-  england: 'GB',
-};
-
-const CITY_SUGGESTIONS = {
-  PE: ['Lima', 'Cusco', 'Arequipa', 'Puno', 'Ica'],
-  US: ['Palo Alto', 'San Francisco', 'New York', 'Los Angeles', 'Miami'],
-  MX: ['Mexico City', 'Cancun', 'Oaxaca', 'Guadalajara'],
-  CO: ['Bogota', 'Medellin', 'Cartagena', 'Cali'],
-  AR: ['Buenos Aires', 'Mendoza', 'Bariloche'],
-  CL: ['Santiago', 'Valparaiso', 'San Pedro de Atacama'],
-  EC: ['Quito', 'Guayaquil', 'Cuenca'],
-  BO: ['La Paz', 'Uyuni', 'Sucre'],
-  BR: ['Rio de Janeiro', 'Sao Paulo', 'Salvador'],
-  ES: ['Madrid', 'Barcelona', 'Seville'],
-  IT: ['Rome', 'Florence', 'Venice'],
-  FR: ['Paris', 'Nice', 'Lyon'],
-  GB: ['London', 'Edinburgh', 'Manchester'],
-  PT: ['Lisbon', 'Porto', 'Faro'],
-};
 
 function readOperatorSessionToken() {
   if (typeof window === 'undefined') return null;
@@ -124,14 +65,6 @@ const buildPublicTourUrl = (siteOrigin, listing) => `${siteOrigin}/tours/${build
 const normalizeNullable = (value) => {
   const text = String(value || '').trim();
   return text || '';
-};
-
-const normalizeCountryCode = (value) => {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  const upper = raw.toUpperCase();
-  if (upper.length === 2) return upper;
-  return COUNTRY_NAME_TO_CODE[raw.toLowerCase()] || upper.slice(0, 2);
 };
 
 export default function OperatorToursNew() {
@@ -306,11 +239,11 @@ export default function OperatorToursNew() {
   }, [loadOwnedListings]);
 
   const providerCitySuggestions = useMemo(
-    () => CITY_SUGGESTIONS[normalizeCountryCode(providerForm.country_code)] || CITY_SUGGESTIONS.PE,
+    () => getCitySuggestions(providerForm.country_code),
     [providerForm.country_code],
   );
   const tourCitySuggestions = useMemo(
-    () => CITY_SUGGESTIONS[normalizeCountryCode(tourForm.country_code)] || CITY_SUGGESTIONS.PE,
+    () => getCitySuggestions(tourForm.country_code),
     [tourForm.country_code],
   );
 
@@ -1608,9 +1541,7 @@ export default function OperatorToursNew() {
               </p>
               <p className="mt-1 text-[#a0a0a0]">
                 {String(createdTour?.status || '').toLowerCase() === 'published'
-                  ? Array.isArray(createdTour?.tags) && createdTour.tags.includes('free_tour')
-                    ? 'This is the public link you share with travelers so they can open the tour and join without paying first.'
-                    : 'This is the public link you share with travelers so they can open the tour and book it.'
+                  ? getListingShareCopy(createdTour)
                   : 'Your tour is saved. You can keep editing it before publishing.'}
               </p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">

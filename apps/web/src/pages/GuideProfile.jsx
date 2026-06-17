@@ -4,6 +4,7 @@ import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage } from '../utils/destinationMedia';
 import { buildInstagramUrl, buildWhatsAppUrl, formatGuideRating } from '../utils/guideProfile';
+import { getListingPriceBadge, isFreeTour } from '../utils/listingMode';
 import { Button } from '../components/ui/button';
 import BrandLogo from '../components/BrandLogo';
 
@@ -62,7 +63,7 @@ function TourCard({ item, destinationCoverMap }) {
           <h3 className="mt-2 text-xl font-semibold leading-tight text-[#0f172a]">{item.title}</h3>
         </div>
         <div className="rounded-full border border-[#f1d6c1] bg-[#ffecde] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
-          {Array.isArray(item.tags) && item.tags.includes('free_tour') ? 'Free option' : formatPrice(item.price_from, item.currency || 'USD')}
+          {getListingPriceBadge(item, formatPrice)}
         </div>
       </div>
       <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#435164]">
@@ -77,7 +78,7 @@ function TourCard({ item, destinationCoverMap }) {
         {item.category ? (
           <span className="rounded-full bg-[#e7f7f5] px-3 py-2 text-[#167c7d]">{item.category}</span>
         ) : null}
-        <span className="rounded-full bg-[#0f172a] px-3 py-2 text-white">View tour</span>
+        <span className="rounded-full bg-[#0f172a] px-3 py-2 text-white">{isFreeTour(item) ? 'Join free tour' : 'View tour'}</span>
       </div>
     </Link>
   );

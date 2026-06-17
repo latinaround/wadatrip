@@ -4,6 +4,7 @@ import { AppConfig } from '../config/appConfig';
 import { findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
 import { buildGuideHref, buildInstagramUrl, buildWhatsAppUrl, formatGuideRating } from '../utils/guideProfile';
+import { getListingBookingCta, getListingPriceBadge, getListingShareCopy, isFreeTour } from '../utils/listingMode';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import BrandLogo from '../components/BrandLogo';
@@ -37,7 +38,7 @@ const getInitials = (name) =>
     .toUpperCase();
 
 function HostOptionCard({ item, selected, onSelect }) {
-  const freeTour = Array.isArray(item.tags) && item.tags.includes('free_tour');
+  const freeTour = isFreeTour(item);
   const initials = getInitials(item.provider_name);
   const avatar = resolveProviderAvatar(item);
   const whatsappUrl = buildWhatsAppUrl(item.provider_phone, item.provider_name, item.title);
@@ -71,7 +72,7 @@ function HostOptionCard({ item, selected, onSelect }) {
           </div>
         </div>
         <span className="rounded-full border border-[#ecd0bc] bg-[#ffebdc] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
-          {freeTour ? 'Free option' : formatPrice(item.price_from, item.currency || 'USD')}
+          {getListingPriceBadge(item, formatPrice)}
         </span>
       </div>
       <p className="mt-3 text-sm leading-relaxed text-[#526173]">
@@ -212,7 +213,7 @@ export default function TourDetail() {
   }, [apiBase, id]);
 
   const currentHost = selectedHost || tour;
-  const isFreeTour = Array.isArray(currentHost?.tags) && currentHost.tags.includes('free_tour');
+  const freeTour = isFreeTour(currentHost);
   const currentHostInitials = getInitials(currentHost?.provider_name);
   const currentHostAvatar = resolveProviderAvatar(currentHost);
   const heroImage = resolveListingImage(currentHost || tour, destinationCoverMap);
@@ -243,7 +244,7 @@ export default function TourDetail() {
     try {
       const numPeople = Math.max(1, Number(bookingForm.num_people || 1));
       const unitPrice = Number(currentHost.price_from || 0);
-      const totalPrice = isFreeTour ? 0 : unitPrice > 0 ? unitPrice * numPeople : null;
+      const totalPrice = freeTour ? 0 : unitPrice > 0 ? unitPrice * numPeople : null;
       const amountCents = totalPrice != null ? Math.round(Number(totalPrice) * 100) : null;
 
       const bookingResponse = await fetch(`${apiBase}/bookings`, {
@@ -266,7 +267,7 @@ export default function TourDetail() {
         throw new Error(message);
       }
 
-      if (isFreeTour) {
+      if (freeTour) {
         setBookingSuccess('Spot requested. Your host will confirm by email or WhatsApp.');
         return;
       }
@@ -338,19 +339,19 @@ export default function TourDetail() {
                 <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">{experienceHosts.length} host options</span>
                 <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">Verified marketplace</span>
                 <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">
-                  {isFreeTour ? 'Join without checkout' : 'Secure checkout'}
+                  {freeTour ? 'Join without checkout' : 'Secure checkout'}
                 </span>
               </div>
             </div>
           </div>
 
           <div className="rounded-[30px] border border-[#dcc2ae] bg-[linear-gradient(180deg,#f1dcc8_0%,#f7e9db_52%,#fdf3eb_100%)] p-7 shadow-[0_18px_50px_rgba(15,23,42,0.08)] lg:sticky lg:top-24">
-            <p className="page-kicker text-[#167c7d]">{isFreeTour ? 'Join this free tour' : 'Book this experience'}</p>
+            <p className="page-kicker text-[#167c7d]">{freeTour ? 'Join this free tour' : 'Book this experience'}</p>
             <div className="mt-4 flex items-end justify-between gap-4">
               <div>
-                <p className="text-sm text-[#64748b]">{isFreeTour ? 'Cost' : 'Starting from'}</p>
+                <p className="text-sm text-[#64748b]">{freeTour ? 'Cost' : 'Starting from'}</p>
                 <p className="mt-1 text-3xl font-semibold text-[#0f172a]">
-                  {isFreeTour ? 'Free' : formatPrice(currentHost?.price_from, currentHost?.currency || 'USD')}
+                  {getListingPriceBadge(currentHost, formatPrice)}
                 </p>
               </div>
               <div className="rounded-full bg-[#e7f7f5] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#167c7d]">
@@ -358,7 +359,7 @@ export default function TourDetail() {
               </div>
             </div>
             <p className="mt-4 text-sm leading-relaxed text-[#526173]">
-              {isFreeTour
+              {freeTour
                 ? 'Travelers request a spot first. The host confirms the details directly.'
                 : 'Travelers confirm the date and guest count here, then pay securely online.'}
             </p>
@@ -450,7 +451,7 @@ export default function TourDetail() {
             {shareMessage && <p className="mt-4 text-sm text-[#167c7d]">{shareMessage}</p>}
 
             <Button className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={handleBooking} disabled={bookingLoading}>
-              {bookingLoading ? 'Processing...' : isFreeTour ? 'Join free tour' : 'Book and pay securely'}
+              {bookingLoading ? 'Processing...' : getListingBookingCta(currentHost)}
             </Button>
             <Button
               variant="outline"
@@ -465,7 +466,7 @@ export default function TourDetail() {
         <section className="grid gap-4 md:grid-cols-3">
           <TrustItem label="Why travelers book" copy="Cleaner listings, verified hosts, and less duplicated marketplace noise." />
           <TrustItem label="What changes here" copy="You choose the experience first, then pick the host that fits your style and budget." />
-          <TrustItem label="Before you pay" copy="Confirm the date, traveler count, and host you want before moving to checkout." />
+          <TrustItem label={freeTour ? 'Before you join' : 'Before you pay'} copy={freeTour ? getListingShareCopy(currentHost) : 'Confirm the date, traveler count, and host you want before moving to checkout.'} />
         </section>
 
         <section className="space-y-5">
