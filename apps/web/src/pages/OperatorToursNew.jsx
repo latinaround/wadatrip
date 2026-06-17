@@ -5,11 +5,73 @@ import { AppConfig } from '../config/appConfig';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { buildTourCode, buildTourSlug, findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
 import { useAuth } from '../context/AuthContext.jsx';
 import { uploadImageFile } from '../services/mediaUpload';
 
 const tokenStorageKey = 'wadatrip_token';
+
+const COUNTRY_OPTIONS = [
+  { code: 'PE', label: 'Peru' },
+  { code: 'US', label: 'United States' },
+  { code: 'MX', label: 'Mexico' },
+  { code: 'CO', label: 'Colombia' },
+  { code: 'AR', label: 'Argentina' },
+  { code: 'CL', label: 'Chile' },
+  { code: 'EC', label: 'Ecuador' },
+  { code: 'BO', label: 'Bolivia' },
+  { code: 'BR', label: 'Brazil' },
+  { code: 'ES', label: 'Spain' },
+  { code: 'IT', label: 'Italy' },
+  { code: 'FR', label: 'France' },
+  { code: 'GB', label: 'United Kingdom' },
+  { code: 'PT', label: 'Portugal' },
+];
+
+const COUNTRY_NAME_TO_CODE = {
+  peru: 'PE',
+  perú: 'PE',
+  usa: 'US',
+  us: 'US',
+  'united states': 'US',
+  'united states of america': 'US',
+  mexico: 'MX',
+  colombia: 'CO',
+  argentina: 'AR',
+  chile: 'CL',
+  ecuador: 'EC',
+  bolivia: 'BO',
+  brazil: 'BR',
+  brasil: 'BR',
+  spain: 'ES',
+  españa: 'ES',
+  italy: 'IT',
+  italia: 'IT',
+  france: 'FR',
+  francia: 'FR',
+  portugal: 'PT',
+  'united kingdom': 'GB',
+  uk: 'GB',
+  england: 'GB',
+};
+
+const CITY_SUGGESTIONS = {
+  PE: ['Lima', 'Cusco', 'Arequipa', 'Puno', 'Ica'],
+  US: ['Palo Alto', 'San Francisco', 'New York', 'Los Angeles', 'Miami'],
+  MX: ['Mexico City', 'Cancun', 'Oaxaca', 'Guadalajara'],
+  CO: ['Bogota', 'Medellin', 'Cartagena', 'Cali'],
+  AR: ['Buenos Aires', 'Mendoza', 'Bariloche'],
+  CL: ['Santiago', 'Valparaiso', 'San Pedro de Atacama'],
+  EC: ['Quito', 'Guayaquil', 'Cuenca'],
+  BO: ['La Paz', 'Uyuni', 'Sucre'],
+  BR: ['Rio de Janeiro', 'Sao Paulo', 'Salvador'],
+  ES: ['Madrid', 'Barcelona', 'Seville'],
+  IT: ['Rome', 'Florence', 'Venice'],
+  FR: ['Paris', 'Nice', 'Lyon'],
+  GB: ['London', 'Edinburgh', 'Manchester'],
+  PT: ['Lisbon', 'Porto', 'Faro'],
+};
 
 function readOperatorSessionToken() {
   if (typeof window === 'undefined') return null;
@@ -62,6 +124,14 @@ const buildPublicTourUrl = (siteOrigin, listing) => `${siteOrigin}/tours/${build
 const normalizeNullable = (value) => {
   const text = String(value || '').trim();
   return text || '';
+};
+
+const normalizeCountryCode = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const upper = raw.toUpperCase();
+  if (upper.length === 2) return upper;
+  return COUNTRY_NAME_TO_CODE[raw.toLowerCase()] || upper.slice(0, 2);
 };
 
 export default function OperatorToursNew() {
@@ -157,7 +227,7 @@ export default function OperatorToursNew() {
       phone: normalizeNullable(provider?.phone),
       instagram_handle: normalizeNullable(provider?.instagram_handle),
       base_city: normalizeNullable(provider?.base_city),
-      country_code: normalizeNullable(provider?.country_code),
+      country_code: normalizeCountryCode(provider?.country_code),
       languages: Array.isArray(provider?.languages) ? provider.languages.join(', ') : normalizeNullable(provider?.languages),
       photo_url: normalizeNullable(provider?.photo_url),
       bio_short: normalizeNullable(provider?.bio_short),
@@ -168,7 +238,7 @@ export default function OperatorToursNew() {
       ...prev,
       provider_id: String(provider?.id || prev.provider_id || ''),
       city: prev.city || normalizeNullable(provider?.base_city),
-      country_code: prev.country_code || normalizeNullable(provider?.country_code),
+      country_code: prev.country_code || normalizeCountryCode(provider?.country_code),
     }));
   }, [user?.email, user?.name]);
 
@@ -235,12 +305,27 @@ export default function OperatorToursNew() {
     loadOwnedListings();
   }, [loadOwnedListings]);
 
+  const providerCitySuggestions = useMemo(
+    () => CITY_SUGGESTIONS[normalizeCountryCode(providerForm.country_code)] || CITY_SUGGESTIONS.PE,
+    [providerForm.country_code],
+  );
+  const tourCitySuggestions = useMemo(
+    () => CITY_SUGGESTIONS[normalizeCountryCode(tourForm.country_code)] || CITY_SUGGESTIONS.PE,
+    [tourForm.country_code],
+  );
+
   const handleProviderChange = (field, value) => {
-    setProviderForm((prev) => ({ ...prev, [field]: value }));
+    setProviderForm((prev) => ({
+      ...prev,
+      [field]: field === 'country_code' ? normalizeCountryCode(value) : value,
+    }));
   };
 
   const handleTourChange = (field, value) => {
-    setTourForm((prev) => ({ ...prev, [field]: value }));
+    setTourForm((prev) => ({
+      ...prev,
+      [field]: field === 'country_code' ? normalizeCountryCode(value) : value,
+    }));
   };
 
   const uploadGuidePhoto = async (file) => {
@@ -282,7 +367,7 @@ export default function OperatorToursNew() {
 
   const resolveDestinationCover = async (city, countryCode) => {
     const cityValue = String(city || '').trim();
-    const countryValue = String(countryCode || '').trim().toUpperCase();
+    const countryValue = normalizeCountryCode(countryCode);
     if (!cityValue) return null;
 
     const params = new URLSearchParams();
@@ -335,7 +420,7 @@ export default function OperatorToursNew() {
         phone: providerForm.phone.trim() || undefined,
         instagram_handle: providerForm.instagram_handle.trim().replace(/^@+/, '') || undefined,
         base_city: providerForm.base_city.trim(),
-        country_code: providerForm.country_code.trim().toUpperCase(),
+        country_code: normalizeCountryCode(providerForm.country_code),
         languages: providerForm.languages.trim(),
         photo_url: providerForm.photo_url.trim() || undefined,
         bio_short: providerForm.bio_short.trim() || undefined,
@@ -451,7 +536,7 @@ export default function OperatorToursNew() {
         category: tourForm.category.trim(),
         description: tourForm.description.trim() || null,
         city: tourForm.city.trim(),
-        country_code: tourForm.country_code.trim().toUpperCase(),
+        country_code: normalizeCountryCode(tourForm.country_code),
         duration_minutes: tourForm.duration_minutes ? Number(tourForm.duration_minutes) : undefined,
         price_from: tourForm.price_from ? Number(tourForm.price_from) : undefined,
         currency: tourForm.currency || undefined,
@@ -521,7 +606,7 @@ export default function OperatorToursNew() {
         category: data?.category || 'tour',
         description: data?.description || '',
         city: data?.city || '',
-        country_code: data?.country_code || '',
+        country_code: normalizeCountryCode(data?.country_code),
         duration_minutes: data?.duration_minutes ?? '',
         price_from: data?.price_from ?? '',
         currency: data?.currency || 'USD',
@@ -553,7 +638,7 @@ export default function OperatorToursNew() {
     if (isLikelyListingId(slugOrId)) return slugOrId;
 
     const sources = [];
-    if (token) {
+    if (sessionToken) {
       try {
         const owned = await authFetch('/providers/me/listings?limit=200', { method: 'GET' });
         sources.push(...(Array.isArray(owned?.items) ? owned.items : []));
@@ -609,7 +694,7 @@ export default function OperatorToursNew() {
         category: tourForm.category.trim(),
         description: tourForm.description.trim() || null,
         city: tourForm.city.trim(),
-        country_code: tourForm.country_code.trim().toUpperCase(),
+        country_code: normalizeCountryCode(tourForm.country_code),
         duration_minutes: tourForm.duration_minutes ? Number(tourForm.duration_minutes) : undefined,
         price_from: tourForm.price_from ? Number(tourForm.price_from) : undefined,
         currency: tourForm.currency || undefined,
@@ -990,20 +1075,34 @@ export default function OperatorToursNew() {
                 value={providerForm.base_city}
                 onChange={(event) => handleProviderChange('base_city', event.target.value)}
                 placeholder={t('operator.base_city_placeholder', 'Lima')}
+                list="provider-city-suggestions"
                 className="mt-2 h-12 neon-input"
               />
+              <datalist id="provider-city-suggestions">
+                {providerCitySuggestions.map((city) => <option key={city} value={city} />)}
+              </datalist>
             </div>
             <div>
               <label htmlFor="provider-country" className="text-sm text-[#e0e0e0]">
                 {t('operator.country_label', 'Country (ISO2)')}
               </label>
-              <Input
-                id="provider-country"
-                value={providerForm.country_code}
-                onChange={(event) => handleProviderChange('country_code', event.target.value)}
-                placeholder={t('operator.country_placeholder', 'PE')}
-                className="mt-2 h-12 neon-input"
-              />
+              <div className="mt-2">
+                <Select
+                  value={normalizeCountryCode(providerForm.country_code) || undefined}
+                  onValueChange={(value) => handleProviderChange('country_code', value)}
+                >
+                  <SelectTrigger className="h-12 w-full neon-input text-white">
+                    <SelectValue placeholder="Choose a country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRY_OPTIONS.map((country) => (
+                      <SelectItem key={country.code} value={country.code}>
+                        {country.label} ({country.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <label htmlFor="provider-languages" className="text-sm text-[#e0e0e0]">
@@ -1212,20 +1311,34 @@ export default function OperatorToursNew() {
                   value={tourForm.city}
                   onChange={(event) => handleTourChange('city', event.target.value)}
                   placeholder={t('operator.city_placeholder', 'Cusco')}
+                  list="tour-city-suggestions"
                   className="mt-2 h-12 neon-input"
                 />
+                <datalist id="tour-city-suggestions">
+                  {tourCitySuggestions.map((city) => <option key={city} value={city} />)}
+                </datalist>
               </div>
               <div>
                 <label htmlFor="tour-country" className="text-sm text-[#e0e0e0]">
                   {t('operator.tour_country_label', 'Country (ISO2)')}
                 </label>
-                <Input
-                  id="tour-country"
-                  value={tourForm.country_code}
-                  onChange={(event) => handleTourChange('country_code', event.target.value)}
-                  placeholder={t('operator.country_placeholder', 'PE')}
-                  className="mt-2 h-12 neon-input"
-                />
+                <div className="mt-2">
+                  <Select
+                    value={normalizeCountryCode(tourForm.country_code) || undefined}
+                    onValueChange={(value) => handleTourChange('country_code', value)}
+                  >
+                    <SelectTrigger className="h-12 w-full neon-input text-white">
+                      <SelectValue placeholder="Choose a country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_OPTIONS.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.label} ({country.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
                 <label htmlFor="tour-duration" className="text-sm text-[#e0e0e0]">
@@ -1444,7 +1557,7 @@ export default function OperatorToursNew() {
               </p>
               <p className="mt-1 text-[#a0a0a0]">
                 {String(createdTour?.status || '').toLowerCase() === 'published'
-                  ? 'Your public tour link is ready to share.'
+                  ? 'This is the public link you share with travelers so they can open the tour and book it.'
                   : 'Your tour is saved. You can keep editing it before publishing.'}
               </p>
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
