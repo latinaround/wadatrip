@@ -20,7 +20,7 @@ const formatDate = (value) => {
 const formatCurrency = (amountCents = 0, currency = 'USD') => {
   const value = typeof amountCents === 'number' ? amountCents / 100 : Number(amountCents) / 100;
   if (Number.isNaN(value)) return '-';
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency }).format(value);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value);
 };
 
 const skeleton = (className) => (
@@ -63,7 +63,7 @@ const PaymentsList = ({ payments = [], loading, error }) => (
                 <TableCell>{payment.loading ? skeleton('w-20') : (payment.method || 'card')}</TableCell>
                 <TableCell>{payment.loading ? skeleton('w-28') : (payment.bookingId || payment.reference || '-')}
                   {payment.mock && !payment.loading && (
-                    <span className="block text-xs text-amber-600">Demo mode</span>
+                    <span className="block text-xs text-amber-600">Preview booking</span>
                   )}
                 </TableCell>
               </TableRow>

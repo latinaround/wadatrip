@@ -16,12 +16,10 @@ export const FlightPriceNotifications = () => {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    // Inicializar servicio de notificaciones
-    notificationService.initialize().then((granted) => {
+    notificationService.init().then(() => {
       setPermission(notificationService.permission);
     });
 
-    // Cargar alertas guardadas del localStorage
     const savedAlerts = localStorage.getItem('wadatrip-price-alerts');
     if (savedAlerts) {
       setAlerts(JSON.parse(savedAlerts));
@@ -29,7 +27,7 @@ export const FlightPriceNotifications = () => {
   }, []);
 
   const requestPermission = async () => {
-    const granted = await notificationService.initialize();
+    const granted = await notificationService.init();
     setPermission(notificationService.permission);
     return granted;
   };
@@ -38,11 +36,11 @@ export const FlightPriceNotifications = () => {
     const newErrors = {};
 
     if (!newAlert.origin.trim()) {
-      newErrors.origin = 'El origen es requerido';
+      newErrors.origin = 'Origin is required';
     }
 
     if (!newAlert.destination.trim()) {
-      newErrors.destination = 'El destino es requerido';
+      newErrors.destination = 'Destination is required';
     }
 
     const emailValidation = Validator.validateEmail(newAlert.email);
@@ -76,14 +74,11 @@ export const FlightPriceNotifications = () => {
     setAlerts(updatedAlerts);
     localStorage.setItem('wadatrip-price-alerts', JSON.stringify(updatedAlerts));
 
-    // Limpiar formulario
     setNewAlert({ origin: '', destination: '', email: '', maxPrice: '' });
     setErrors({});
 
-    // Mostrar notificación de confirmación
-    notificationService.showNotification({
-      title: 'Alerta Creada',
-      body: `Te notificaremos cuando el precio de ${alert.origin}  ${alert.destination} baje de $${alert.maxPrice}`,
+    notificationService.showNotification('Price alert created', {
+      body: `We will notify you when ${alert.origin} to ${alert.destination} drops below $${alert.maxPrice}.`,
       icon: '/alert-icon.png'
     });
   };
@@ -103,14 +98,12 @@ export const FlightPriceNotifications = () => {
   };
 
   const simulateFlightPriceAlert = (alert) => {
-    // Simular una alerta de precio
     const mockPrice = Math.floor(Math.random() * alert.maxPrice * 0.8) + 100;
     notificationService.showFlightPriceAlert({
-      origin: alert.origin,
       destination: alert.destination,
-      price: mockPrice,
+      currentPrice: mockPrice,
       previousPrice: alert.maxPrice,
-      date: new Date().toISOString().split('T')[0]
+      savings: Math.max(0, alert.maxPrice - mockPrice),
     });
   };
 
@@ -118,8 +111,8 @@ export const FlightPriceNotifications = () => {
     return (
       <div className="notification-container">
         <div className="alert alert-warning">
-          <h3>Notificaciones No Soportadas</h3>
-          <p>Tu navegador no soporta notificaciones push. Considera actualizar tu navegador para recibir alertas de precios.</p>
+          <h3>Notifications are not supported</h3>
+          <p>Your browser does not support push notifications. Update your browser if you want live price alerts.</p>
         </div>
       </div>
     );
@@ -128,17 +121,17 @@ export const FlightPriceNotifications = () => {
   return (
     <div className="notification-container">
       <div className="notification-header">
-        <h2>Alertas de Precios de Vuelos</h2>
-        <p>Recibe notificaciones cuando los precios bajen</p>
+        <h2>Flight price alerts</h2>
+        <p>Get notified when prices drop.</p>
       </div>
 
       {permission !== 'granted' && (
         <div className="permission-request">
           <div className="alert alert-info">
-            <h3>Permisos Requeridos</h3>
-            <p>Para recibir alertas de precios, necesitamos tu permiso para mostrar notificaciones.</p>
+            <h3>Permission required</h3>
+            <p>To receive price alerts, we need permission to show notifications.</p>
             <button onClick={requestPermission} className="btn btn-primary">
-              Permitir Notificaciones
+              Allow notifications
             </button>
           </div>
         </div>
@@ -146,27 +139,27 @@ export const FlightPriceNotifications = () => {
 
       {permission === 'granted' && (
         <div className="alert-form">
-          <h3>Crear Nueva Alerta</h3>
+          <h3>Create new alert</h3>
           <div className="form-grid">
             <div className="form-field">
-              <label>Origen</label>
+              <label>Origin</label>
               <input
                 type="text"
                 value={newAlert.origin}
                 onChange={(e) => setNewAlert({...newAlert, origin: e.target.value})}
-                placeholder="Ciudad de origen"
+                placeholder="Origin city"
                 className={errors.origin ? 'error' : ''}
               />
               {errors.origin && <span className="error-message">{errors.origin}</span>}
             </div>
 
             <div className="form-field">
-              <label>Destino</label>
+              <label>Destination</label>
               <input
                 type="text"
                 value={newAlert.destination}
                 onChange={(e) => setNewAlert({...newAlert, destination: e.target.value})}
-                placeholder="Ciudad de destino"
+                placeholder="Destination city"
                 className={errors.destination ? 'error' : ''}
               />
               {errors.destination && <span className="error-message">{errors.destination}</span>}
@@ -185,7 +178,7 @@ export const FlightPriceNotifications = () => {
             </div>
 
             <div className="form-field">
-              <label>Precio Máximo (USD)</label>
+              <label>Maximum price (USD)</label>
               <input
                 type="number"
                 value={newAlert.maxPrice}
@@ -198,44 +191,44 @@ export const FlightPriceNotifications = () => {
           </div>
 
           <button onClick={addAlert} className="btn btn-primary">
-            Crear Alerta
+            Create alert
           </button>
         </div>
       )}
 
       <div className="alerts-list">
-        <h3>Mis Alertas ({alerts.length})</h3>
+        <h3>My alerts ({alerts.length})</h3>
         {alerts.length === 0 ? (
-          <p className="no-alerts">No tienes alertas activas. Crea una para comenzar.</p>
+          <p className="no-alerts">You do not have any active alerts yet. Create one to get started.</p>
         ) : (
           <div className="alerts-grid">
             {alerts.map(alert => (
               <div key={alert.id} className={`alert-card ${!alert.isActive ? 'inactive' : ''}`}>
                 <div className="alert-info">
                   <h4>{alert.origin}  {alert.destination}</h4>
-                  <p>Precio máximo: <strong>${alert.maxPrice}</strong></p>
+                  <p>Maximum price: <strong>${alert.maxPrice}</strong></p>
                   <p>Email: {alert.email}</p>
-                  <small>Creada: {new Date(alert.createdAt).toLocaleDateString()}</small>
+                  <small>Created: {new Date(alert.createdAt).toLocaleDateString()}</small>
                 </div>
                 <div className="alert-actions">
                   <button 
                     onClick={() => toggleAlert(alert.id)}
                     className={`btn btn-sm ${alert.isActive ? 'btn-warning' : 'btn-success'}`}
                   >
-                    {alert.isActive ? 'Pausar' : 'Activar'}
+                    {alert.isActive ? 'Pause' : 'Activate'}
                   </button>
                   <button 
                     onClick={() => simulateFlightPriceAlert(alert)}
                     className="btn btn-sm btn-info"
-                    title="Simular alerta"
+                    title="Simulate alert"
                   >
-                    Probar
+                    Test
                   </button>
                   <button 
                     onClick={() => removeAlert(alert.id)}
                     className="btn btn-sm btn-danger"
                   >
-                    Eliminar
+                    Delete
                   </button>
                 </div>
               </div>

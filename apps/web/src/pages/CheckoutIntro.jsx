@@ -6,7 +6,6 @@ export default function CheckoutIntro() {
 
   const handleCheckout = async () => {
     try {
-      // Llama a tu endpoint del backend para crear la sesin de Stripe
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -14,13 +13,13 @@ export default function CheckoutIntro() {
 
       const { url } = await response.json();
       if (url) {
-        window.location.href = url; // redirige a la pgina de Stripe
+        window.location.href = url;
       } else {
-        alert("Error: could not start payment session");
+        alert("We could not start checkout right now.");
       }
     } catch (error) {
       console.error("Stripe checkout error:", error);
-      alert("Something went wrong, please try again later.");
+      alert("Checkout is temporarily unavailable. Please try again later.");
     }
   };
 
@@ -28,7 +27,7 @@ export default function CheckoutIntro() {
     <section className="flex flex-col items-center justify-center min-h-screen bg-[#0a0e27] text-white">
       <h1 className="text-4xl font-bold mb-6 neon-title">Confirm your booking</h1>
       <p className="mb-8 text-[#a0a0a0] text-lg">
-        Youll be redirected to our secure Stripe page to complete your payment.
+        You'll be redirected to our secure Stripe page to complete your payment.
       </p>
 
       <div className="flex gap-4">
