@@ -84,14 +84,6 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
           <div className="flex flex-shrink-0 items-center gap-2">
             <LanguageSwitcher />
             <Button
-              variant="outline"
-              size="sm"
-              className="hidden border-[#16d7d0]/30 bg-transparent text-xs text-[#16d7d0] hover:bg-white/5 md:flex"
-              asChild
-            >
-              <Link to="/request-demo">{t('nav.request_demo')}</Link>
-            </Button>
-            <Button
               variant="secondary"
               size="sm"
               className="hidden bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105 md:flex"
@@ -140,16 +132,6 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
                 );
               })}
               <div className="flex flex-col space-y-2 border-t border-[#2d3548] pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-[#16d7d0]/30 bg-transparent text-[#16d7d0] hover:bg-white/5"
-                  asChild
-                >
-                  <Link to="/request-demo" onClick={() => setIsMenuOpen(false)}>
-                    {t('nav.request_demo')}
-                  </Link>
-                </Button>
                 <Button
                   size="sm"
                   className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105"
