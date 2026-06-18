@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Elements, CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
+import { Link } from 'react-router-dom';
 
 const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
@@ -116,13 +117,13 @@ const CheckoutDialog = ({
   const mockMessage = useMemo(() => {
     if (!mock) return null;
     if (mockReason === 'stripe_disabled') {
-      return `Preview booking only. Live checkout is not available for this itinerary yet, so no real charge will be made for ${amountLabel(amountCents, currency)}.`;
+      return 'Live checkout is not available for this itinerary yet. Explore real tours from local operators instead.';
     }
     if (mockReason === 'provider_missing_connect') {
-      return `Preview booking only. This host is not ready for live payouts yet, so no real charge will be made for ${amountLabel(amountCents, currency)}.`;
+      return 'This itinerary is not ready for live checkout yet. Explore real tours from local operators instead.';
     }
-    return `Preview booking only. No real charge will be made for ${amountLabel(amountCents, currency)}.`;
-  }, [mock, mockReason, amountCents, currency]);
+    return 'Live checkout is not available for this itinerary yet. Explore real tours from local operators instead.';
+  }, [mock, mockReason]);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose?.()}>
@@ -167,8 +168,10 @@ const CheckoutDialog = ({
         {!loading && (mock || clientSecret) && (
           <div className="space-y-4">
             {mock ? (
-              <Button className="w-full" onClick={() => { onPaymentSuccess?.({ status: 'succeeded', mock: true, mockReason }); }}>
-                Save preview booking
+              <Button asChild className="w-full">
+                <Link to="/tours" onClick={() => onClose?.()}>
+                  Explore real tours
+                </Link>
               </Button>
             ) : stripePromise ? (
               <Elements stripe={stripePromise} options={{ clientSecret }}>

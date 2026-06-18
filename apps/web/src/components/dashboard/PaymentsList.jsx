@@ -63,7 +63,7 @@ const PaymentsList = ({ payments = [], loading, error }) => (
                 <TableCell>{payment.loading ? skeleton('w-20') : (payment.method || 'card')}</TableCell>
                 <TableCell>{payment.loading ? skeleton('w-28') : (payment.bookingId || payment.reference || '-')}
                   {payment.mock && !payment.loading && (
-                    <span className="block text-xs text-amber-600">Preview booking</span>
+                    <span className="block text-xs text-amber-600">No charge captured</span>
                   )}
                 </TableCell>
               </TableRow>
