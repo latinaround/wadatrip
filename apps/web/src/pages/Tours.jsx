@@ -220,10 +220,26 @@ export default function Tours() {
       .sort((a, b) => b.hosts.length - a.hosts.length || a.title.localeCompare(b.title));
   }, [items]);
 
-  const activeCities = useMemo(() => {
-    return Array.from(new Set(experiences.map((item) => String(item.city || '').trim()).filter(Boolean))).slice(0, 6);
-  }, [experiences]);
   const suggestedCities = useMemo(() => getCitySuggestions(filters.country), [filters.country]);
+  const activeCities = useMemo(() => {
+    return Array.from(new Set(experiences.map((item) => String(item.city || '').trim()).filter(Boolean)));
+  }, [experiences]);
+  const cityOptions = useMemo(() => {
+    const known = new Map();
+    [...suggestedCities, ...activeCities].forEach((city) => {
+      const normalized = String(city || '').trim();
+      if (!normalized) return;
+      known.set(normalized.toLowerCase(), normalized);
+    });
+    return Array.from(known.values()).sort((a, b) => a.localeCompare(b));
+  }, [activeCities, suggestedCities]);
+  const filteredCitySuggestions = useMemo(() => {
+    const query = String(filters.city || '').trim().toLowerCase();
+    if (!query) return cityOptions.slice(0, 12);
+    const startsWith = cityOptions.filter((city) => city.toLowerCase().startsWith(query));
+    const includes = cityOptions.filter((city) => !city.toLowerCase().startsWith(query) && city.toLowerCase().includes(query));
+    return [...startsWith, ...includes].slice(0, 12);
+  }, [cityOptions, filters.city]);
 
   return (
     <div className="page-shell">
@@ -249,24 +265,11 @@ export default function Tours() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="page-kicker text-[#167c7d]">Filters</p>
-                  <p className="text-sm text-[#64748b]">Search by city, country, and whether you want free join flows or paid checkout tours.</p>
+                  <p className="text-sm text-[#64748b]">Choose a country first, then start typing a city and we will suggest matching places.</p>
                 </div>
                 <div className="text-xs uppercase tracking-[0.18em] text-[#6b7687]">{experiences.length} experiences</div>
               </div>
-              <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">City</label>
-                  <input
-                    value={filters.city}
-                    onChange={(event) => handleFilterChange('city', event.target.value)}
-                    placeholder="Lima"
-                    list="tours-city-suggestions"
-                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
-                  />
-                  <datalist id="tours-city-suggestions">
-                    {suggestedCities.map((city) => <option key={city} value={city} />)}
-                  </datalist>
-                </div>
+              <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">Country</label>
                   <div className="mt-2">
@@ -287,6 +290,20 @@ export default function Tours() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">City</label>
+                  <input
+                    value={filters.city}
+                    onChange={(event) => handleFilterChange('city', event.target.value)}
+                    placeholder={filters.country ? 'Start typing a city' : 'Choose a country, then type a city'}
+                    list="tours-city-suggestions"
+                    autoComplete="off"
+                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
+                  />
+                  <datalist id="tours-city-suggestions">
+                    {filteredCitySuggestions.map((city) => <option key={city} value={city} />)}
+                  </datalist>
                 </div>
                 <button
                   type="button"
@@ -312,9 +329,9 @@ export default function Tours() {
           </section>
         </section>
 
-        {activeCities.length ? (
+        {filteredCitySuggestions.length ? (
           <section className="flex flex-wrap gap-3">
-            {activeCities.map((city) => (
+            {filteredCitySuggestions.map((city) => (
               <button
                 key={city}
                 type="button"
