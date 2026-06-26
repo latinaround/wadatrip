@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { apiFetch } from '@/admin/api'
 
@@ -46,17 +47,23 @@ function StatusBadge({ status }: { status: ProviderStatus }) {
 }
 
 export default function ProvidersPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [rows, setRows] = useState<ProviderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<ProviderRow | null>(null)
 
-  const [q, setQ] = useState('')
-  const [status, setStatus] = useState<ProviderStatusFilter>('') // '', pending, verified, rejected
+  const initialQ = searchParams.get('q') || ''
+  const initialStatus = (searchParams.get('status') || '') as ProviderStatusFilter
+  const [q, setQ] = useState(initialQ)
+  const [status, setStatus] = useState<ProviderStatusFilter>(initialStatus) // '', pending, verified, rejected
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(20)
   const [total, setTotal] = useState(0)
-  const [filters, setFilters] = useState<{ q: string; status: ProviderStatusFilter }>({ q: '', status: '' })
+  const [filters, setFilters] = useState<{ q: string; status: ProviderStatusFilter }>({
+    q: initialQ,
+    status: initialStatus,
+  })
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit])
 
@@ -104,11 +111,42 @@ export default function ProvidersPage() {
   const applyFilters = () => {
     setPage(1)
     setFilters({ q, status })
+    const next = new URLSearchParams()
+    if (q) next.set('q', q)
+    if (status) next.set('status', status)
+    setSearchParams(next, { replace: true })
+  }
+
+  const setQuickStatus = (nextStatus: ProviderStatusFilter) => {
+    setStatus(nextStatus)
+    setPage(1)
+    setFilters({ q, status: nextStatus })
+    const next = new URLSearchParams()
+    if (q) next.set('q', q)
+    if (nextStatus) next.set('status', nextStatus)
+    setSearchParams(next, { replace: true })
   }
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-extrabold text-teal-700 mb-4">Providers</h1>
+      <h1 className="text-2xl font-extrabold text-teal-700 mb-2">Guide Approvals</h1>
+      <p className="mb-4 max-w-3xl text-sm text-[#a0a0a0]">
+        Approve the guide here first. After approval, review or activate their tours in <span className="font-medium text-white">Admin → Listings</span>.
+      </p>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Button variant={!filters.status ? 'default' : 'outline'} size="sm" onClick={() => setQuickStatus('')}>
+          All guides
+        </Button>
+        <Button variant={filters.status === 'pending' ? 'default' : 'outline'} size="sm" onClick={() => setQuickStatus('pending')}>
+          Pending approvals
+        </Button>
+        <Button variant={filters.status === 'verified' ? 'default' : 'outline'} size="sm" onClick={() => setQuickStatus('verified')}>
+          Verified
+        </Button>
+        <Button variant={filters.status === 'rejected' ? 'default' : 'outline'} size="sm" onClick={() => setQuickStatus('rejected')}>
+          Rejected
+        </Button>
+      </div>
       <div className="flex flex-wrap items-end gap-2 mb-3">
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs text-[#a0a0a0]">Search</label>

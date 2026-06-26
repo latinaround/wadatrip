@@ -24,7 +24,9 @@ function SidebarLayout({ children }) {
         <div className="p-4 font-extrabold text-teal-700">WadaTrip Admin</div>
         <nav className="p-2 space-y-1">
           <Link to="/admin/providers" className="block px-3 py-2 rounded hover:bg-gray-100">Providers</Link>
+          <Link to="/admin/providers?status=pending" className="block px-3 py-2 rounded bg-amber-50 text-amber-900 hover:bg-amber-100">Pending Guide Approvals</Link>
           <Link to="/admin/listings" className="block px-3 py-2 rounded hover:bg-gray-100">Listings</Link>
+          <Link to="/admin/listings?status=draft" className="block px-3 py-2 rounded bg-sky-50 text-sky-900 hover:bg-sky-100">Draft Tours</Link>
           <Link to="/admin/operator-leads" className="block px-3 py-2 rounded hover:bg-gray-100">Operator Leads</Link>
           <Link to="/admin/destination-covers" className="block px-3 py-2 rounded hover:bg-gray-100">Destination Covers</Link>
           <Link to="/admin/bookings" className="block px-3 py-2 rounded hover:bg-gray-100">Bookings</Link>

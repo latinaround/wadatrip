@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { apiFetch } from './api'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { COUNTRY_OPTIONS, normalizeCountryCode } from '@/utils/geoOptions'
 
 export default function ListingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   // Filters & pagination
-  const [q, setQ] = useState('') // title contains
-  const [city, setCity] = useState('')
-  const [country, setCountry] = useState('')
-  const [category, setCategory] = useState('')
-  const [status, setStatus] = useState('')
+  const [q, setQ] = useState(searchParams.get('q') || '') // title contains
+  const [city, setCity] = useState(searchParams.get('city') || '')
+  const [country, setCountry] = useState(searchParams.get('country') || '')
+  const [category, setCategory] = useState(searchParams.get('category') || '')
+  const [status, setStatus] = useState(searchParams.get('status') || '')
   const [sort, setSort] = useState('created_at:desc') // created_at:desc|asc, price:asc|desc
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(20)
@@ -34,6 +36,7 @@ export default function ListingsPage() {
       if (country) params.set('country', normalizeCountryCode(country))
       if (category) params.set('category', category)
       if (status) params.set('status', status)
+      setSearchParams(params, { replace: true })
       const res = await apiFetch(`/listings/search?${params.toString()}`)
       setRows(res?.items || [])
       setTotal(res?.total || 0)
@@ -50,7 +53,24 @@ export default function ListingsPage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-extrabold text-teal-700 mb-4">Listings</h1>
+      <h1 className="text-2xl font-extrabold text-teal-700 mb-2">Tour Reviews</h1>
+      <p className="mb-4 max-w-3xl text-sm text-gray-600">
+        Use this screen to review draft tours, confirm the linked guide status, and activate published listings.
+      </p>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Button variant={!status ? 'default' : 'outline'} size="sm" onClick={() => { setStatus(''); setPage(1); }}>
+          All tours
+        </Button>
+        <Button variant={status === 'draft' ? 'default' : 'outline'} size="sm" onClick={() => { setStatus('draft'); setPage(1); }}>
+          Draft tours
+        </Button>
+        <Button variant={status === 'published' ? 'default' : 'outline'} size="sm" onClick={() => { setStatus('published'); setPage(1); }}>
+          Published tours
+        </Button>
+        <Button variant={status === 'inactive' ? 'default' : 'outline'} size="sm" onClick={() => { setStatus('inactive'); setPage(1); }}>
+          Inactive tours
+        </Button>
+      </div>
       <div className="flex flex-wrap items-end gap-2 mb-3">
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs text-gray-600">Search title</label>
@@ -121,6 +141,7 @@ export default function ListingsPage() {
             <tr>
               <th className="px-3 py-2">ID</th>
               <th className="px-3 py-2">Provider ID</th>
+              <th className="px-3 py-2">Guide status</th>
               <th className="px-3 py-2">Title</th>
               <th className="px-3 py-2">City</th>
               <th className="px-3 py-2">Price from</th>
@@ -132,11 +153,22 @@ export default function ListingsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td className="px-3 py-3" colSpan={8}>Loading…</td></tr>
+              <tr><td className="px-3 py-3" colSpan={10}>Loading…</td></tr>
             ) : rows.length ? rows.map((l) => (
               <tr key={l.id} className="border-t">
                 <td className="px-3 py-2 font-mono text-xs">{l.id}</td>
                 <td className="px-3 py-2 font-mono text-xs">{l.provider_id}</td>
+                <td className="px-3 py-2">
+                  <span className={`rounded px-2 py-1 text-xs font-semibold capitalize ${
+                    String(l.provider_status || '').toLowerCase() === 'verified'
+                      ? 'bg-green-100 text-green-800'
+                      : String(l.provider_status || '').toLowerCase() === 'rejected'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {l.provider_status || 'pending'}
+                  </span>
+                </td>
                 <td className="px-3 py-2">{l.title}</td>
                 <td className="px-3 py-2">{l.city}</td>
                 <td className="px-3 py-2">{l.price_from ?? '-'}</td>
@@ -150,7 +182,7 @@ export default function ListingsPage() {
                 </td>
               </tr>
             )) : (
-              <tr><td className="px-3 py-3" colSpan={8}>No listings found.</td></tr>
+              <tr><td className="px-3 py-3" colSpan={10}>No listings found.</td></tr>
             )}
           </tbody>
         </table>
