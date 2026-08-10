@@ -15,8 +15,8 @@
       "@wadatrip/connectors/*": ["../../libs/connectors/dist/*"],
       "@wadatrip/pricing": ["../../libs/pricing/dist/index"],
       "@wadatrip/pricing/*": ["../../libs/pricing/dist/*"],
-      "@wadatrip/db": ["../../libs/db/src/index.ts"],
-      "@wadatrip/db/*": ["../../libs/db/src/*"],
+      "@wadatrip/db": ["../../libs/db/dist/index"],
+      "@wadatrip/db/*": ["../../libs/db/dist/*"],
       "@/*": ["src/*"]
     }
   },
