@@ -5,6 +5,7 @@ import { findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
 import { buildGuideHref, buildInstagramUrl, buildWhatsAppUrl, formatGuideRating } from '../utils/guideProfile';
 import { getListingBookingCta, getListingPriceBadge, getListingShareCopy, isFreeTour } from '../utils/listingMode';
+import { getHostBadge, sortHostsByTrust } from '../utils/hostRanking';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import BrandLogo from '../components/BrandLogo';
@@ -114,7 +115,7 @@ function HostOptionCard({ item, selected, onSelect }) {
         </div>
       ) : null}
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
-        <span className="rounded-full bg-[#e7f7f5] px-3 py-2 text-[#167c7d]">Verified host</span>
+        {getHostBadge(item) ? <span className="rounded-full bg-[#e7f7f5] px-3 py-2 text-[#167c7d]">{getHostBadge(item)}</span> : null}
         {item.duration_hours ? <span className="rounded-full bg-[#fff1e5] px-3 py-2 text-[#c36d1f]">{item.duration_hours}h</span> : null}
         {item.language ? <span className="rounded-full bg-[#f7e9f0] px-3 py-2 text-[#b55282]">{item.language}</span> : null}
       </div>
@@ -171,7 +172,7 @@ export default function TourDetail() {
         let rows = [];
         const isId = isLikelyListingId(id);
         let listingId = id;
-        const fallback = await fetch(`${apiBase}/listings/search?status=published&limit=100`);
+        const fallback = await fetch(`${apiBase}/listings/search?status=published&limit=100&sort=featured`);
         const fallbackData = await fallback.json().catch(() => null);
         rows = Array.isArray(fallbackData?.items) ? fallbackData.items : [];
 
@@ -191,7 +192,7 @@ export default function TourDetail() {
 
         const experienceKey = buildExperienceKey(data);
         const groupedHosts = rows.filter((item) => buildExperienceKey(item) === experienceKey);
-        const hosts = groupedHosts.length ? groupedHosts : [data];
+        const hosts = sortHostsByTrust(groupedHosts.length ? groupedHosts : [data]);
         const selected = hosts.find((item) => String(item.id) === String(data.id)) || hosts[0] || data;
         const covers = await fetchDestinationCoverMap(apiBase, hosts);
 

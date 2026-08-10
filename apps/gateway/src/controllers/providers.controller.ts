@@ -194,6 +194,17 @@ async function findOwnedProvider(prisma: any, user: any) {
 }
 
 function mapListingWithProvider(item: any) {
+  const providerStatus = String(item.provider?.status ?? '').toLowerCase();
+  const verifiedLevel = String(item.provider?.verified_level ?? '').toLowerCase();
+  const isVerified = providerStatus === 'verified' || providerStatus === 'approved';
+  const isLicensed = isVerified && verifiedLevel === 'licensed';
+  const rating = Math.min(5, Math.max(0, Number(item.provider?.ratings_avg ?? 0) || 0));
+  const ratingCount = Math.max(0, Number(item.provider?.ratings_count ?? 0) || 0);
+  const providerTrustScore =
+    (isLicensed ? 50 : isVerified ? 35 : 0) +
+    rating * 4 +
+    Math.min(10, Math.log10(ratingCount + 1) * 5);
+
   return {
     ...item,
     provider_name: item.provider?.name ?? null,
@@ -206,7 +217,19 @@ function mapListingWithProvider(item: any) {
     provider_instagram_handle: item.provider?.instagram_handle ?? null,
     provider_ratings_avg: item.provider?.ratings_avg ?? 0,
     provider_ratings_count: item.provider?.ratings_count ?? 0,
+    provider_trust_score: Number(providerTrustScore.toFixed(2)),
+    provider_badge: isLicensed ? 'Licensed guide' : isVerified ? 'Verified host' : null,
   };
+}
+
+function compareFeaturedListings(left: any, right: any) {
+  const scoreDifference = Number(right.provider_trust_score ?? 0) - Number(left.provider_trust_score ?? 0);
+  if (scoreDifference !== 0) return scoreDifference;
+  const ratingDifference = Number(right.provider_ratings_avg ?? 0) - Number(left.provider_ratings_avg ?? 0);
+  if (ratingDifference !== 0) return ratingDifference;
+  const reviewDifference = Number(right.provider_ratings_count ?? 0) - Number(left.provider_ratings_count ?? 0);
+  if (reviewDifference !== 0) return reviewDifference;
+  return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
 }
 
 function buildOwnedProviderData(body: any, user: any, existing: any) {
@@ -721,7 +744,12 @@ export class ProvidersController {
       }),
     ]);
 
-    return { items: items.map(mapListingWithProvider), total, page, limit };
+    const mappedItems = items.map(mapListingWithProvider);
+    if (String(query.sort || '').toLowerCase() === 'featured') {
+      mappedItems.sort(compareFeaturedListings);
+    }
+
+    return { items: mappedItems, total, page, limit };
   }
 
   @Get('listings/:id')

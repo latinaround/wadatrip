@@ -1,11 +1,12 @@
-# Deploy Notes (08 Jan 2026)
+# Deploy Notes (03 Jun 2026)
 
 ## Current Mode (MVP)
 - Backend runs as a single Render service (monolith operational).
 - Gateway is the only public entry point.
 - Active in-process modules: Pricing (ADRED-lite), Itineraries (marketplace CRUD), Payments.
 - Inactive: Provider Hub, Alerts, WadAgent (no Redis required).
-- Frontend static snapshot is in `vercel-static/` (source: current wadatrip.com build).
+- Live frontend source of truth is `apps/web`.
+- `vercel-static/` remains only as a legacy static snapshot/reference.
 
 ## Render Blueprint
 - `render.yaml` is **disabled**: see `render.yaml.disabled`.
@@ -38,10 +39,11 @@ Core:
 - Active: Gateway, Pricing (ADRED-lite), Itineraries CRUD (marketplace), Payments (Stripe).
 - Inactive: Provider Hub, Alerts, WadAgent, Redis/queues.
 - Critical endpoints must respond fast (no >1.2s DB waits).
- - Vercel config for 1:1 frontend match:
-   - Root Directory: `vercel-static`
-   - Build Command: (empty)
-   - Output Directory: `.`
+- Vercel config for the active public frontend:
+  - Repository: `wadatrip-platform`
+  - Root Directory: `apps/web`
+  - Build Command: `yarn build`
+  - Output Directory: `dist`
 - Gateway now provides Provider-Hub-compatible endpoints in-process:
   - `/providers`, `/providers/:id`, `/providers/:id/verify`, `/providers/:id/verification-status`, `/providers/:id/resubmit`
   - `/listings`, `/listings/search`, `/listings/:id`, `/listings/:id/status`
@@ -66,6 +68,7 @@ Stripe (if enabled):
 
 ## Things to Remember
 - Do **not** re-add `apps/web` to workspaces (causes duplicate workspace error).
+- Do **not** treat `wadatrip-web` as the production frontend unless deploy ownership is intentionally migrated and the docs are updated the same day.
 - If services don't respond, confirm `yarn start` is used (no Redis requirement).
 
 ## Local Changes Pending (14 Jan 2026)

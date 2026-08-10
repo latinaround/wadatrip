@@ -40,6 +40,12 @@ If this changes, update this file the same day.
 - Not the active source of truth for the public website
 - Do not ship new web features here unless the deployment strategy is intentionally reverted
 
+### `wadatrip-web`
+- Status: legacy / historical standalone frontend
+- Purpose: previous or parallel web workspace kept for reference
+- Not the active source of truth for the public website
+- Do not assume commits there affect production unless Vercel ownership is explicitly migrated
+
 ## Product Model
 
 ### Marketplace

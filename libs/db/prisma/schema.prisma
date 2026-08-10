@@ -12,6 +12,7 @@ generator client {
 model users {
   id            String    @id @default(cuid())
   email         String    @unique
+  firebase_uid  String?   @unique
   name          String?
   password_hash String?
   last_login_at DateTime?
@@ -22,22 +23,38 @@ model users {
   itineraries         itineraries[]
   alert_subscriptions alert_subscriptions[]
   bookings            bookings[]
+  trips               trips[]
   operator_listings   listings[]            @relation("OperatorListings")
-  provider_profile    providers?           @relation("ProviderOwner")
+  provider_profile    providers?            @relation("ProviderOwner")
   auth_login_codes    auth_login_codes[]
+  push_devices        push_devices[]
+
 
   @@index([email])
 }
 
-model auth_login_codes {
+model push_devices {
   id         String   @id @default(cuid())
+  user_id    String
+  token      String   @unique
+  platform   String?
+  provider   String   @default("expo")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+}
+model auth_login_codes {
+  id         String    @id @default(cuid())
   email      String
   code_hash  String
-  role       String   @default("traveler")
+  role       String    @default("traveler")
   expires_at DateTime
   used_at    DateTime?
-  attempts   Int      @default(0)
-  created_at DateTime @default(now())
+  attempts   Int       @default(0)
+  created_at DateTime  @default(now())
   user_id    String?
 
   user users? @relation(fields: [user_id], references: [id])
@@ -48,21 +65,21 @@ model auth_login_codes {
 }
 
 model itineraries {
-  id          String   @id @default(cuid())
-  owner_id    String
-  owner_type  String   @default("agent")
-  agent_id    String?
-  title       String
-  origin      String
-  destination String
-  start_date  DateTime
-  end_date    DateTime
-  pax         Int
-  price       Decimal? @db.Decimal(12, 2)
-  currency    String   @default("USD")
+  id                         String   @id @default(cuid())
+  owner_id                   String
+  owner_type                 String   @default("agent")
+  agent_id                   String?
+  title                      String
+  origin                     String
+  destination                String
+  start_date                 DateTime
+  end_date                   DateTime
+  pax                        Int
+  price                      Decimal? @db.Decimal(12, 2)
+  currency                   String   @default("USD")
   operator_stripe_account_id String?
-  status      String   @default("draft")
-  created_at  DateTime @default(now())
+  status                     String   @default("draft")
+  created_at                 DateTime @default(now())
 
   owner               users                 @relation(fields: [owner_id], references: [id])
   agent               providers?            @relation("AgentItineraries", fields: [agent_id], references: [id])
@@ -159,26 +176,26 @@ model adred_predictions {
 
 // ---------- Provider Hub ----------
 model providers {
-  id                String   @id @default(cuid())
-  user_id           String?  @unique
+  id                String    @id @default(cuid())
+  user_id           String?   @unique
   type              String
   name              String
-  email             String   @unique
+  email             String    @unique
   phone             String?
   languages         String[]
   base_city         String
   country_code      String
-  ratings_avg       Float    @default(0)
-  ratings_count     Int      @default(0)
-  status            String   @default("pending")
+  ratings_avg       Float     @default(0)
+  ratings_count     Int       @default(0)
+  status            String    @default("pending")
   photo_url         String?
   instagram_handle  String?
-  bio_short         String?  @db.Text
-  verified_level    String   @default("community")
+  bio_short         String?   @db.Text
+  verified_level    String    @default("community")
   license_url       String?
   approved_at       DateTime?
   approved_by       String?
-  created_at        DateTime @default(now())
+  created_at        DateTime  @default(now())
   stripe_account_id String?
 
   // Identity verification fields
@@ -192,11 +209,11 @@ model providers {
   match_faces         Boolean? @default(false)
   verification_notes  String?
 
-  owner       users?                @relation("ProviderOwner", fields: [user_id], references: [id])
-  documents provider_documents[]
-  listings  listings[]
-  bookings  bookings[]
-  itineraries itineraries[] @relation("AgentItineraries")
+  owner       users?               @relation("ProviderOwner", fields: [user_id], references: [id])
+  documents   provider_documents[]
+  listings    listings[]
+  bookings    bookings[]
+  itineraries itineraries[]        @relation("AgentItineraries")
 
   @@index([status], name: "idx_providers_status")
   @@index([user_id], name: "idx_providers_user")
@@ -222,10 +239,11 @@ model listings {
   cover_image_url  String?
   created_at       DateTime  @default(now())
 
-  provider     providers              @relation(fields: [provider_id], references: [id])
-  operator     users?                 @relation("OperatorListings", fields: [operator_id], references: [id])
-  availability listing_availability[]
-  bookings     bookings[]
+  provider         providers              @relation(fields: [provider_id], references: [id])
+  operator         users?                 @relation("OperatorListings", fields: [operator_id], references: [id])
+  availability     listing_availability[]
+  bookings         bookings[]
+  trip_experiences trip_experiences[]
 
   @@index([provider_id], name: "idx_listings_provider")
   @@index([city, country_code, category, status], name: "idx_listings_search")
@@ -259,10 +277,50 @@ model listing_availability {
   @@index([listing_id, date], name: "idx_listing_availability_date")
 }
 
+// ---------- Traveler journey ----------
+model trips {
+  id          String    @id @default(cuid())
+  user_id     String
+  title       String
+  destination String
+  start_date  DateTime?
+  end_date    DateTime?
+  travelers   Int       @default(1)
+  budget      Decimal?  @db.Decimal(12, 2)
+  currency    String    @default("USD")
+  interests   String[]
+  status      String    @default("planning")
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  user        users              @relation(fields: [user_id], references: [id])
+  experiences trip_experiences[]
+  bookings    bookings[]
+
+  @@index([user_id, status], name: "idx_trips_user_status")
+  @@index([destination, start_date], name: "idx_trips_destination_date")
+}
+
+model trip_experiences {
+  id         String   @id @default(cuid())
+  trip_id    String
+  listing_id String
+  source     String   @default("traveler")
+  status     String   @default("saved")
+  created_at DateTime @default(now())
+
+  trip    trips    @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+  listing listings @relation(fields: [listing_id], references: [id])
+
+  @@unique([trip_id, listing_id], name: "trip_experience_unique")
+  @@index([listing_id], name: "idx_trip_experiences_listing")
+}
+
 // ---------- Bookings ----------
 model bookings {
   id                   String   @id @default(cuid())
   listing_id           String
+  trip_id              String?
   provider_id          String
   user_id              String
   status               String   @default("pending")
@@ -281,9 +339,11 @@ model bookings {
   listing  listings  @relation(fields: [listing_id], references: [id])
   provider providers @relation(fields: [provider_id], references: [id])
   user     users     @relation(fields: [user_id], references: [id])
+  trip     trips?    @relation(fields: [trip_id], references: [id])
 
   @@index([provider_id, status, date], name: "idx_bookings_provider_status_date")
   @@index([user_id, status], name: "idx_bookings_user_status")
+  @@index([trip_id], name: "idx_bookings_trip")
 }
 
 model destination_covers {
@@ -338,11 +398,11 @@ model operator_leads {
 }
 
 model PaymentEvent {
-  id           String   @id
+  id           String    @id
   type         String
   payload      Json
   processed_at DateTime?
-  created_at   DateTime @default(now())
+  created_at   DateTime  @default(now())
 }
 
 model PaymentRecord {
@@ -370,5 +430,3 @@ model OperatorWallet {
   updatedAt      DateTime @updatedAt
   createdAt      DateTime @default(now())
 }
-
-

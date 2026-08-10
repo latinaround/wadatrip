@@ -65,9 +65,13 @@ export class BookingsController {
       user_id = demo.id;
     }
 
+    const trip_id = body.trip_id ? String(body.trip_id) : null;
+    if (trip_id) { const trip = await prisma.trips.findUnique({ where: { id: trip_id } }); if (!trip) throw new BadRequestException('trip not found'); if (trip.user_id !== String(user_id)) throw new BadRequestException('trip does not belong to traveler'); }
+
     const created = await prisma.bookings.create({
       data: {
         listing_id: String(body.listing_id),
+        ...(trip_id ? { trip_id } : {}),
         provider_id,
         user_id: String(user_id),
         date,

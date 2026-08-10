@@ -11,6 +11,8 @@ import { DestinationCoversController } from './controllers/destination-covers.co
 import { PricingController } from './controllers/pricing.controller';
 import { WebhooksController } from './controllers/webhooks.controller';
 import { EventsGateway } from './events.gateway';
+import { TripsController } from './controllers/trips.controller';
+import { DevicesController } from './controllers/devices.controller';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { EventsGateway } from './events.gateway';
     DestinationCoversController,
     PricingController,
     WebhooksController,
+    TripsController,
+    DevicesController,
   ],
   providers: [EventsGateway],
 })

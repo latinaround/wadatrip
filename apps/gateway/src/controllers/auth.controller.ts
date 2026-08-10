@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { getJwtSecret, getUserIdFromAuth } from '../utils/auth';
+import { verifyFirebaseIdToken } from '../utils/firebase-auth';
 
 const TOKEN_TTL_SECONDS = Number(process.env.JWT_TTL_SECONDS) || 60 * 60 * 24 * 7;
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
@@ -344,6 +345,27 @@ export class AuthController {
     return { token, user: sanitizeUser(user) };
   }
 
+  @Post('firebase')
+  async firebase(@Body() body: any) {
+    const idToken = String(body?.idToken || body?.id_token || '').trim();
+    if (!idToken) throw new BadRequestException('firebase id token is required');
+    const identity = await verifyFirebaseIdToken(idToken);
+    const prisma = getPrisma();
+    let user = await prisma.users.findFirst({
+      where: { OR: [{ firebase_uid: identity.uid }, { email: identity.email }] },
+    });
+    if (!user) {
+      user = await prisma.users.create({
+        data: { email: identity.email, firebase_uid: identity.uid, name: identity.name, role: 'traveler', status: 'active', last_login_at: new Date() },
+      });
+    } else {
+      user = await prisma.users.update({
+        where: { id: user.id },
+        data: { firebase_uid: identity.uid, name: user.name || identity.name || undefined, last_login_at: new Date() },
+      });
+    }
+    return { token: signToken(user), user: sanitizeUser(user) };
+  }
   @Get('me')
   async me(@Req() req: any) {
     const user = await getUserFromRequest(req);

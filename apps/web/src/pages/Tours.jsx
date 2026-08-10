@@ -6,6 +6,7 @@ import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
 import { getListingPriceBadge, isFreeTour } from '../utils/listingMode';
+import { getHostBadge, getHostTrustScore, sortHostsByTrust } from '../utils/hostRanking';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -76,8 +77,9 @@ function ExperienceCard({ experience, destinationCoverMap }) {
             </div>
           )}
           <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-[#6b7687]">Best match right now</p>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[#6b7687]">Top trusted host</p>
               <p className="mt-1 text-sm font-semibold text-[#0f172a]">{cheapestHost?.provider_name || 'Verified local host'}</p>
+              {getHostBadge(cheapestHost) ? <p className="mt-1 text-xs font-semibold text-[#167c7d]">{getHostBadge(cheapestHost)}</p> : null}
           </div>
         </div>
         </div>
@@ -123,6 +125,7 @@ export default function Tours() {
         const params = new URLSearchParams({
           status: 'published',
           limit: '60',
+          sort: 'featured',
         });
         if (filters.city.trim()) params.set('city', filters.city.trim());
         if (filters.country.trim()) params.set('country_code', filters.country.trim().toUpperCase());
@@ -208,16 +211,10 @@ export default function Tours() {
     return Array.from(groups.values())
       .map((group) => ({
         ...group,
-        hosts: group.hosts.slice().sort((a, b) => {
-          const aPrice = Number(a?.price_from || 0);
-          const bPrice = Number(b?.price_from || 0);
-          if (!Number.isFinite(aPrice) && !Number.isFinite(bPrice)) return 0;
-          if (!Number.isFinite(aPrice)) return 1;
-          if (!Number.isFinite(bPrice)) return -1;
-          return aPrice - bPrice;
-        }),
+        hosts: sortHostsByTrust(group.hosts),
       }))
-      .sort((a, b) => b.hosts.length - a.hosts.length || a.title.localeCompare(b.title));
+      .sort((a, b) => getHostTrustScore(b.hosts[0]) - getHostTrustScore(a.hosts[0])
+        || b.hosts.length - a.hosts.length || a.title.localeCompare(b.title));
   }, [items]);
 
   const suggestedCities = useMemo(() => getCitySuggestions(filters.country), [filters.country]);

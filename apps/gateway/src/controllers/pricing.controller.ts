@@ -2,10 +2,10 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import type { AxiosResponse } from 'axios';
-import {
+import type {
   PricingPredictRequest,
   PricingPredictResponse,
-} from '@wadatrip/common/dtos';
+} from '@wadatrip/common/dtos/shared.dtos';
 
 @Controller('pricing')
 export class PricingController {

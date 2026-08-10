@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, BadRequestException, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, BadRequestException, Req, UnauthorizedException } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
 import { getClaimsFromAuth } from '../utils/auth';
@@ -87,7 +87,7 @@ export class BookingsController {
   async list(@Query() q: any, @Req() req: any) {
     if (ENABLED) {
       const { data } = await axios.get(`${HUB}/bookings`, { params: q });
-      const items = await Promise.all(((data?.items as any[]) || []).map((item) => enrichBookingLinks(item)));
+      const items = await Promise.all(((data?.items as any[]) || []).map((item: any) => enrichBookingLinks(item)));
       return { ...data, items };
     }
 
@@ -130,7 +130,7 @@ export class BookingsController {
       }),
     ]);
 
-    const enrichedItems = await Promise.all(items.map((item) => enrichBookingLinks(item)));
+    const enrichedItems = await Promise.all(items.map((item: any) => enrichBookingLinks(item)));
     return { items: enrichedItems, total, page, limit };
   }
   @Get('bookings/:id')
@@ -149,9 +149,17 @@ export class BookingsController {
     return enrichBookingLinks(booking);
   }
   @Post('bookings')
-  async create(@Body() body: any) {
+  async create(@Req() req: any, @Body() body: any) {
+    const claims = getClaimsFromAuth(req);
+    const authenticatedUserId = claims?.sub ? String(claims.sub) : '';
+    if (!authenticatedUserId) throw new UnauthorizedException('not authenticated');
+    const trustedBody = {
+      ...body,
+      user_id: authenticatedUserId,
+      user_email: claims?.email ? String(claims.email).toLowerCase() : undefined,
+    };
     if (ENABLED) {
-      const { data } = await axios.post(`${HUB}/bookings`, body, {
+      const { data } = await axios.post(`${HUB}/bookings`, trustedBody, {
         headers: { 'x-internal-service-token': INTERNAL_TOKEN || '' },
       });
       return data;
@@ -185,21 +193,17 @@ export class BookingsController {
           ? Math.round(Number(total_price) * 100)
           : null;
 
-    let user_id: string | null = null;
-    if (body.user_id) {
-      const u = await prisma.users.findUnique({ where: { id: String(body.user_id) } });
-      user_id = u?.id || null;
-    }
-    if (!user_id) {
-      const email = String(body.user_email || 'demo@wadatrip.test').toLowerCase();
-      const name = body.user_name ? String(body.user_name) : null;
-      const demo = await prisma.users.upsert({ where: { email }, update: {}, create: { email, name } });
-      user_id = demo.id;
-    }
+    const user = await prisma.users.findUnique({ where: { id: authenticatedUserId } });
+    if (!user) throw new UnauthorizedException('authenticated user not found');
+    const user_id = user.id;
+
+    const trip_id = body.trip_id ? String(body.trip_id) : null;
+    if (trip_id) { const trip = await prisma.trips.findUnique({ where: { id: trip_id } }); if (!trip) throw new BadRequestException('trip not found'); if (trip.user_id !== String(user_id)) throw new BadRequestException('trip does not belong to traveler'); }
 
     const created = await prisma.bookings.create({
       data: {
         listing_id: String(body.listing_id),
+        ...(trip_id ? { trip_id } : {}),
         provider_id,
         user_id: String(user_id),
         date,
@@ -225,7 +229,7 @@ export class BookingsController {
     return created;
   }
   @Post('bookings/simple')
-  async createSimple(@Body() body: any) {
+  async createSimple(@Req() req: any, @Body() body: any) {
     if (ENABLED) {
       const { data } = await axios.post(`${HUB}/bookings/simple`, body, {
         headers: { 'x-internal-service-token': INTERNAL_TOKEN || '' },
@@ -245,7 +249,7 @@ export class BookingsController {
       user_email: body.customer_email ?? body.email,
       user_id: body.user_id,
     };
-    return this.create(payload);
+    return this.create(req, payload);
   }
   @Post('bookings/:id/status')
   async status(@Param('id') id: string, @Body() body: any) {

@@ -1,10 +1,11 @@
-# Wadatrip Platform - Overview (08 Jan 2026)
+# Wadatrip Platform - Overview (03 Jun 2026)
 
 ## Repositorios
-- **wadatrip-platform** -> Backend monorepo (gateway + microservicios + libs)
-- **wadatrip-web** -> Frontend standalone (Vite). Es el frontend activo.
+- **wadatrip-platform** -> Repositorio canonico de produccion para backend + web (`apps/web`)
+- **wadatrip-web** -> Frontend standalone historico. Ya no es la fuente activa de deploy.
 
 ## Estructura (wadatrip-platform)
+- **apps/web** -> Frontend web publico activo (Vite + React)
 - **apps/gateway** -> NestJS API Gateway (solo proxy/orquestacion)
 - **services/itineraries** -> Itinerarios + persistencia
 - **services/pricing** -> ADRED pricing/predict
@@ -15,8 +16,10 @@
 - **libs/db** -> Prisma schema
 
 ## Frontend activo
-- **Repositorio:** `wadatrip-web`
-- **Notas:** `apps/web` dentro del monorepo es legado y no se usa para deploy.
+- **Repositorio:** `wadatrip-platform`
+- **Path:** `apps/web`
+- **Deploy actual:** produccion web sale desde este monorepo
+- **Notas:** `wadatrip-web` queda como referencia/legacy hasta archivarlo o congelarlo formalmente.
 
 ## Servicios Render (backend)
 - `wadatrip-gateway`
@@ -43,7 +46,18 @@
 - `yarn workspace @wadatrip/service-wadagent build`
 - `yarn workspace @wadatrip/service-wadagent start`
 
+## Prisma / Base de datos
+- Desarrollo estable en Windows: usa `PRISMA_ENV=local` con `DATABASE_URL_LOCAL` y levanta infra con `yarn infra:up`
+- Datos reales bajo demanda: usa `PRISMA_ENV=remote` con `DATABASE_URL_REMOTE`
+- Comandos utiles:
+  - `yarn prisma:generate:local`
+  - `yarn prisma:migrate:local`
+  - `yarn prisma:generate:remote`
+  - `yarn prisma:deploy:remote`
+- Regla operativa: local para desarrollar y depurar; remote solo cuando necesites validar contra datos reales o aplicar cambios reales.
+
 ## Notas
 - Gateway NO contiene logica de negocio, solo proxy.
 - DTOs se importan desde `@wadatrip/common/dtos`.
-- WadaAgent se incrusta en el Hero via iframe desde `wadatrip-web`.
+- La respuesta operativa a "de donde sale la web live" es `wadatrip-platform/apps/web`.
+- WadaAgent en web debe considerarse parte del frontend del monorepo mientras siga desplegando produccion.
