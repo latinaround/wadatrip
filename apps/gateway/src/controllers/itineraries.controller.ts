@@ -38,12 +38,7 @@ export class ItinerariesController {
     if (providerActivities) params.providerActivities = providerActivities;
     const config = Object.keys(params).length ? { params } : undefined;
     const { data } = await axios.post(`${ITINERARIES_URL}/itineraries/update`, body, config);
-    this.events.emitItineraryUpdated({
-      itinerary_id: body.itinerary_id,
-      new_version_id: data.version_id,
-      diff: data.diff,
-      ts: new Date().toISOString(),
-    });
+    // AI itineraries are inactive. Do not emit private events without an authenticated recipient.
     return data;
   }
 }

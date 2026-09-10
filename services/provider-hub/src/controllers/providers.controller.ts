@@ -8,10 +8,15 @@ import {
   Query,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
   Req,
   UploadedFiles,
 } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
+import { requireAdmin, requireProviderAccess } from '@wadatrip/common/security';
+import { publicProviderDetailSelect } from '@wadatrip/common/public-data';
+import { ProviderUploadGuard } from '../security.guard';
+import { randomUUID } from 'crypto';
 import { FileInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage, memoryStorage } from 'multer';
 import { join } from 'path';
@@ -33,7 +38,8 @@ export class ProvidersController {
   // LIST PROVIDERS
   // ============================================================
   @Get()
-  async list(@Query() query: any) {
+  async list(@Query() query: any, @Req() req: Request) {
+    await requireAdmin(req, getPrisma());
     const prisma = getPrisma();
 
     const page = Math.max(1, Number(query.page || 1));
@@ -41,7 +47,10 @@ export class ProvidersController {
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (query.status) where.status = query.status;
+    if (query.status) {
+      const status = String(query.status).toLowerCase();
+      where.status = ['approved', 'verified'].includes(status) ? { in: ['approved', 'verified'] } : status;
+    }
 
     if (query.q) {
       const q = String(query.q);
@@ -70,7 +79,8 @@ export class ProvidersController {
   // CREATE PROVIDER (MANUAL)
   // ============================================================
   @Post()
-  async create(@Body() body: any) {
+  async create(@Body() body: any, @Req() req: Request) {
+    await requireAdmin(req, getPrisma());
     const prisma = getPrisma();
 
     const required = ['type', 'name', 'email', 'base_city', 'country_code'];
@@ -97,7 +107,7 @@ export class ProvidersController {
       status: 'pending',
       photo_url: body.photo_url ?? null,
       bio_short: body.bio_short ?? null,
-      verified_level: String(body.verified_level || 'community').toLowerCase() === 'licensed' ? 'licensed' : 'community',
+      verified_level: 'community',
       license_url: body.license_url ?? null,
     };
 
@@ -106,33 +116,6 @@ export class ProvidersController {
       include: { documents: true, listings: true },
     });
 
-    // AI verifier
-    try {
-      const aiResResponse = await fetch(
-        'http://localhost:3020/ai/verify/provider',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: created.name,
-            email: created.email,
-            base_city: created.base_city,
-            country_code: created.country_code,
-          }),
-        },
-      );
-      const aiRes = (await aiResResponse.json()) as ProviderVerifierResponse;
-
-      if (aiRes?.decision === 'verified') {
-        await prisma.providers.update({
-          where: { id: created.id },
-          data: { status: 'approved', verification_status: 'approved' },
-        });
-      }
-    } catch (err) {
-      console.error('[AI Verifier] ERROR:', err);
-    }
-
     return created;
   }
 
@@ -140,8 +123,10 @@ export class ProvidersController {
 // DYNAMIC REGISTER (DOCUMENT + AUTO VERIFICATION)
 // ============================================================
   @Post('register')
+  @UseGuards(ProviderUploadGuard)
   @UseInterceptors(
     FileInterceptor('document', {
+      limits: { fileSize: 15 * 1024 * 1024, files: 1 },
       storage: diskStorage({
         destination: (_req, _file, cb) => {
         const dir = join(process.cwd(), 'uploads', 'operators');
@@ -149,12 +134,13 @@ export class ProvidersController {
         cb(null, dir);
       },
       filename: (_req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`);
+        cb(null, `${randomUUID()}.bin`);
       },
     }),
   })
 )
-  async register(@Body() body: any, @UploadedFile() file?: Express.Multer.File) {
+  async register(@Body() body: any, @Req() req: Request, @UploadedFile() file?: Express.Multer.File) {
+    await requireAdmin(req, getPrisma());
     // TODO: Deprecated. Use POST /providers + POST /providers/:id/verify-identity
     const prisma = getPrisma();
 
@@ -176,7 +162,7 @@ export class ProvidersController {
     status: 'pending',
       photo_url: body.photo_url ?? null,
       bio_short: body.bio_short ?? null,
-    verified_level: String(body.verified_level || 'community').toLowerCase() === 'licensed' ? 'licensed' : 'community',
+    verified_level: 'community',
     license_url: body.license_url ?? null,
   };
 
@@ -252,6 +238,7 @@ export class ProvidersController {
   // VERIFY IDENTITY (MULTIPART)
   // ============================================================
   @Post(':id/verify-identity')
+  @UseGuards(ProviderUploadGuard)
   @UseInterceptors(
     AnyFilesInterceptor({
       storage: memoryStorage(),
@@ -264,7 +251,7 @@ export class ProvidersController {
     @Body() body: any,
     @Req() req: Request,
   ) {
-    console.log('[verify-identity] content-type:', req.headers['content-type']);
+    await requireProviderAccess(req, getPrisma(), id);
     const prisma = getPrisma();
 
     const provider = await prisma.providers.findUnique({ where: { id } });
@@ -288,7 +275,7 @@ export class ProvidersController {
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
     const saveFile = (file: Express.Multer.File, docType: string) => {
-      const filename = `${Date.now()}-${file.originalname}`;
+      const filename = `${randomUUID()}.bin`;
       const dest = join(uploadDir, filename);
       fs.writeFileSync(dest, file.buffer);
       return { url: `/uploads/providers/${id}/${filename}`, docType };
@@ -329,7 +316,7 @@ export class ProvidersController {
 
     const statusFromOcr =
       ocrResult.status === 'verified' || ocrResult.decision === 'verified'
-        ? 'approved'
+        ? 'pending'
         : ocrResult.status === 'rejected'
         ? 'rejected'
         : 'pending';
@@ -415,7 +402,8 @@ export class ProvidersController {
   }
 
   @Get(':id/verification-status')
-  async verificationStatus(@Param('id') id: string) {
+  async verificationStatus(@Param('id') id: string, @Req() req: Request) {
+    await requireProviderAccess(req, getPrisma(), id);
     const prisma = getPrisma();
     const provider = await prisma.providers.findUnique({
       where: { id },
@@ -434,7 +422,8 @@ export class ProvidersController {
   }
 
   @Post(':id/resubmit')
-  async resubmit(@Param('id') id: string) {
+  async resubmit(@Param('id') id: string, @Req() req: Request) {
+    await requireProviderAccess(req, getPrisma(), id);
     const prisma = getPrisma();
     const provider = await prisma.providers.findUnique({ where: { id } });
     if (!provider) throw new BadRequestException('provider not found');
@@ -455,7 +444,8 @@ export class ProvidersController {
   }
 
 @Post(':id/verify')
-  async verify(@Param('id') id: string, @Body() body: any) {
+  async verify(@Param('id') id: string, @Body() body: any, @Req() req: Request) {
+    await requireAdmin(req, getPrisma());
     const prisma = getPrisma();
     const rawStatus = String(body?.status || '').toLowerCase();
     const status = rawStatus === 'verified' ? 'approved' : rawStatus;
@@ -468,7 +458,6 @@ export class ProvidersController {
       data: {
         verification_status: status,
         status: status === 'approved' ? 'approved' : 'rejected',
-        stripe_account_id: body.stripe_account_id ?? undefined,
       },
     });
 
@@ -484,7 +473,7 @@ export class ProvidersController {
 
     const provider = await prisma.providers.findUnique({
       where: { id },
-      include: { documents: true, listings: true },
+      select: publicProviderDetailSelect,
     });
 
     if (!provider) throw new BadRequestException('provider not found');

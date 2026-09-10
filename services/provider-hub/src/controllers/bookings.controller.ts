@@ -10,27 +10,16 @@ import {
   Req,
 } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
+import { requireActor, requireBookingAccess, bookingScope, requireInternalToken } from '@wadatrip/common/security';
+import { bookingSelect } from '@wadatrip/common/public-data';
 
 @Controller('bookings')
 export class BookingsController {
-  private requireInternalToken(req: any) {
-    const expected = process.env.INTERNAL_SERVICE_TOKEN;
-    if (!expected) {
-      if (process.env.NODE_ENV === 'production') {
-        throw new ForbiddenException('internal token not configured');
-      }
-      return;
-    }
-    const token = String(req?.headers?.['x-internal-service-token'] || '');
-    if (!token || token !== expected) {
-      throw new ForbiddenException('invalid internal token');
-    }
-  }
-
   @Post()
   async create(@Req() req: any, @Body() body: any) {
-    this.requireInternalToken(req);
+    requireInternalToken(req);
     const prisma = getPrisma();
+    const actor = await requireActor(req, prisma);
     const required = ['listing_id', 'date', 'num_people'];
     for (const k of required) if (!body?.[k]) throw new BadRequestException(`missing ${k}`);
 
@@ -52,18 +41,7 @@ export class BookingsController {
           ? Math.round(Number(total_price) * 100)
           : null;
 
-    // Resolver usuario
-    let user_id: string | null = null;
-    if (body.user_id) {
-      const u = await prisma.users.findUnique({ where: { id: String(body.user_id) } });
-      user_id = u?.id || null;
-    }
-    if (!user_id) {
-      const email = String(body.user_email || 'demo@wadatrip.test').toLowerCase();
-      const name = body.user_name ? String(body.user_name) : null;
-      const demo = await prisma.users.upsert({ where: { email }, update: {}, create: { email, name } });
-      user_id = demo.id;
-    }
+    const user_id = actor.id;
 
     const trip_id = body.trip_id ? String(body.trip_id) : null;
     if (trip_id) { const trip = await prisma.trips.findUnique({ where: { id: trip_id } }); if (!trip) throw new BadRequestException('trip not found'); if (trip.user_id !== String(user_id)) throw new BadRequestException('trip does not belong to traveler'); }
@@ -89,7 +67,7 @@ export class BookingsController {
   // Lightweight booking path for quick reservations (defaults date=tomorrow, num_people=1)
   @Post('simple')
   async createSimple(@Req() req: any, @Body() body: any) {
-    this.requireInternalToken(req);
+    requireInternalToken(req);
     const today = new Date();
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
     const payload = {
@@ -106,17 +84,19 @@ export class BookingsController {
   }
 
   @Get()
-  async list(@Query() query: any) {
+  async list(@Query() query: any, @Req() req: any) {
+    requireInternalToken(req);
+    const actor = await requireActor(req, getPrisma());
     const prisma = getPrisma();
     const page = Math.max(1, Number(query.page || 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit || 20)));
     const skip = (page - 1) * limit;
-    const where: any = {};
+    const where: any = bookingScope(actor, query);
 
     if (query.status) where.status = String(query.status);
     if (query.payment_status) where.payment_status = String(query.payment_status);
     if (query.provider_id) where.provider_id = String(query.provider_id);
-    if (query.user_id) where.user_id = String(query.user_id);
+    if (actor.admin && query.user_id) where.user_id = String(query.user_id);
 
     if (query.q) {
       const q = String(query.q);
@@ -133,7 +113,7 @@ export class BookingsController {
         orderBy: { created_at: 'desc' },
         skip,
         take: limit,
-        include: { listing: true, provider: true, user: true },
+        select: bookingSelect,
       }),
     ]);
 
@@ -141,11 +121,13 @@ export class BookingsController {
   }
 
   @Get(':id')
-  async getOne(@Param('id') id: string) {
+  async getOne(@Param('id') id: string, @Req() req: any) {
+    requireInternalToken(req);
+    await requireBookingAccess(req, getPrisma(), id);
     const prisma = getPrisma();
     const b = await prisma.bookings.findUnique({
       where: { id },
-      include: { listing: true, provider: true, user: true },
+      select: bookingSelect,
     });
     if (!b) throw new BadRequestException('booking not found');
     return b;
@@ -153,9 +135,11 @@ export class BookingsController {
 
   @Post(':id/status')
   async updateStatus(@Req() req: any, @Param('id') id: string, @Body() body: any) {
-    this.requireInternalToken(req);
+    requireInternalToken(req);
     const prisma = getPrisma();
 
+    await requireBookingAccess(req, prisma, id, 'manage');
+    if (body?.payment_status != null) throw new BadRequestException('payment status is managed by signed payment events');
     const allowedStatus = ['pending', 'confirmed', 'cancelled', 'completed'];
     const allowedPayment = ['unpaid', 'paid', 'failed', 'refunded'];
 

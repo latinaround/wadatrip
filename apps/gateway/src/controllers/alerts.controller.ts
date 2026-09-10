@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
 import axios from 'axios';
 import { EventsGateway } from '../events.gateway';
 import { getPrisma } from '@wadatrip/db';
-import { getClaimsFromAuth } from '../utils/auth';
+import { requireActor, requireAdmin, serviceHeaders } from '@wadatrip/common/security';
 
 type AlertsSubscribeRequest = {
   itinerary_id?: string | null;
@@ -33,19 +33,23 @@ const ALERTS_ENABLED = (process.env.FF_ALERTS || 'false').toLowerCase() === 'tru
 export class AlertsController {
   constructor(private readonly events: EventsGateway) {}
   @Post('subscribe')
-  async subscribe(@Body() body: AlertsSubscribeRequest): Promise<AlertsSubscribeResponse> {
+  async subscribe(@Body() body: AlertsSubscribeRequest, @Req() req: any): Promise<AlertsSubscribeResponse> {
+    const actor = await requireActor(req, getPrisma());
+    body = { ...body, user_id: actor.id };
     if (ALERTS_ENABLED) {
-      const { data } = await axios.post(`${ALERTS_URL}/alerts/subscribe`, body);
+      const { data } = await axios.post(`${ALERTS_URL}/alerts/subscribe`, body, { headers: serviceHeaders(req) });
       return data;
     }
     return { ok: true, subscription_id: null } as any;
   }
 
   @Post('notify')
-  async notify(@Body() body: any): Promise<{ ok: boolean } & any> {
+  async notify(@Body() body: any, @Req() req: any): Promise<{ ok: boolean } & any> {
+    const actor = await requireAdmin(req, getPrisma());
+    const recipientId = body?.user_id ? String(body.user_id) : actor.id;
     if (ALERTS_ENABLED) {
-      const { data } = await axios.post(`${ALERTS_URL}/alerts/notify`, body);
-      this.events.emitAlertTriggered({
+      const { data } = await axios.post(`${ALERTS_URL}/alerts/notify`, body, { headers: serviceHeaders(req) });
+      this.events.emitAlertTriggered(recipientId, {
         alert_id: data?.alert_id || null,
         type: body?.type || 'generic',
         payload: body,
@@ -54,7 +58,7 @@ export class AlertsController {
       return data;
     }
 
-    this.events.emitAlertTriggered({
+    this.events.emitAlertTriggered(recipientId, {
       alert_id: null,
       type: body?.type || 'generic',
       payload: body,
@@ -70,21 +74,16 @@ export class AlertsController {
     @Query('user_id') user_id?: string,
     @Req() req?: any,
   ): Promise<{ items: AlertRecord[] }> {
+    const actor = await requireActor(req, getPrisma());
+    user_id = actor.id;
     if (ALERTS_ENABLED) {
-      const { data } = await axios.get(`${ALERTS_URL}/alerts/list`, { params: { itinerary_id, user_id } });
+      const { data } = await axios.get(`${ALERTS_URL}/alerts/list`, { params: { itinerary_id, user_id }, headers: serviceHeaders(req) });
       return data;
     }
 
     const prisma = getPrisma();
     const where: any = {};
-    if (user_id) {
-      where.user_id = String(user_id);
-    } else {
-      const claims = getClaimsFromAuth(req);
-      if (claims?.sub && claims?.role !== 'admin') {
-        where.user_id = String(claims.sub);
-      }
-    }
+    where.user_id = actor.id;
     if (itinerary_id) where.itinerary_id = String(itinerary_id);
     const items = await prisma.alert_subscriptions.findMany({
       where,
@@ -113,16 +112,18 @@ export class AlertsController {
   }
 
   @Post('test-fire')
-  async testFire(@Body() body: any): Promise<{ ok: boolean; alert_id?: string }> {
+  async testFire(@Body() body: any, @Req() req: any): Promise<{ ok: boolean; alert_id?: string }> {
+    const actor = await requireAdmin(req, getPrisma());
+    const recipientId = body?.user_id ? String(body.user_id) : actor.id;
     if (ALERTS_ENABLED) {
-      const { data } = await axios.post(`${ALERTS_URL}/alerts/test-fire`, body);
+      const { data } = await axios.post(`${ALERTS_URL}/alerts/test-fire`, body, { headers: serviceHeaders(req) });
       if (data?.ok) {
-        this.events.emitAlertTriggered({ alert_id: data.alert_id || null, type: body?.type || 'test', payload: body, ts: new Date().toISOString() });
+        this.events.emitAlertTriggered(recipientId, { alert_id: data.alert_id || null, type: body?.type || 'test', payload: body, ts: new Date().toISOString() });
       }
       return data;
     }
 
-    this.events.emitAlertTriggered({ alert_id: null, type: body?.type || 'test', payload: body, ts: new Date().toISOString() });
+    this.events.emitAlertTriggered(recipientId, { alert_id: null, type: body?.type || 'test', payload: body, ts: new Date().toISOString() });
     return { ok: true };
   }
 }

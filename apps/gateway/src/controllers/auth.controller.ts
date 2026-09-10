@@ -4,7 +4,8 @@ import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { getJwtSecret, getUserIdFromAuth } from '../utils/auth';
+import { getJwtSecret, requireActor } from '@wadatrip/common/security';
+import { safeUser as sanitizeUser } from '@wadatrip/common/public-data';
 import { verifyFirebaseIdToken } from '../utils/firebase-auth';
 
 const TOKEN_TTL_SECONDS = Number(process.env.JWT_TTL_SECONDS) || 60 * 60 * 24 * 7;
@@ -12,12 +13,13 @@ const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
 const EMAIL_FROM = process.env.EMAIL_FROM || '';
 const AUTH_CODE_TTL_MINUTES = Number(process.env.AUTH_CODE_TTL_MINUTES) || 10;
 const AUTH_CODE_MAX_ATTEMPTS = Number(process.env.AUTH_CODE_MAX_ATTEMPTS) || 5;
-const AUTH_CODE_PREVIEW = (process.env.AUTH_CODE_PREVIEW || '').toLowerCase() === 'true';
+const AUTH_CODE_PREVIEW = process.env.NODE_ENV === 'test' && process.env.AUTH_CODE_PREVIEW === 'true';
 
-function signToken(user: any) {
+function signToken(user: any, emailVerified = false) {
+  if (user.status !== 'active') throw new UnauthorizedException('account is inactive');
   const secret = getJwtSecret() as jwt.Secret;
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role },
+    { sub: user.id, email: user.email, role: user.role, email_verified: emailVerified },
     secret,
     { expiresIn: TOKEN_TTL_SECONDS },
   );
@@ -28,7 +30,7 @@ function normalizeRole(value: any) {
 }
 
 function generateLoginCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 function hashLoginCode(code: string) {
@@ -79,17 +81,10 @@ function authCodeDeliveryMessage(reason: string) {
   }
 }
 
-function sanitizeUser(user: any) {
-  if (!user) return user;
-  const { password_hash, ...safeUser } = user;
-  return safeUser;
-}
-
 async function getUserFromRequest(req: any) {
-  const userId = getUserIdFromAuth(req);
-  if (!userId) return null;
   const prisma = getPrisma();
-  return prisma.users.findUnique({ where: { id: String(userId) } });
+  const actor = await requireActor(req, prisma);
+  return prisma.users.findUnique({ where: { id: actor.id } });
 }
 
 function getAllowedGoogleAudiences() {
@@ -120,10 +115,13 @@ async function verifyGoogleIdToken(idToken: string) {
     throw new UnauthorizedException('google account email is not verified');
   }
 
-  if (allowedAudiences.length && !allowedAudiences.includes(audience)) {
+  if (!allowedAudiences.length || !allowedAudiences.includes(audience)) {
     throw new UnauthorizedException('google token audience is invalid');
   }
 
+  if (!['accounts.google.com', 'https://accounts.google.com'].includes(payload.iss) || !Number.isFinite(Number(payload.exp)) || Number(payload.exp) <= Date.now() / 1000) {
+    throw new UnauthorizedException('google token is invalid');
+  }
   return {
     email,
     name: payload.name ? String(payload.name) : null,
@@ -201,14 +199,21 @@ export class AuthController {
       throw new UnauthorizedException('too many attempts');
     }
 
+    const attempt = await prisma.auth_login_codes.updateMany({
+      where: { id: loginCode.id, used_at: null, attempts: { lt: AUTH_CODE_MAX_ATTEMPTS }, expires_at: { gt: new Date() } },
+      data: { attempts: { increment: 1 } },
+    });
+    if (attempt.count !== 1) throw new UnauthorizedException('code is invalid');
     const matches = loginCode.code_hash === hashLoginCode(code);
     if (!matches) {
-      await prisma.auth_login_codes.update({
-        where: { id: loginCode.id },
-        data: { attempts: { increment: 1 } },
-      });
       throw new UnauthorizedException('code is invalid');
     }
+
+    const consumed = await prisma.auth_login_codes.updateMany({
+      where: { id: loginCode.id, used_at: null, expires_at: { gt: new Date() } },
+      data: { used_at: new Date() },
+    });
+    if (consumed.count !== 1) throw new UnauthorizedException('code is invalid');
 
     let user = await prisma.users.findUnique({ where: { email } });
     if (!user) {
@@ -239,7 +244,7 @@ export class AuthController {
       },
     });
 
-    const token = signToken(user);
+    const token = signToken(user, true);
     return { token, user: sanitizeUser(user) };
   }
 
@@ -341,7 +346,7 @@ export class AuthController {
       });
     }
 
-    const token = signToken(user);
+    const token = signToken(user, true);
     return { token, user: sanitizeUser(user) };
   }
 
@@ -359,12 +364,15 @@ export class AuthController {
         data: { email: identity.email, firebase_uid: identity.uid, name: identity.name, role: 'traveler', status: 'active', last_login_at: new Date() },
       });
     } else {
+      if (user.email !== identity.email || (user.firebase_uid && user.firebase_uid !== identity.uid)) {
+        throw new UnauthorizedException('identity conflicts with existing account');
+      }
       user = await prisma.users.update({
         where: { id: user.id },
         data: { firebase_uid: identity.uid, name: user.name || identity.name || undefined, last_login_at: new Date() },
       });
     }
-    return { token: signToken(user), user: sanitizeUser(user) };
+    return { token: signToken(user, true), user: sanitizeUser(user) };
   }
   @Get('me')
   async me(@Req() req: any) {
@@ -388,40 +396,13 @@ export class AuthController {
     }
 
     if (next.email && next.email !== user.email) {
-      const exists = await prisma.users.findUnique({ where: { email: next.email } });
-      if (exists) throw new BadRequestException('email already registered');
-
-      const providerConflict = await prisma.providers.findFirst({
-        where: {
-          email: next.email,
-          NOT: { user_id: user.id },
-        },
-      });
-      if (providerConflict) {
-        throw new BadRequestException('email already registered for a guide profile');
-      }
+      throw new BadRequestException('Email changes require a verified email-change flow');
     }
 
     const updated = await prisma.users.update({
       where: { id: user.id },
       data: next,
     });
-
-    const ownedProvider = await prisma.providers.findFirst({
-      where: {
-        OR: [{ user_id: user.id }, { email: user.email }],
-      },
-    });
-
-    if (ownedProvider) {
-      await prisma.providers.update({
-        where: { id: ownedProvider.id },
-        data: {
-          user_id: user.id,
-          email: updated.email,
-        },
-      });
-    }
 
     return sanitizeUser(updated);
   }

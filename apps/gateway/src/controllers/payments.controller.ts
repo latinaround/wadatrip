@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
-import { getUserIdFromAuth } from '../utils/auth';
+import { requireActor, requireProviderAccess, requireBookingAccess } from '@wadatrip/common/security';
 
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 
@@ -72,7 +72,7 @@ function requireStripe() {
 export class PaymentsController {
   @Get('user-history')
   async userHistory(@Req() req: any) {
-    const userId = getUserIdFromAuth(req);
+    const userId = (await requireActor(req, getPrisma())).id;
     if (!userId) throw new UnauthorizedException('not authenticated');
     const prisma = getPrisma() as any;
 
@@ -92,18 +92,11 @@ export class PaymentsController {
     return { items };
   }
   @Post('connect/:providerId/link')
-  async connectLink(@Param('providerId') providerId: string) {
+  async connectLink(@Param('providerId') providerId: string, @Req() req: any) {
+    const { provider } = await requireProviderAccess(req, getPrisma(), providerId);
     const stripe = requireStripe();
     const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
     const prisma = getPrisma() as any;
-
-    const provider = ENABLED
-      ? (await axios.get(`${HUB}/providers/${providerId}`)).data
-      : await prisma.providers.findUnique({ where: { id: String(providerId) } });
-
-    if (!provider) {
-      throw new BadRequestException('provider not found');
-    }
 
     let accountId = provider.stripe_account_id;
     if (!accountId) {
@@ -115,20 +108,10 @@ export class PaymentsController {
       });
       accountId = acct.id;
 
-      if (ENABLED) {
-        await axios
-          .post(`${HUB}/providers/${providerId}/verify`, {
-            status: provider.status,
-            documents: [],
-            stripe_account_id: accountId,
-          })
-          .catch(() => {});
-      } else {
-        await prisma.providers.update({
-          where: { id: String(providerId) },
-          data: { stripe_account_id: accountId },
-        });
-      }
+      await prisma.providers.update({
+        where: { id: providerId },
+        data: { stripe_account_id: accountId },
+      });
     }
 
     const link = await stripe.accountLinks.create({
@@ -146,7 +129,10 @@ export class PaymentsController {
   }
 
   @Post('create-intent')
-  async createIntent(@Body() body: any) {
+  async createIntent(@Body() body: any, @Req() req: any) {
+    await requireActor(req, getPrisma());
+    if (!body?.booking_id) throw new BadRequestException('booking_id is required');
+    await requireBookingAccess(req, getPrisma(), String(body.booking_id), 'pay');
     const amount = Math.trunc(Number(body?.amount || 0));
     if (!amount || amount < 1) {
       throw new BadRequestException('amount must be greater than 0');
@@ -177,22 +163,11 @@ export class PaymentsController {
   }
 
   @Post('bookings/:id/checkout')
-  async checkout(@Param('id') bookingId: string) {
+  async checkout(@Param('id') bookingId: string, @Req() req: any) {
+    const { booking } = await requireBookingAccess(req, getPrisma(), bookingId, 'pay');
     const stripe = requireStripe();
     const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
     const prisma = getPrisma() as any;
-
-    // Obtener booking real
-    const booking = ENABLED
-      ? (await axios.get(`${HUB}/bookings/${bookingId}`)).data
-      : await prisma.bookings.findUnique({
-          where: { id: bookingId },
-          include: { listing: true, provider: true },
-        });
-
-    if (!booking) {
-      throw new BadRequestException('Booking not found');
-    }
 
     // Obtener provider desde booking
     const providerId = booking?.listing?.provider_id;
@@ -200,9 +175,7 @@ export class PaymentsController {
       throw new BadRequestException('Booking has no provider assigned');
     }
 
-    const provider = ENABLED
-      ? (await axios.get(`${HUB}/providers/${providerId}`)).data
-      : await prisma.providers.findUnique({ where: { id: String(providerId) } });
+    const provider = booking.provider;
 
     // Flags
     const allowNoConnect =
@@ -288,7 +261,8 @@ export class PaymentsController {
   }
 
   @Post('itineraries/:id/checkout')
-  async checkoutItinerary(@Param('id') itineraryId: string) {
+  async checkoutItinerary(@Param('id') itineraryId: string, @Req() req: any) {
+    await requireActor(req, getPrisma());
     const stripe = requireStripe();
     const prisma = getPrisma() as any;
     const itinerary = await prisma.itineraries.findUnique({ where: { id: itineraryId } });

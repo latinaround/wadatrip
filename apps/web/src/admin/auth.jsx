@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { getFirebaseAuth } from './firebase'
+import { clearAdminSession } from './api'
 
 const AdminContext = createContext({ user: null, isAdmin: false, ready: false })
 
@@ -32,6 +33,7 @@ export function AdminProvider({ children }) {
         const mod = await import('firebase/auth')
         if (!active || !mod?.onAuthStateChanged) return
         unsub = mod.onAuthStateChanged(auth, (u) => {
+          clearAdminSession()
           setUser(u || null)
           setReady(true)
         })
@@ -41,6 +43,7 @@ export function AdminProvider({ children }) {
     })()
     return () => {
       active = false
+      clearAdminSession()
       unsub()
     }
   }, [])
@@ -56,6 +59,7 @@ export function AdminProvider({ children }) {
     isAdmin,
     ready,
     signOut: async () => {
+      clearAdminSession()
       if (DEV_BYPASS) {
         setUser(null)
         return

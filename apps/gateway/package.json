@@ -15,6 +15,7 @@
     "@nestjs/platform-socket.io": "^10.0.0",
     "@nestjs/swagger": "^7.1.18",
     "@nestjs/websockets": "10.4.20",
+    "@wadatrip/common": "workspace:*",
     "@wadatrip/db": "workspace:*",
     "axios": "^1.6.7",
     "bcryptjs": "^2.4.3",

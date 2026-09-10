@@ -37,7 +37,7 @@ interface ProvidersResponse {
 
 function StatusBadge({ status }: { status: ProviderStatus }) {
   const color =
-    status === 'verified'
+    ['verified', 'approved'].includes(status)
       ? 'bg-green-100 text-green-800'
       : status === 'rejected'
         ? 'bg-red-100 text-red-700'
@@ -107,6 +107,16 @@ export default function ProvidersPage() {
     },
     [load],
   )
+
+  const viewProvider = useCallback(async (provider: ProviderRow) => {
+    setError(null)
+    try {
+      const details = (await apiFetch(`/admin/providers/${encodeURIComponent(provider.id)}`)) as ProviderRow
+      setSelected(details)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load provider details')
+    }
+  }, [])
 
   const applyFilters = () => {
     setPage(1)
@@ -259,7 +269,7 @@ export default function ProvidersPage() {
                     {p.created_at ? new Date(p.created_at).toLocaleString() : ''}
                   </td>
                   <td className="px-3 py-2 space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => setSelected(p)}>
+                    <Button variant="outline" size="sm" onClick={() => void viewProvider(p)}>
                       View
                     </Button>
                     <Button size="sm" onClick={() => changeStatus(p.id, 'verified')}>

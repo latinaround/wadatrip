@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Get, BadRequestException, Delete, Param } from '@nestjs/common';
+import { requireActor, requireAlertAccess, requireAdmin } from '@wadatrip/common/security';
+import { Controller, Post, Body, Get, BadRequestException, Delete, Param, Req } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
 import axios from 'axios';
 
@@ -7,26 +8,29 @@ const ALERTS_URL = process.env.ALERTS_URL || 'http://localhost:3013';
 @Controller('alerts')
 export class AlertsController {
   @Post('create')
-  async create(@Body() body: any) {
+  async create(@Body() body: any, @Req() req: any) {
+    await requireActor(req, getPrisma());
+    throw new BadRequestException('Use /alerts/tours/create');
+    /*
     const { data } = await axios.post(`${ALERTS_URL}/alerts/create`, body);
-    return data;
+    return data; */
   }
 
   @Get('list')
-  async list() {
-    const { data } = await axios.get(`${ALERTS_URL}/alerts/list`);
-    return data;
+  async list(@Req() req: any) {
+    return this.listTourAlerts(req);
   }
 
   @Post('tours/create')
-  async createTourAlert(@Body() body: any) {
+  async createTourAlert(@Body() body: any, @Req() req: any) {
+    const actor = await requireActor(req, getPrisma());
     const prisma = getPrisma();
     const city = body.city ? String(body.city) : null;
     const country_code = body.country_code ? String(body.country_code) : null;
     const listing_id = body.listing_id ? String(body.listing_id) : null;
     const budget = body.budget != null ? Number(body.budget) : null;
-    const email = body.email ? String(body.email) : null;
-    const user_id = body.user_id ? String(body.user_id) : null;
+    const email = actor.email;
+    const user_id = actor.id;
     const channel = body.channel ? String(body.channel) : 'email';
 
     if (!city && !country_code && !listing_id) {
@@ -36,24 +40,7 @@ export class AlertsController {
       throw new BadRequestException('user_id or email is required');
     }
 
-    let resolvedUserId: string | null = null;
-    if (user_id) {
-      const user = await prisma.users.findUnique({ where: { id: user_id } });
-      resolvedUserId = user?.id || null;
-    }
-
-    if (!resolvedUserId && email) {
-      const user = await prisma.users.upsert({
-        where: { email: email.toLowerCase() },
-        update: {},
-        create: { email: email.toLowerCase(), name: body.name ?? null },
-      });
-      resolvedUserId = user.id;
-    }
-
-    if (!resolvedUserId) {
-      throw new BadRequestException('unable to resolve user');
-    }
+    const resolvedUserId = actor.id;
 
     const subscription = await prisma.alert_subscriptions.create({
       data: {
@@ -76,10 +63,11 @@ export class AlertsController {
   }
 
   @Get('tours/list')
-  async listTourAlerts() {
+  async listTourAlerts(@Req() req: any) {
+    const actor = await requireActor(req, getPrisma());
     const prisma = getPrisma();
     const items = await prisma.alert_subscriptions.findMany({
-      where: { rule: { path: ['type'], equals: 'tour' } as any },
+      where: { user_id: actor.id, rule: { path: ['type'], equals: 'tour' } as any },
       orderBy: { created_at: 'desc' },
     });
     return {
@@ -119,7 +107,8 @@ export class AlertsController {
   }
 
   @Delete(':id')
-  async deleteAlertDb(@Param('id') id: string) {
+  async deleteAlertDb(@Param('id') id: string, @Req() req: any) {
+    await requireAlertAccess(req, getPrisma(), id);
     const prisma = getPrisma();
     const exists = await prisma.alert_subscriptions.findUnique({ where: { id } });
     if (!exists) throw new BadRequestException('alert not found');

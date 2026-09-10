@@ -228,22 +228,11 @@ async function bootstrap() {
   console.log('PROVIDER_HUB_URL =', process.env.PROVIDER_HUB_URL);
 
   // ?? Registrar proxies solo para servicios inactivos cuando se habiliten
-  const enableAlertsProxy = (process.env.ENABLE_ALERTS_PROXY || 'false').toLowerCase() === 'true';
-  const enableProviderHubProxy = (process.env.ENABLE_PROVIDER_HUB_PROXY || 'false').toLowerCase() === 'true';
   const enableOperatorLeadsProxy = (process.env.ENABLE_OPERATOR_LEADS_PROXY || 'true').toLowerCase() !== 'false';
   const enableWadagentProxy = (process.env.ENABLE_WADAGENT_PROXY || 'false').toLowerCase() === 'true';
   const proxyPrefixes: string[] = [];
 
-  if (enableAlertsProxy) {
-    attachProxy('/alerts', process.env.ALERTS_URL || 'http://localhost:3013', 'alerts');
-    proxyPrefixes.push('/alerts');
-  }
-
-  if (enableProviderHubProxy) {
-    attachProxy('/providers', process.env.PROVIDER_HUB_URL || 'http://localhost:3014', 'provider-hub');
-    proxyPrefixes.push('/providers');
-  }
-
+  // Provider and alert traffic must pass Nest authorization; raw proxy bypasses are retired.
   if (enableOperatorLeadsProxy) {
     attachProxy('/operator-leads', process.env.OPERATOR_LEADS_URL || 'http://localhost:3023', 'operator-leads');
     proxyPrefixes.push('/operator-leads');

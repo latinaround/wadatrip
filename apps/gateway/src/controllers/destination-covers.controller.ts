@@ -1,3 +1,4 @@
+import { requireAdmin, serviceHeaders } from '@wadatrip/common/security';
 import { Controller, Get, Post, Query, Body, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
@@ -5,7 +6,6 @@ import type { Request } from 'express';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
-const ACCESS_CODE = process.env.OPERATOR_ACCESS_CODE || '';
 
 function normalizeSlug(value: string) {
   return String(value || '')
@@ -20,22 +20,12 @@ function buildSlug(city: string, countryCode?: string | null) {
   return normalizeSlug(base);
 }
 
-function requireAccessCode(req: Request, body: any) {
-  if (!ACCESS_CODE) return;
-  const headerCode = req.headers['x-operator-access-code'];
-  const raw = headerCode ?? body?.access_code ?? body?.accessCode ?? '';
-  const provided = String(raw || '').trim();
-  if (!provided || provided !== ACCESS_CODE) {
-    throw new UnauthorizedException('invalid access code');
-  }
-}
-
 @Controller()
 export class DestinationCoversController {
   @Get('destination-covers')
   async list(@Query() query: any) {
     if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/destination-covers`, { params: query });
+      const { data } = await axios.get(`${HUB}/destination-covers`, { params: query, headers: serviceHeaders() });
       return data;
     }
 
@@ -74,7 +64,7 @@ export class DestinationCoversController {
   @Get('destination-covers/resolve')
   async resolve(@Query() query: any) {
     if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/destination-covers/resolve`, { params: query });
+      const { data } = await axios.get(`${HUB}/destination-covers/resolve`, { params: query, headers: serviceHeaders() });
       return data;
     }
 
@@ -116,15 +106,10 @@ export class DestinationCoversController {
 
   @Post('destination-covers')
   async upsert(@Req() req: Request, @Body() body: any) {
-    requireAccessCode(req, body);
+    await requireAdmin(req, getPrisma());
 
     if (ENABLED) {
-      const headerCode = req.headers['x-operator-access-code'];
-      const { data } = await axios.post(`${HUB}/destination-covers`, body, {
-        headers: {
-          'x-operator-access-code': String(headerCode ?? body?.access_code ?? body?.accessCode ?? ''),
-        },
-      });
+      const { data } = await axios.post(`${HUB}/destination-covers`, body, { headers: serviceHeaders(req) });
       return data;
     }
 

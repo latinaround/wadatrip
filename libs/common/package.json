@@ -24,6 +24,14 @@
     "./redis": {
       "types": "./dist/redis.d.ts",
       "default": "./dist/redis.js"
+    },
+    "./security": {
+      "types": "./dist/security.d.ts",
+      "default": "./dist/security.js"
+    },
+    "./public-data": {
+      "types": "./dist/public-data.d.ts",
+      "default": "./dist/public-data.js"
     }
   },
   "files": [
@@ -33,6 +41,14 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "typescript": "5.2.2"
+  },
+  "dependencies": {
+    "@nestjs/common": "10.4.20",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "reflect-metadata": "^0.2.1",
+    "rxjs": "^7.8.1"
   }
 }

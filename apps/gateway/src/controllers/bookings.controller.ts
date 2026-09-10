@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Body, Param, Query, BadRequestException, Req, UnauthorizedException } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
-import { getClaimsFromAuth } from '../utils/auth';
+import { requireActor, requireBookingAccess, bookingScope, serviceHeaders } from '@wadatrip/common/security';
+import { bookingSelect } from '@wadatrip/common/public-data';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
-const INTERNAL_TOKEN = process.env.INTERNAL_SERVICE_TOKEN;
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
 const EMAIL_FROM = process.env.EMAIL_FROM || '';
@@ -85,8 +85,9 @@ async function notifyProviderByEmail(opts: { to: string; subject: string; text: 
 export class BookingsController {
   @Get('bookings')
   async list(@Query() q: any, @Req() req: any) {
+    const actor = await requireActor(req, getPrisma());
     if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/bookings`, { params: q });
+      const { data } = await axios.get(`${HUB}/bookings`, { params: q, headers: serviceHeaders(req) });
       const items = await Promise.all(((data?.items as any[]) || []).map((item: any) => enrichBookingLinks(item)));
       return { ...data, items };
     }
@@ -95,21 +96,13 @@ export class BookingsController {
     const page = Math.max(1, Number(q.page || 1));
     const limit = Math.min(100, Math.max(1, Number(q.limit || 20)));
     const skip = (page - 1) * limit;
-    const where: any = {};
+    const where: any = bookingScope(actor, q);
 
     if (q.status) where.status = String(q.status);
     if (q.payment_status) where.payment_status = String(q.payment_status);
     if (q.provider_id) where.provider_id = String(q.provider_id);
-    if (q.user_email) {
-      where.user = { email: String(q.user_email).toLowerCase() };
-    } else if (q.user_id) {
-      where.user_id = String(q.user_id);
-    } else {
-      const claims = getClaimsFromAuth(req);
-      if (claims?.sub && claims?.role !== 'admin') {
-        where.user_id = String(claims.sub);
-      }
-    }
+    if (actor.admin && q.user_id) where.user_id = String(q.user_id);
+    if (actor.admin && q.user_email) where.user = { email: String(q.user_email).toLowerCase() };
 
     if (q.q) {
       const term = String(q.q);
@@ -126,7 +119,7 @@ export class BookingsController {
         orderBy: { created_at: 'desc' },
         skip,
         take: limit,
-        include: { listing: true, provider: true, user: true },
+        select: bookingSelect,
       }),
     ]);
 
@@ -134,33 +127,29 @@ export class BookingsController {
     return { items: enrichedItems, total, page, limit };
   }
   @Get('bookings/:id')
-  async get(@Param('id') id: string) {
+  async get(@Param('id') id: string, @Req() req: any) {
+    await requireBookingAccess(req, getPrisma(), id);
     if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/bookings/${id}`);
+      const { data } = await axios.get(`${HUB}/bookings/${id}`, { headers: serviceHeaders(req) });
       return enrichBookingLinks(data);
     }
 
     const prisma = getPrisma();
     const booking = await prisma.bookings.findUnique({
       where: { id },
-      include: { listing: true, provider: true, user: true },
+      select: bookingSelect,
     });
     if (!booking) throw new BadRequestException('booking not found');
     return enrichBookingLinks(booking);
   }
   @Post('bookings')
   async create(@Req() req: any, @Body() body: any) {
-    const claims = getClaimsFromAuth(req);
-    const authenticatedUserId = claims?.sub ? String(claims.sub) : '';
-    if (!authenticatedUserId) throw new UnauthorizedException('not authenticated');
-    const trustedBody = {
-      ...body,
-      user_id: authenticatedUserId,
-      user_email: claims?.email ? String(claims.email).toLowerCase() : undefined,
-    };
+    const actor = await requireActor(req, getPrisma());
+    const authenticatedUserId = actor.id;
+    const trustedBody = { ...body, user_id: actor.id, user_email: actor.email };
     if (ENABLED) {
       const { data } = await axios.post(`${HUB}/bookings`, trustedBody, {
-        headers: { 'x-internal-service-token': INTERNAL_TOKEN || '' },
+        headers: serviceHeaders(req),
       });
       return data;
     }
@@ -221,7 +210,7 @@ export class BookingsController {
         await notifyProviderByEmail({
           to: provider.email,
           subject: 'New free tour registration',
-          text: `New registration for ${listing.title}\n\nName: ${body.user_name || ''}\nEmail: ${body.user_email || ''}\nDate: ${date.toISOString()}\nPeople: ${num_people}\n\nMeeting point: ${listing.city || ''}`,
+          text: `New registration for ${listing.title}\n\nName: ${body.user_name || ''}\nEmail: ${actor.email}\nDate: ${date.toISOString()}\nPeople: ${num_people}\n\nMeeting point: ${listing.city || ''}`,
         });
       }
     }
@@ -230,13 +219,6 @@ export class BookingsController {
   }
   @Post('bookings/simple')
   async createSimple(@Req() req: any, @Body() body: any) {
-    if (ENABLED) {
-      const { data } = await axios.post(`${HUB}/bookings/simple`, body, {
-        headers: { 'x-internal-service-token': INTERNAL_TOKEN || '' },
-      });
-      return data;
-    }
-
     const today = new Date();
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
     const payload = {
@@ -252,10 +234,12 @@ export class BookingsController {
     return this.create(req, payload);
   }
   @Post('bookings/:id/status')
-  async status(@Param('id') id: string, @Body() body: any) {
+  async status(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+    await requireBookingAccess(req, getPrisma(), id, 'manage');
+    if (body?.payment_status != null) throw new BadRequestException('payment status is managed by signed payment events');
     if (ENABLED) {
       const { data } = await axios.post(`${HUB}/bookings/${id}/status`, body, {
-        headers: { 'x-internal-service-token': INTERNAL_TOKEN || '' },
+        headers: serviceHeaders(req),
       });
       return data;
     }

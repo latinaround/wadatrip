@@ -1,8 +1,8 @@
+import { requireAdmin, serviceHeaders } from '@wadatrip/common/security';
 import { Controller, Get, Post, Query, Body, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
 import type { Request } from 'express';
 
-const ACCESS_CODE = process.env.OPERATOR_ACCESS_CODE || '';
 
 function normalizeSlug(value: string) {
   return String(value || '')
@@ -15,16 +15,6 @@ function normalizeSlug(value: string) {
 function buildSlug(city: string, countryCode?: string | null) {
   const base = [city, countryCode].filter(Boolean).join(' ');
   return normalizeSlug(base);
-}
-
-function requireAccessCode(req: Request, body: any) {
-  if (!ACCESS_CODE) return;
-  const headerCode = req.headers['x-operator-access-code'];
-  const raw = headerCode ?? body?.access_code ?? body?.accessCode ?? '';
-  const provided = String(raw || '').trim();
-  if (!provided || provided !== ACCESS_CODE) {
-    throw new UnauthorizedException('invalid access code');
-  }
 }
 
 @Controller('destination-covers')
@@ -103,7 +93,7 @@ export class DestinationCoversController {
 
   @Post()
   async upsert(@Req() req: Request, @Body() body: any) {
-    requireAccessCode(req, body);
+    await requireAdmin(req, getPrisma());
 
     const prisma = getPrisma();
     const city = String(body?.city || '').trim();

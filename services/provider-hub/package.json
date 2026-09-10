@@ -13,6 +13,7 @@
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^7.1.18",
+    "@wadatrip/common": "workspace:*",
     "@wadatrip/db": "workspace:*",
     "axios": "^1.6.7",
     "bullmq": "^5.63.2",

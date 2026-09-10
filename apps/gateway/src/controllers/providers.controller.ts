@@ -9,16 +9,17 @@ import {
   Delete,
   BadRequestException,
   UnauthorizedException,
+  ForbiddenException,
   Req,
 } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
 import type { Request } from 'express';
-import { getUserIdFromAuth } from '../utils/auth';
+import { requireActor, requireAdmin, requireProviderAccess, requireAlertAccess, findOwnedProvider as resolveOwnedProvider, serviceHeaders } from '@wadatrip/common/security';
+import { publicProviderDetailSelect, publicListingSelect, publicProviderSelect, adminProviderDetailSelect, toPublicProvider, toPublicListing } from '@wadatrip/common/public-data';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
-const ACCESS_CODE = process.env.OPERATOR_ACCESS_CODE || '';
 const hasOwn = Object.prototype.hasOwnProperty;
 
 function normalizeTags(tags: any): string[] {
@@ -133,26 +134,8 @@ function normalizeListingStatus(value: any, fallback = 'draft') {
   return status;
 }
 
-function hasValidAccessCode(req: Request, body: any) {
-  if (!ACCESS_CODE) return false;
-  const headerCode = req.headers['x-operator-access-code'];
-  const raw = headerCode ?? body?.access_code ?? body?.accessCode ?? '';
-  const provided = String(raw || '').trim();
-  return Boolean(provided) && provided === ACCESS_CODE;
-}
-
-function requireAccessCode(req: Request, body: any) {
-  if (!ACCESS_CODE) return;
-  if (!hasValidAccessCode(req, body)) {
-    throw new UnauthorizedException('invalid access code');
-  }
-}
-
 async function getAuthenticatedUser(req: Request) {
-  const userId = getUserIdFromAuth(req);
-  if (!userId) return null;
-  const prisma = getPrisma();
-  return prisma.users.findUnique({ where: { id: String(userId) } });
+  return requireActor(req, getPrisma());
 }
 
 async function loadProviderWithRelations(prisma: any, id: string) {
@@ -168,32 +151,12 @@ async function loadProviderWithRelations(prisma: any, id: string) {
 }
 
 async function findOwnedProvider(prisma: any, user: any) {
-  const email = String(user?.email || '').toLowerCase();
-  if (!user?.id || !email) return null;
-
-  const provider = await prisma.providers.findFirst({
-    where: {
-      OR: [{ user_id: String(user.id) }, { email }],
-    },
-    orderBy: { created_at: 'asc' },
-  });
-
-  if (!provider) return null;
-
-  if (provider.user_id !== user.id || provider.email !== email) {
-    await prisma.providers.update({
-      where: { id: provider.id },
-      data: {
-        user_id: String(user.id),
-        email,
-      },
-    });
-  }
-
-  return loadProviderWithRelations(prisma, provider.id);
+  const provider = await resolveOwnedProvider(prisma, user);
+  return provider ? loadProviderWithRelations(prisma, provider.id) : null;
 }
 
-function mapListingWithProvider(item: any) {
+function mapListingWithProvider(record: any) {
+  const item = toPublicListing(record);
   const providerStatus = String(item.provider?.status ?? '').toLowerCase();
   const verifiedLevel = String(item.provider?.verified_level ?? '').toLowerCase();
   const isVerified = providerStatus === 'verified' || providerStatus === 'approved';
@@ -213,7 +176,6 @@ function mapListingWithProvider(item: any) {
     provider_verified_level: item.provider?.verified_level ?? null,
     provider_photo_url: item.provider?.photo_url ?? null,
     provider_bio_short: item.provider?.bio_short ?? null,
-    provider_phone: item.provider?.phone ?? null,
     provider_instagram_handle: item.provider?.instagram_handle ?? null,
     provider_ratings_avg: item.provider?.ratings_avg ?? 0,
     provider_ratings_count: item.provider?.ratings_count ?? 0,
@@ -319,24 +281,17 @@ async function authorizeListingMutation(prisma: any, req: Request, body: any, li
   });
   if (!listing) throw new BadRequestException('listing not found');
 
-  const user = await getAuthenticatedUser(req);
-  if (user) {
-    const ownedProvider = await findOwnedProvider(prisma, user);
-    if (ownedProvider?.id === listing.provider_id) {
-      return { listing, owned: true, user, provider: ownedProvider };
-    }
-  }
-
-  requireAccessCode(req, body);
-  return { listing, owned: false, user: null, provider: listing.provider };
+  const { actor, provider } = await requireProviderAccess(req, prisma, listing.provider_id);
+  return { listing, owned: !actor.admin, user: actor, provider };
 }
 
 @Controller()
 export class ProvidersController {
   @Get('providers')
-  async listProviders(@Query() q: Record<string, any>) {
+  async listProviders(@Req() req: Request, @Query() q: Record<string, any>) {
+    await requireAdmin(req, getPrisma());
     if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/providers`, { params: q });
+      const { data } = await axios.get(`${HUB}/providers`, { params: q, headers: serviceHeaders(req) });
       return data;
     }
 
@@ -346,7 +301,10 @@ export class ProvidersController {
     const skip = (page - 1) * limit;
     const where: any = {};
 
-    if (q.status) where.status = String(q.status);
+    if (q.status) {
+      const status = String(q.status).toLowerCase();
+      where.status = ['approved', 'verified'].includes(status) ? { in: ['approved', 'verified'] } : status;
+    }
     if (q.q) {
       const term = String(q.q);
       where.OR = [
@@ -368,6 +326,18 @@ export class ProvidersController {
     ]);
 
     return { items, total, page, limit };
+  }
+
+  @Get('admin/providers/:id')
+  async getAdminProvider(@Req() req: Request, @Param('id') id: string) {
+    await requireAdmin(req, getPrisma());
+    if (ENABLED) {
+      const { data } = await axios.get(`${HUB}/admin/providers/${id}`, { headers: serviceHeaders(req) });
+      return data;
+    }
+    const provider = await getPrisma().providers.findUnique({ where: { id }, select: adminProviderDetailSelect });
+    if (!provider) throw new BadRequestException('provider not found');
+    return provider;
   }
 
   @Get('providers/me')
@@ -409,22 +379,7 @@ export class ProvidersController {
         orderBy: { created_at: 'desc' },
         skip,
         take: limit,
-        include: {
-          provider: {
-            select: {
-              name: true,
-              country_code: true,
-              status: true,
-              verified_level: true,
-              photo_url: true,
-              bio_short: true,
-              phone: true,
-              instagram_handle: true,
-              ratings_avg: true,
-              ratings_count: true,
-            },
-          },
-        },
+        select: { ...publicListingSelect, provider: { select: publicProviderSelect } },
       }),
     ]);
 
@@ -440,72 +395,30 @@ export class ProvidersController {
       return upsertOwnedProvider(prisma, authenticatedUser, body);
     }
 
-    requireAccessCode(req, body);
-    if (ENABLED) {
-      const { data } = await axios.post(`${HUB}/providers`, body);
-      return data;
-    }
-
-    const required = ['type', 'name', 'email', 'base_city', 'country_code'];
-    for (const k of required) {
-      if (!body?.[k]) throw new BadRequestException(`missing ${k}`);
-    }
-
-    const languages = normalizeLanguages(body.languages);
-
-    try {
-      const created = await prisma.providers.create({
-        data: {
-          type: normalizeType(body.type),
-          name: String(body.name),
-          email: String(body.email).toLowerCase(),
-          phone: normalizeNullableString(body.phone),
-          instagram_handle: normalizeInstagram(body.instagram_handle ?? body.instagramHandle),
-          languages,
-          base_city: String(body.base_city),
-          country_code: String(body.country_code).toUpperCase(),
-          photo_url: normalizeNullableString(body.photo_url),
-          bio_short: normalizeNullableString(body.bio_short),
-          status: 'pending',
-          verified_level:
-            String(body.verified_level || 'community').toLowerCase() === 'licensed'
-              ? 'licensed'
-              : 'community',
-          license_url: normalizeNullableString(body.license_url),
-        },
-        include: { documents: true, listings: true },
-      });
-
-      return created;
-    } catch (error: any) {
-      const code = error?.code ?? error?.meta?.code;
-      if (code === 'P2002') {
-        throw new BadRequestException('email already registered');
-      }
-      throw error;
-    }
+    throw new UnauthorizedException('not authenticated');
   }
 
   @Get('providers/:id')
-  async getProvider(@Param('id') id: string) {
+  async getProvider(@Param('id') id: string, @Req() req: Request) {
     if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/providers/${id}`);
-      return data;
+      const { data } = await axios.get(`${HUB}/providers/${id}`, { headers: serviceHeaders(req) });
+      return toPublicProvider(data);
     }
 
     const prisma = getPrisma();
     const provider = await prisma.providers.findUnique({
       where: { id: String(id) },
-      include: { documents: true, listings: true },
+      select: publicProviderDetailSelect,
     });
     if (!provider) throw new BadRequestException('provider not found');
-    return provider;
+    return toPublicProvider(provider);
   }
 
   @Post('providers/:id/verify')
-  async verifyProvider(@Param('id') id: string, @Body() body: any) {
+  async verifyProvider(@Req() req: Request, @Param('id') id: string, @Body() body: any) {
+    await requireAdmin(req, getPrisma());
     if (ENABLED) {
-      const { data } = await axios.post(`${HUB}/providers/${id}/verify`, body);
+      const { data } = await axios.post(`${HUB}/providers/${id}/verify`, body, { headers: serviceHeaders(req) });
       return data;
     }
 
@@ -521,7 +434,6 @@ export class ProvidersController {
       data: {
         verification_status: status,
         status: status === 'approved' ? 'verified' : 'rejected',
-        stripe_account_id: body.stripe_account_id ?? undefined,
       },
     });
 
@@ -534,9 +446,10 @@ export class ProvidersController {
   }
 
   @Get('providers/:id/verification-status')
-  async verificationStatus(@Param('id') id: string) {
+  async verificationStatus(@Req() req: Request, @Param('id') id: string) {
+    await requireProviderAccess(req, getPrisma(), id);
     if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/providers/${id}/verification-status`);
+      const { data } = await axios.get(`${HUB}/providers/${id}/verification-status`, { headers: serviceHeaders(req) });
       return data;
     }
 
@@ -558,9 +471,10 @@ export class ProvidersController {
   }
 
   @Post('providers/:id/resubmit')
-  async resubmit(@Param('id') id: string) {
+  async resubmit(@Param('id') id: string, @Req() req: Request) {
+    await requireProviderAccess(req, getPrisma(), id);
     if (ENABLED) {
-      const { data } = await axios.post(`${HUB}/providers/${id}/resubmit`);
+      const { data } = await axios.post(`${HUB}/providers/${id}/resubmit`, {}, { headers: serviceHeaders(req) });
       return data;
     }
 
@@ -609,25 +523,18 @@ export class ProvidersController {
     const provider = await prisma.providers.findUnique({ where: { id: providerId } });
     if (!provider) throw new BadRequestException('provider not found');
 
-    const authenticatedUser = await getAuthenticatedUser(req);
-    const ownedProvider = authenticatedUser ? await findOwnedProvider(prisma, authenticatedUser) : null;
-    const isOwner = ownedProvider?.id === provider.id;
-    const accessGranted = isOwner || hasValidAccessCode(req, body);
-
-    if (!accessGranted) {
-      throw new UnauthorizedException('not authorized');
-    }
+    const { actor: authenticatedUser } = await requireProviderAccess(req, prisma, provider.id);
 
     const requestedStatus = normalizeListingStatus(body?.status, 'draft');
     const providerApproved = ['approved', 'verified'].includes(String(provider.status || '').toLowerCase());
-    const finalStatus = !providerApproved && !hasValidAccessCode(req, body) && requestedStatus === 'published'
+    const finalStatus = !providerApproved && !authenticatedUser.admin && requestedStatus === 'published'
       ? 'draft'
       : requestedStatus;
 
     const listing = await prisma.listings.create({
       data: {
         provider_id: providerId,
-        operator_id: isOwner ? String(authenticatedUser?.id) : body.operator_id ? String(body.operator_id) : undefined,
+        operator_id: provider.user_id || undefined,
         title,
         description: normalizeNullableString(body.description),
         category,
@@ -648,19 +555,19 @@ export class ProvidersController {
   }
 
   @Get('listings')
-  async listListings(@Query() query: any) {
-    if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/listings`, { params: query });
-      return data;
-    }
-    return this.searchListings(query);
+  async listListings(@Query() query: any, @Req() req: Request) {
+    return this.searchListings(query, req);
   }
 
   @Get('listings/search')
-  async searchListings(@Query() query: any) {
+  async searchListings(@Query() query: any, @Req() req: Request) {
+    if (String(query.all || 'false').toLowerCase() === 'true' || (query.status && !['published', 'approved'].includes(String(query.status).toLowerCase()))) {
+      if (query.provider_id) await requireProviderAccess(req, getPrisma(), String(query.provider_id));
+      else await requireAdmin(req, getPrisma());
+    }
     if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/listings/search`, { params: query });
-      return data;
+      const { data } = await axios.get(`${HUB}/listings/search`, { params: query, headers: serviceHeaders(req) });
+      return { items: (data.items || []).map(mapListingWithProvider), total: data.total, page: data.page, limit: data.limit };
     }
 
     const prisma = getPrisma();
@@ -680,6 +587,8 @@ export class ProvidersController {
     } else if (query.status) {
       where.status = String(query.status);
     }
+
+
 
     if (query.city) where.city = String(query.city);
     if (query.provider_id) where.provider_id = String(query.provider_id);
@@ -725,22 +634,7 @@ export class ProvidersController {
         orderBy,
         skip,
         take: limit,
-        include: {
-          provider: {
-            select: {
-              name: true,
-              country_code: true,
-              status: true,
-              verified_level: true,
-              photo_url: true,
-              bio_short: true,
-              phone: true,
-              instagram_handle: true,
-              ratings_avg: true,
-              ratings_count: true,
-            },
-          },
-        },
+        select: { ...publicListingSelect, provider: { select: publicProviderSelect } },
       }),
     ]);
 
@@ -753,33 +647,19 @@ export class ProvidersController {
   }
 
   @Get('listings/:id')
-  async getListing(@Param('id') id: string) {
-    if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/listings/${id}`);
-      return data;
-    }
-
+  async getListing(@Param('id') id: string, @Req() req: Request) {
     const prisma = getPrisma();
     const listing = await prisma.listings.findUnique({
       where: { id: String(id) },
-      include: {
-        provider: {
-          select: {
-            name: true,
-            country_code: true,
-            status: true,
-            verified_level: true,
-            photo_url: true,
-            bio_short: true,
-            phone: true,
-            instagram_handle: true,
-            ratings_avg: true,
-            ratings_count: true,
-          },
-        },
-      },
+      select: { ...publicListingSelect, provider: { select: publicProviderSelect } },
     });
     if (!listing) throw new BadRequestException('listing not found');
+    if (!['published', 'approved'].includes(listing.status)) await requireProviderAccess(req, prisma, listing.provider_id);
+    if (ENABLED) {
+      const { data } = await axios.get(`${HUB}/listings/${id}`, { headers: serviceHeaders(req) });
+      if (!['published', 'approved'].includes(data.status)) await requireProviderAccess(req, prisma, data.provider_id);
+      return mapListingWithProvider(data);
+    }
     return mapListingWithProvider(listing);
   }
 
@@ -809,7 +689,7 @@ export class ProvidersController {
   @Patch('listings/:id')
   async updateListing(@Req() req: Request, @Param('id') id: string, @Body() body: any) {
     const prisma = getPrisma();
-    const { listing, user } = await authorizeListingMutation(prisma, req, body, id);
+    const { listing } = await authorizeListingMutation(prisma, req, body, id);
 
     const updateData: any = {};
     if (body?.title != null) updateData.title = requireListingText(body.title, 'title');
@@ -839,7 +719,6 @@ export class ProvidersController {
     if (body?.cover_image_url != null || body?.coverImageUrl != null) {
       updateData.cover_image_url = normalizeNullableString(body.cover_image_url ?? body.coverImageUrl);
     }
-    if (user) updateData.operator_id = String(user.id);
 
     if (!Object.keys(updateData).length) {
       throw new BadRequestException('no editable fields provided');
@@ -862,9 +741,10 @@ export class ProvidersController {
   }
 
   @Post('alerts/tours/create')
-  async createTourAlert(@Body() body: any) {
+  async createTourAlert(@Body() body: any, @Req() req: Request) {
+    const actor = await requireActor(req, getPrisma());
     if (ENABLED) {
-      const { data } = await axios.post(`${HUB}/alerts/tours/create`, body);
+      const { data } = await axios.post(`${HUB}/alerts/tours/create`, body, { headers: serviceHeaders(req) });
       return data;
     }
 
@@ -873,8 +753,8 @@ export class ProvidersController {
     const country_code = body.country_code ? String(body.country_code) : null;
     const listing_id = body.listing_id ? String(body.listing_id) : null;
     const budget = body.budget != null ? Number(body.budget) : body.price_limit != null ? Number(body.price_limit) : null;
-    const email = body.email ? String(body.email) : null;
-    const user_id = body.user_id ? String(body.user_id) : null;
+    const email = actor.email;
+    const user_id = actor.id;
     const channel = body.channel ? String(body.channel) : 'email';
 
     if (!city && !country_code && !listing_id) {
@@ -884,24 +764,7 @@ export class ProvidersController {
       throw new BadRequestException('user_id or email is required');
     }
 
-    let resolvedUserId: string | null = null;
-    if (user_id) {
-      const user = await prisma.users.findUnique({ where: { id: user_id } });
-      resolvedUserId = user?.id || null;
-    }
-
-    if (!resolvedUserId && email) {
-      const user = await prisma.users.upsert({
-        where: { email: email.toLowerCase() },
-        update: {},
-        create: { email: email.toLowerCase(), name: body.name ?? null },
-      });
-      resolvedUserId = user.id;
-    }
-
-    if (!resolvedUserId) {
-      throw new BadRequestException('unable to resolve user');
-    }
+    const resolvedUserId = actor.id;
 
     const subscription = await prisma.alert_subscriptions.create({
       data: {
@@ -924,15 +787,16 @@ export class ProvidersController {
   }
 
   @Get('alerts/tours/list')
-  async listTourAlerts() {
+  async listTourAlerts(@Req() req: Request) {
+    const actor = await requireActor(req, getPrisma());
     if (ENABLED) {
-      const { data } = await axios.get(`${HUB}/alerts/tours/list`);
+      const { data } = await axios.get(`${HUB}/alerts/tours/list`, { headers: serviceHeaders(req) });
       return data;
     }
 
     const prisma = getPrisma();
     const items = await prisma.alert_subscriptions.findMany({
-      where: { rule: { path: ['type'], equals: 'tour' } as any },
+      where: { user_id: actor.id, rule: { path: ['type'], equals: 'tour' } as any },
       orderBy: { created_at: 'desc' },
     });
     return {
@@ -947,9 +811,10 @@ export class ProvidersController {
   }
 
   @Delete('alerts/:id')
-  async deleteAlert(@Param('id') id: string) {
+  async deleteAlert(@Param('id') id: string, @Req() req: Request) {
+    await requireAlertAccess(req, getPrisma(), id);
     if (ENABLED) {
-      const { data } = await axios.delete(`${HUB}/alerts/${id}`);
+      const { data } = await axios.delete(`${HUB}/alerts/${id}`, { headers: serviceHeaders(req) });
       return data;
     }
 

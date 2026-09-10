@@ -1,3 +1,5 @@
+import { APP_GUARD } from '@nestjs/core';
+import { InternalServiceGuard, ProviderUploadGuard } from './security.guard';
 // services/service-provider-hub/src/module.ts
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
@@ -44,6 +46,8 @@ const redisEnabled = Boolean(
     DestinationCoversController,
   ],
   providers: [
+    { provide: APP_GUARD, useClass: InternalServiceGuard },
+    ProviderUploadGuard,
     IdentityVerificationService,
     IdentityVerificationQueueService,
     ...(redisEnabled ? [IdentityVerificationProcessor] : []),

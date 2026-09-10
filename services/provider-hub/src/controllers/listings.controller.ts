@@ -2,22 +2,15 @@ import { Controller, Post, Get, Query, Body, BadRequestException, Patch, Param, 
 import { getPrisma } from '@wadatrip/db';
 import type { Request } from 'express';
 
-const ACCESS_CODE = process.env.OPERATOR_ACCESS_CODE || '';
-
-function hasValidAccessCode(req: Request, body: any) {
-  if (!ACCESS_CODE) return false;
-  const headerCode = req.headers['x-operator-access-code'];
-  const raw = headerCode ?? body?.access_code ?? body?.accessCode ?? '';
-  const provided = String(raw || '').trim();
-  return provided && provided === ACCESS_CODE;
-}
+import { requireAdmin, requireProviderAccess } from '@wadatrip/common/security';
+import { publicListingSelect, publicProviderSelect } from '@wadatrip/common/public-data';
 
 @Controller('listings')
 export class ListingsController {
   @Get()
-  async list(@Query() query: any) {
+  async list(@Query() query: any, @Req() req: Request) {
     // Wrapper to reuse the search logic (defaults to visible listings)
-    return this.search(query);
+    return this.search(query, req);
   }
 
   @Post()
@@ -28,8 +21,9 @@ export class ListingsController {
 
     const provider = await prisma.providers.findUnique({ where: { id: String(body.provider_id) } });
     if (!provider) throw new BadRequestException('provider not found');
-    const allowUnverified = hasValidAccessCode(req, body);
-    if (!allowUnverified && String(provider.status || '').toLowerCase() !== 'approved')
+    const { actor } = await requireProviderAccess(req, prisma, provider.id);
+    const allowUnverified = actor.admin;
+    if (!allowUnverified && !['approved', 'verified'].includes(String(provider.status || '').toLowerCase()))
       throw new BadRequestException('provider must be approved');
 
     const listing = await prisma.listings.create({
@@ -58,7 +52,7 @@ export class ListingsController {
   }
 
   @Get('search')
-  async search(@Query() query: any) {
+  async search(@Query() query: any, @Req() req: Request) {
     const prisma = getPrisma();
     const page = Math.max(1, Number(query.page || 1));
     const limit = Math.min(50, Math.max(1, Number(query.limit || 10)));
@@ -76,6 +70,10 @@ export class ListingsController {
       }
     } else if (query.status) {
       where.status = String(query.status);
+    }
+    if (includeAll || (query.status && !['published', 'approved'].includes(String(query.status).toLowerCase()))) {
+      if (query.provider_id) await requireProviderAccess(req, prisma, String(query.provider_id));
+      else await requireAdmin(req, prisma);
     }
     if (query.city) where.city = String(query.city);
     if (query.country || query.country_code) where.country_code = String(query.country || query.country_code);
@@ -116,7 +114,7 @@ export class ListingsController {
         orderBy,
         skip,
         take: limit,
-        include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true, phone: true, instagram_handle: true, ratings_avg: true, ratings_count: true } } },
+        select: { ...publicListingSelect, provider: { select: publicProviderSelect } },
       }),
     ]);
 
@@ -128,7 +126,6 @@ export class ListingsController {
       provider_verified_level: item.provider?.verified_level ?? null,
       provider_photo_url: item.provider?.photo_url ?? null,
       provider_bio_short: item.provider?.bio_short ?? null,
-      provider_phone: item.provider?.phone ?? null,
       provider_instagram_handle: item.provider?.instagram_handle ?? null,
       provider_ratings_avg: item.provider?.ratings_avg ?? 0,
       provider_ratings_count: item.provider?.ratings_count ?? 0,
@@ -138,7 +135,7 @@ export class ListingsController {
   }
 
   @Patch(':id/status')
-  async updateStatus(@Param('id') id: string, @Body() body: any) {
+  async updateStatus(@Param('id') id: string, @Body() body: any, @Req() req: Request) {
     const prisma = getPrisma();
     const status = String(body?.status || '').toLowerCase();
     if (!['published', 'inactive', 'draft'].includes(status)) {
@@ -146,18 +143,21 @@ export class ListingsController {
     }
     const exists = await prisma.listings.findUnique({ where: { id: String(id) } });
     if (!exists) throw new BadRequestException('listing not found');
+    const { actor, provider } = await requireProviderAccess(req, prisma, exists.provider_id);
+    if (!actor.admin && status === 'published' && !['approved', 'verified'].includes(provider.status)) throw new BadRequestException('provider must be approved');
     const updated = await prisma.listings.update({ where: { id: String(id) }, data: { status } });
     return updated;
   }
 
   @Get(':id')
-  async getOne(@Param('id') id: string) {
+  async getOne(@Param('id') id: string, @Req() req: Request) {
     const prisma = getPrisma();
     const listing = await prisma.listings.findUnique({
       where: { id: String(id) },
-      include: { provider: { select: { name: true, country_code: true, status: true, verified_level: true, photo_url: true, bio_short: true, phone: true, instagram_handle: true, ratings_avg: true, ratings_count: true } } },
+      select: { ...publicListingSelect, provider: { select: publicProviderSelect } },
     });
     if (!listing) throw new BadRequestException('listing not found');
+    if (!['published', 'approved'].includes(listing.status)) await requireProviderAccess(req, prisma, listing.provider_id);
     return {
       ...listing,
       provider_name: listing.provider?.name ?? null,
@@ -166,7 +166,6 @@ export class ListingsController {
       provider_verified_level: listing.provider?.verified_level ?? null,
       provider_photo_url: listing.provider?.photo_url ?? null,
       provider_bio_short: listing.provider?.bio_short ?? null,
-      provider_phone: listing.provider?.phone ?? null,
       provider_instagram_handle: listing.provider?.instagram_handle ?? null,
       provider_ratings_avg: listing.provider?.ratings_avg ?? 0,
       provider_ratings_count: listing.provider?.ratings_count ?? 0,

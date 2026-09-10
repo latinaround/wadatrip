@@ -2687,10 +2687,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wadatrip/common@workspace:libs/common":
+"@wadatrip/common@workspace:*, @wadatrip/common@workspace:libs/common":
   version: 0.0.0-use.local
   resolution: "@wadatrip/common@workspace:libs/common"
   dependencies:
+    "@nestjs/common": 10.4.20
+    "@types/jsonwebtoken": ^9.0.10
+    ioredis: ^5.3.2
+    jsonwebtoken: ^9.0.2
+    reflect-metadata: ^0.2.1
+    rxjs: ^7.8.1
     typescript: 5.2.2
   languageName: unknown
   linkType: soft
@@ -2730,6 +2736,7 @@ __metadata:
     "@nestjs/websockets": 10.4.20
     "@types/jsonwebtoken": ^9.0.10
     "@types/node": ^24.3.0
+    "@wadatrip/common": "workspace:*"
     "@wadatrip/db": "workspace:*"
     axios: ^1.6.7
     bcryptjs: ^2.4.3
@@ -2831,6 +2838,7 @@ __metadata:
     "@types/express": ^5.0.3
     "@types/multer": ^2.0.0
     "@types/node": ^24.3.0
+    "@wadatrip/common": "workspace:*"
     "@wadatrip/db": "workspace:*"
     axios: ^1.6.7
     bullmq: ^5.63.2

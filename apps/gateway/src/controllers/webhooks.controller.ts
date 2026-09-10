@@ -1,5 +1,4 @@
-import { Controller, Post, Req } from '@nestjs/common';
-import axios from 'axios';
+import { Controller, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
 
 @Controller('webhooks')
@@ -7,6 +6,7 @@ export class WebhooksController {
   @Post('stripe')
   async stripeWebhook(@Req() req: any) {
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret || !req.headers['stripe-signature']) throw new UnauthorizedException('signed webhook required');
     let event: any;
 
     try {
@@ -23,13 +23,11 @@ export class WebhooksController {
           String(req.headers['stripe-signature']),
           secret
         );
-      } else {
-        // fallback en dev si no se pasa firma
-        event = req.body;
+
       }
     } catch (e: any) {
       console.error('❌ Webhook signature verification failed:', e.message);
-      return { ok: false, error: 'invalid_signature' };
+      throw new UnauthorizedException('invalid signature');
     }
 
     const type = event?.type;
@@ -59,8 +57,6 @@ export class WebhooksController {
 
     if (!bookingId) return { ok: true, ignored: true };
 
-    const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
-    const INTERNAL_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || '';
     const prisma = getPrisma() as any;
 
     try {
@@ -84,24 +80,19 @@ export class WebhooksController {
       }
 
       if (type === 'checkout.session.completed' || type === 'payment_intent.succeeded') {
-        await axios.post(
-          `${HUB}/bookings/${bookingId}/status`,
-          { status: 'confirmed', payment_status: 'paid' },
-          { headers: { 'x-internal-service-token': INTERNAL_TOKEN } },
-        );
+        await prisma.bookings.update({ where: { id: String(bookingId) }, data: { status: 'confirmed', payment_status: 'paid' } });
       } else if (
         type === 'payment_intent.payment_failed' ||
         type === 'charge.refunded' ||
         type === 'refund.updated'
       ) {
-        await axios.post(
-          `${HUB}/bookings/${bookingId}/status`,
-          {
+        await prisma.bookings.update({
+          where: { id: String(bookingId) },
+          data: {
             status: 'cancelled',
             payment_status: type === 'payment_intent.payment_failed' ? 'failed' : 'refunded',
           },
-          { headers: { 'x-internal-service-token': INTERNAL_TOKEN } },
-        );
+        });
       }
     } catch (err: any) {
       console.error('❌ Error al actualizar booking en HUB:', err.message);
