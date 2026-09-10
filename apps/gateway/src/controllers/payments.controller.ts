@@ -11,8 +11,17 @@ import {
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
 import { requireActor, requireProviderAccess, requireBookingAccess } from '@wadatrip/common/security';
+import { validateBookingPrice } from '@wadatrip/common/booking-price';
 
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
+
+function bookingPaymentAmount(booking: any) {
+  const price = validateBookingPrice(booking);
+  if (price.amount === 0) throw new BadRequestException('Free bookings do not require payment');
+  // The existing processor minimum belongs here, never in the domain price calculation.
+  if (price.amount < 50) throw new BadRequestException('Booking amount is below the supported payment minimum');
+  return price;
+}
 
 function normalizeCountryCode(raw: any): string {
   const value = String(raw || '').trim();
@@ -132,17 +141,11 @@ export class PaymentsController {
   async createIntent(@Body() body: any, @Req() req: any) {
     await requireActor(req, getPrisma());
     if (!body?.booking_id) throw new BadRequestException('booking_id is required');
-    await requireBookingAccess(req, getPrisma(), String(body.booking_id), 'pay');
-    const amount = Math.trunc(Number(body?.amount || 0));
-    if (!amount || amount < 1) {
-      throw new BadRequestException('amount must be greater than 0');
-    }
-
-    const currency = (body?.currency || 'usd').toLowerCase();
+    const { booking } = await requireBookingAccess(req, getPrisma(), String(body.booking_id), 'pay');
+    const { amount: amountCents, currency } = bookingPaymentAmount(booking);
     const description = body?.description;
     const bookingId = body?.booking_id;
     const stripe = requireStripe();
-    const amountCents = Math.max(50, amount);
 
     const intent = await stripe.paymentIntents.create({
       amount: amountCents,
@@ -165,6 +168,7 @@ export class PaymentsController {
   @Post('bookings/:id/checkout')
   async checkout(@Param('id') bookingId: string, @Req() req: any) {
     const { booking } = await requireBookingAccess(req, getPrisma(), bookingId, 'pay');
+    const { amount: amountCents, currency } = bookingPaymentAmount(booking);
     const stripe = requireStripe();
     const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
     const prisma = getPrisma() as any;
@@ -190,12 +194,6 @@ export class PaymentsController {
       }
     }
 
-    // Precio total
-    const amountCents = Math.max(
-      50,
-      Math.round(Number(booking.total_price || 0) * 100),
-    );
-
     // Fee
     const feePct = Number(process.env.WADATRIP_FEE_PCT || 15);
     const feeCents = Math.floor((amountCents * feePct) / 100);
@@ -216,7 +214,7 @@ export class PaymentsController {
           {
             quantity: 1,
             price_data: {
-              currency: 'usd',
+              currency,
               unit_amount: amountCents,
               product_data: {
                 name: booking?.listing?.title || 'Tour booking',

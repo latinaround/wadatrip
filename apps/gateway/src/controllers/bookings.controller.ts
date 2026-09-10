@@ -3,6 +3,7 @@ import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
 import { requireActor, requireBookingAccess, bookingScope, serviceHeaders } from '@wadatrip/common/security';
 import { bookingSelect } from '@wadatrip/common/public-data';
+import { calculateBookingPrice } from '@wadatrip/common/booking-price';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
@@ -162,25 +163,12 @@ export class BookingsController {
     if (!listing) throw new BadRequestException('listing not found');
 
     const provider_id = listing.provider_id;
-    const isFreeTour = Array.isArray(listing.tags) && listing.tags.includes('free_tour');
+    const price = calculateBookingPrice(listing, body.num_people);
+    const isFreeTour = price.amount_cents === 0;
     const date = new Date(String(body.date));
     if (isNaN(+date)) throw new BadRequestException('invalid date');
 
-    const num_people = Number(body.num_people);
-    if (!Number.isFinite(num_people) || num_people <= 0) throw new BadRequestException('invalid num_people');
-
-    const total_price = isFreeTour
-      ? '0'
-      : body.total_price != null
-        ? String(body.total_price)
-        : null;
-    const amount_cents = isFreeTour
-      ? 0
-      : body.amount_cents != null
-        ? Math.trunc(Number(body.amount_cents))
-        : total_price != null && Number.isFinite(Number(total_price))
-          ? Math.round(Number(total_price) * 100)
-          : null;
+    const { num_people } = price;
 
     const user = await prisma.users.findUnique({ where: { id: authenticatedUserId } });
     if (!user) throw new UnauthorizedException('authenticated user not found');
@@ -196,9 +184,7 @@ export class BookingsController {
         provider_id,
         user_id: String(user_id),
         date,
-        num_people,
-        total_price,
-        amount_cents,
+        ...price,
         status: isFreeTour ? 'confirmed' : 'pending',
         payment_status: isFreeTour ? 'paid' : 'unpaid',
       },

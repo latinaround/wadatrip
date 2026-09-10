@@ -5,7 +5,7 @@ function sessionError() {
 }
 
 // AuthContext owns the session. This flow never reads storage or accepts a caller-selected actor.
-export async function bookTravelerExperience({ apiBase, getSession, booking, freeTour }) {
+export async function bookTravelerExperience({ apiBase, getSession, booking }) {
   const session = getSession();
   if (session.loading || !session.user || !session.token) throw sessionError();
 
@@ -40,11 +40,9 @@ export async function bookTravelerExperience({ apiBase, getSession, booking, fre
     listing_id: booking.listing_id,
     num_people: booking.num_people,
     date: booking.date,
-    total_price: booking.total_price,
-    amount_cents: booking.amount_cents,
   });
   if (!created?.id) throw new Error('Booking failed');
-  if (freeTour) return { booking: created };
+  if (created.amount_cents === 0) return { booking: created };
 
   const checkout = await post(`/payments/bookings/${encodeURIComponent(created.id)}/checkout`);
   if (!checkout?.url) throw new Error('Checkout URL missing');

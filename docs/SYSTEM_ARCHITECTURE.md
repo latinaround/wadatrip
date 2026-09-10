@@ -48,6 +48,30 @@ If this changes, update this file the same day.
 
 ## Product Model
 
+### Payment boundary (decision: 2026-09-10)
+
+Stripe is the MVP payment processor. Keep the existing integration; do not add another
+processor or a payment framework during revenue P0. Fees, country coverage and volume
+may justify evaluating alternatives later.
+
+Listing price/currency, participants, calculated total and booking status belong to
+Wadatrip's domain. The backend calculates and persists the total before payment.
+The payment layer receives that total and currency, then calls Stripe; it owns processor
+constraints, external session/payment IDs, payment status and charged amounts.
+Neither browser input nor Stripe determines the marketplace price.
+
+Current coupling: gateway payments and webhooks use Stripe directly; booking reads also
+use Stripe to enrich checkout/receipt links. DB fields include providers.stripe_account_id,
+itineraries.operator_stripe_account_id, bookings.checkout_session_id/payment_intent_id,
+and PaymentRecord.stripe_payment_intent_id/stripe_checkout_session_id.
+PaymentRecord.provider_id denotes the marketplace operator, not a payment processor.
+A future multi-processor change would need an explicit processor discriminator and
+external references. No schema change is required for P0 server-authoritative pricing.
+
+The initial pricing fix corroborates stored booking totals against the current listing
+before payment because older totals were client-controlled. A changed listing price
+blocks payment of a mismatched booking; immutable, versioned price snapshots are deferred.
+
 ### Marketplace
 - Experience first
 - Host comparison second

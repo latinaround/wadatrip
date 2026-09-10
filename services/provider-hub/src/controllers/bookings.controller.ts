@@ -12,6 +12,7 @@ import {
 import { getPrisma } from '@wadatrip/db';
 import { requireActor, requireBookingAccess, bookingScope, requireInternalToken } from '@wadatrip/common/security';
 import { bookingSelect } from '@wadatrip/common/public-data';
+import { calculateBookingPrice } from '@wadatrip/common/booking-price';
 
 @Controller('bookings')
 export class BookingsController {
@@ -30,16 +31,8 @@ export class BookingsController {
     const date = new Date(String(body.date));
     if (isNaN(+date)) throw new BadRequestException('invalid date');
 
-    const num_people = Number(body.num_people);
-    if (!Number.isFinite(num_people) || num_people <= 0) throw new BadRequestException('invalid num_people');
-
-    const total_price = body.total_price != null ? String(body.total_price) : null;
-    const amount_cents =
-      body.amount_cents != null
-        ? Math.trunc(Number(body.amount_cents))
-        : total_price != null && Number.isFinite(Number(total_price))
-          ? Math.round(Number(total_price) * 100)
-          : null;
+    const price = calculateBookingPrice(listing, body.num_people);
+    const isFreeTour = price.amount_cents === 0;
 
     const user_id = actor.id;
 
@@ -53,11 +46,9 @@ export class BookingsController {
         provider_id,
         user_id: String(user_id),
         date,
-        num_people,
-        total_price,
-        amount_cents,
-        status: 'pending',
-        payment_status: 'unpaid',
+        ...price,
+        status: isFreeTour ? 'confirmed' : 'pending',
+        payment_status: isFreeTour ? 'paid' : 'unpaid',
       },
     });
 

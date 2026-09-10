@@ -29,6 +29,10 @@
       "types": "./dist/security.d.ts",
       "default": "./dist/security.js"
     },
+    "./booking-price": {
+      "types": "./dist/booking-price.d.ts",
+      "default": "./dist/booking-price.js"
+    },
     "./public-data": {
       "types": "./dist/public-data.d.ts",
       "default": "./dist/public-data.js"

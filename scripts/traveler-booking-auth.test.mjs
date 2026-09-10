@@ -19,12 +19,12 @@ function fixture(t, responses = []) {
     next.beforeReply?.();
     return new Response(JSON.stringify(next.data), { status: next.status ?? 200 });
   });
-  const booking = { listing_id: 'listing-a', num_people: 2, date: '2026-12-01', total_price: 50, amount_cents: 5000 };
+  const booking = { listing_id: 'listing-a', num_people: 2, date: '2026-12-01' };
   return {
     calls, booking, getSession: () => session, logouts: () => logouts,
     setSession: value => { session = value; },
     run: (options = {}) => bookTravelerExperience({
-      apiBase: 'http://127.0.0.1:3015', getSession: () => session, booking, freeTour: false, ...options,
+      apiBase: 'http://127.0.0.1:3015', getSession: () => session, booking, ...options,
     }),
   };
 }
@@ -79,6 +79,7 @@ test('booking payload excludes user_id, email, role and other client-selected id
   await f.run({ booking: {
     ...f.booking, user_id: 'someone-else', user_email: 'synthetic@example.test', email: 'synthetic@example.test',
     role: 'admin', user_name: 'Impersonated', name: 'Impersonated', actor: { admin: true },
+    price: 1, total_price: 1, amount_cents: 1, amount: 1, currency: 'EUR', quantity: 999,
   } });
   assert.deepEqual(JSON.parse(f.calls[0].body), f.booking);
   assert.equal(f.calls[1].body, undefined);
@@ -92,8 +93,8 @@ test('ordinary booking failure also prevents checkout without logging the travel
 });
 
 test('free tour still requires Bearer but never starts checkout', async t => {
-  const f = fixture(t, [booked()]);
-  const result = await f.run({ freeTour: true });
+  const f = fixture(t, [{ status: 201, data: { id: 'booking-a', amount_cents: 0 } }]);
+  const result = await f.run();
   assert.equal(f.calls.length, 1);
   assert.equal(f.calls[0].headers.Authorization, 'Bearer synthetic-traveler-token');
   assert.equal(result.booking.id, 'booking-a');
@@ -140,7 +141,7 @@ test('free tour notification uses the authenticated DB name, never client identi
   const messages = [];
   const prisma = {
     users: { findUnique: async ({ where }) => where.id === traveler.id ? traveler : null },
-    listings: { findUnique: async () => ({ id: 'free-tour', provider_id: 'provider-a', title: 'Synthetic free tour', tags: ['free_tour'], city: 'Test City' }) },
+    listings: { findUnique: async () => ({ id: 'free-tour', provider_id: 'provider-a', title: 'Synthetic free tour', tags: ['free_tour'], city: 'Test City', price_from: null, currency: 'USD', status: 'published' }) },
     providers: { findUnique: async () => ({ id: 'provider-a', email: 'provider@example.test' }) },
     bookings: { create: async ({ data }) => ({ id: 'free-booking', ...data }) },
   };

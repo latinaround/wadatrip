@@ -240,24 +240,18 @@ export default function TourDetail() {
     setBookingLoading(true);
     try {
       const numPeople = Math.max(1, Number(bookingForm.num_people || 1));
-      const unitPrice = Number(currentHost.price_from || 0);
-      const totalPrice = freeTour ? 0 : unitPrice > 0 ? unitPrice * numPeople : null;
-      const amountCents = totalPrice != null ? Math.round(Number(totalPrice) * 100) : null;
 
       const result = await bookTravelerExperience({
         apiBase,
         getSession: () => sessionRef.current,
-        freeTour,
         booking: {
           listing_id: currentHost.id,
           num_people: numPeople,
           date: bookingForm.date || undefined,
-          total_price: totalPrice,
-          amount_cents: amountCents,
         },
       });
 
-      if (freeTour) {
+      if (!result.checkoutUrl) {
         setBookingSuccess('Spot requested. Your host will confirm by email or WhatsApp.');
         return;
       }
