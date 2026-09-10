@@ -210,7 +210,7 @@ export class BookingsController {
         await notifyProviderByEmail({
           to: provider.email,
           subject: 'New free tour registration',
-          text: `New registration for ${listing.title}\n\nName: ${body.user_name || ''}\nEmail: ${actor.email}\nDate: ${date.toISOString()}\nPeople: ${num_people}\n\nMeeting point: ${listing.city || ''}`,
+          text: `New registration for ${listing.title}\n\nName: ${actor.name || 'Traveler'}\nEmail: ${actor.email}\nDate: ${date.toISOString()}\nPeople: ${num_people}\n\nMeeting point: ${listing.city || ''}`,
         });
       }
     }

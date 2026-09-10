@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 import { findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
@@ -10,6 +10,8 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import BrandLogo from '../components/BrandLogo';
 import { useAuth } from '../context/AuthContext.jsx';
+import AuthDialog from '../components/AuthDialog.jsx';
+import { bookTravelerExperience, SIGN_IN_REQUIRED } from '../services/travelerBooking';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -135,7 +137,11 @@ function TrustItem({ label, copy }) {
 export default function TourDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const auth = useAuth();
+  const sessionRef = useRef(auth);
+  sessionRef.current = auth;
+  const { user, token, loading: authLoading } = auth;
+  const [authOpen, setAuthOpen] = useState(false);
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const [tour, setTour] = useState(null);
   const [experienceHosts, setExperienceHosts] = useState([]);
@@ -148,19 +154,9 @@ export default function TourDetail() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [shareMessage, setShareMessage] = useState(null);
   const [bookingForm, setBookingForm] = useState({
-    name: '',
-    email: '',
     num_people: 1,
     date: '',
   });
-
-  useEffect(() => {
-    setBookingForm((prev) => ({
-      ...prev,
-      name: prev.name || user?.name || '',
-      email: prev.email || user?.email || '',
-    }));
-  }, [user?.email, user?.name]);
 
   useEffect(() => {
     let mounted = true;
@@ -248,45 +244,29 @@ export default function TourDetail() {
       const totalPrice = freeTour ? 0 : unitPrice > 0 ? unitPrice * numPeople : null;
       const amountCents = totalPrice != null ? Math.round(Number(totalPrice) * 100) : null;
 
-      const bookingResponse = await fetch(`${apiBase}/bookings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const result = await bookTravelerExperience({
+        apiBase,
+        getSession: () => sessionRef.current,
+        freeTour,
+        booking: {
           listing_id: currentHost.id,
-          user_name: bookingForm.name || user?.name || 'Guest User',
-          user_email: bookingForm.email || user?.email || 'guest@wadatrip.com',
           num_people: numPeople,
           date: bookingForm.date || undefined,
           total_price: totalPrice,
           amount_cents: amountCents,
-        }),
+        },
       });
-
-      const bookingData = await bookingResponse.json().catch(() => null);
-      if (!bookingResponse.ok || !bookingData?.id) {
-        const message = bookingData?.message || bookingData?.error || bookingResponse.statusText || 'Booking failed';
-        throw new Error(message);
-      }
 
       if (freeTour) {
         setBookingSuccess('Spot requested. Your host will confirm by email or WhatsApp.');
         return;
       }
 
-      const checkoutResponse = await fetch(
-        `${apiBase}/payments/bookings/${encodeURIComponent(bookingData.id)}/checkout`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' } },
-      );
-      const checkoutData = await checkoutResponse.json().catch(() => null);
-      if (!checkoutResponse.ok || !checkoutData?.url) {
-        const message = checkoutData?.message || checkoutData?.error || checkoutResponse.statusText || 'Checkout URL missing';
-        throw new Error(message);
-      }
-
       setBookingSuccess('Booking created. Redirecting to Stripe...');
-      window.location.href = checkoutData.url;
+      window.location.href = result.checkoutUrl;
     } catch (err) {
       setBookingError(err?.message || 'Error creating booking');
+      if (err?.status === 401) setAuthOpen(true);
     } finally {
       setBookingLoading(false);
     }
@@ -313,6 +293,7 @@ export default function TourDetail() {
 
   return (
     <div className="page-shell">
+      <AuthDialog open={authOpen} onClose={() => setAuthOpen(false)} initialIntent="traveler" />
       <div className="page-container space-y-8">
         <Button variant="secondary" onClick={() => navigate(-1)}>Back</Button>
 
@@ -430,19 +411,6 @@ export default function TourDetail() {
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               <Input
-                value={bookingForm.name}
-                onChange={(event) => handleBookingChange('name', event.target.value)}
-                placeholder="Full name"
-                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
-              />
-              <Input
-                type="email"
-                value={bookingForm.email}
-                onChange={(event) => handleBookingChange('email', event.target.value)}
-                placeholder="Email"
-                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
-              />
-              <Input
                 type="number"
                 min="1"
                 value={bookingForm.num_people}
@@ -458,12 +426,13 @@ export default function TourDetail() {
               />
             </div>
 
-            {bookingError && <p className="mt-4 text-sm text-[#d15371]">{bookingError}</p>}
+            {!authLoading && (!user || !token) && !bookingError && <p className="mt-4 text-sm text-[#526173]">{SIGN_IN_REQUIRED}</p>}
+            {bookingError && <p role="alert" className="mt-4 text-sm text-[#d15371]">{bookingError}</p>}
             {bookingSuccess && <p className="mt-4 text-sm text-[#167c7d]">{bookingSuccess}</p>}
             {shareMessage && <p className="mt-4 text-sm text-[#167c7d]">{shareMessage}</p>}
 
-            <Button className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={handleBooking} disabled={bookingLoading}>
-              {bookingLoading ? 'Processing...' : getListingBookingCta(currentHost)}
+            <Button className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={handleBooking} disabled={bookingLoading || authLoading}>
+              {authLoading ? 'Checking session...' : bookingLoading ? 'Processing...' : !user || !token ? 'Sign in to book' : getListingBookingCta(currentHost)}
             </Button>
             <Button
               variant="outline"
