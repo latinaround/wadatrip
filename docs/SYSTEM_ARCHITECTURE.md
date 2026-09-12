@@ -73,6 +73,38 @@ before payment because older totals were client-controlled. A changed listing pr
 blocks payment of a mismatched booking; immutable, versioned price snapshots are deferred.
 
 ### Marketplace
+
+Revenue P0 availability uses the existing `listing_availability` model. The web submits
+a UTC calendar date and `num_people`; there is no time-slot selector or listing timezone.
+Exactly one availability row per listing/day is required. Empty or ambiguous days cannot
+be booked. No availability is fabricated: browsing remains open, but operators must supply
+real dated capacity before their listings can receive bookings/payments.
+
+`spots_total` is canonical capacity. Remaining seats are derived from bookings for that
+UTC day; `spots_available` is a refreshed cache, never a client-controlled limit.
+Booking.inventory_state explicitly records held/released allocation. Historical null
+allocation uses a conservative status fallback; financial review never implies release.
+Pending seats do not expire
+automatically in this block. Listing start/end dates are inclusive day boundaries.
+
+Gateway and Provider Hub use the same PostgreSQL listing-row lock inside a Read Committed
+transaction before reading occupancy and creating/changing bookings. Creation, cancellation
+and reactivation (including payment webhooks) follow this lock order. No network requests
+occur inside the transaction. External/admin inventory writers must respect this protocol.
+
+Payment initiation atomically persists one immutable PaymentRecord and changes the booking
+to payment_pending before external IO. Cancellation first becomes cancellation_pending and
+retains inventory until processor termination is verified. PaymentEvent receipt is durable
+before processor lookup; only processed_at denotes completion. Event completion,
+financial settlement and inventory transitions commit together under event/listing locks.
+Late money is recorded even when confirmation is impossible: reconciliation_required /
+refund_required replaces false confirmation. See [payment lifecycle](PAYMENT_LIFECYCLE.md).
+
+Validation includes concurrent transaction simulations. A real PostgreSQL concurrency run
+was unavailable locally: the installed server lacks postgres.bki and Docker is not running.
+Repeat a real DB concurrency test before production release; simulated locks do not validate
+the database engine or operational configuration.
+
 - Experience first
 - Host comparison second
 - Booking third

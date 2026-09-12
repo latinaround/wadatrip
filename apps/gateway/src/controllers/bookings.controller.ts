@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Param, Query, BadRequestException, Req, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, BadRequestException, Req, HttpException } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
 import { requireActor, requireBookingAccess, bookingScope, serviceHeaders } from '@wadatrip/common/security';
 import { bookingSelect } from '@wadatrip/common/public-data';
-import { calculateBookingPrice } from '@wadatrip/common/booking-price';
+import { createCapacityBooking, updateCapacityBooking } from '@wadatrip/common/booking-capacity';
+import { reconcileBookingPayment } from '../services/booking-payment.service';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
@@ -146,49 +147,21 @@ export class BookingsController {
   @Post('bookings')
   async create(@Req() req: any, @Body() body: any) {
     const actor = await requireActor(req, getPrisma());
-    const authenticatedUserId = actor.id;
     const trustedBody = { ...body, user_id: actor.id, user_email: actor.email };
     if (ENABLED) {
-      const { data } = await axios.post(`${HUB}/bookings`, trustedBody, {
-        headers: serviceHeaders(req),
-      });
-      return data;
+      try {
+        const { data } = await axios.post(`${HUB}/bookings`, trustedBody, { headers: serviceHeaders(req) });
+        return data;
+      } catch (error: any) {
+        if ([400, 401, 403, 404, 409].includes(error?.response?.status)) throw new HttpException(error.response.data, error.response.status);
+        throw error;
+      }
     }
 
     const prisma = getPrisma();
-    const required = ['listing_id', 'date', 'num_people'];
-    for (const k of required) if (!body?.[k]) throw new BadRequestException(`missing ${k}`);
-
-    const listing = await prisma.listings.findUnique({ where: { id: String(body.listing_id) } });
-    if (!listing) throw new BadRequestException('listing not found');
-
-    const provider_id = listing.provider_id;
-    const price = calculateBookingPrice(listing, body.num_people);
-    const isFreeTour = price.amount_cents === 0;
-    const date = new Date(String(body.date));
-    if (isNaN(+date)) throw new BadRequestException('invalid date');
-
-    const { num_people } = price;
-
-    const user = await prisma.users.findUnique({ where: { id: authenticatedUserId } });
-    if (!user) throw new UnauthorizedException('authenticated user not found');
-    const user_id = user.id;
-
-    const trip_id = body.trip_id ? String(body.trip_id) : null;
-    if (trip_id) { const trip = await prisma.trips.findUnique({ where: { id: trip_id } }); if (!trip) throw new BadRequestException('trip not found'); if (trip.user_id !== String(user_id)) throw new BadRequestException('trip does not belong to traveler'); }
-
-    const created = await prisma.bookings.create({
-      data: {
-        listing_id: String(body.listing_id),
-        ...(trip_id ? { trip_id } : {}),
-        provider_id,
-        user_id: String(user_id),
-        date,
-        ...price,
-        status: isFreeTour ? 'confirmed' : 'pending',
-        payment_status: isFreeTour ? 'paid' : 'unpaid',
-      },
-    });
+    const { created, listing } = await createCapacityBooking(prisma, actor, body);
+    const { provider_id, date, num_people } = created;
+    const isFreeTour = created.amount_cents === 0;
 
     if (isFreeTour) {
       const provider = await prisma.providers.findUnique({ where: { id: provider_id } });
@@ -227,6 +200,7 @@ export class BookingsController {
       const { data } = await axios.post(`${HUB}/bookings/${id}/status`, body, {
         headers: serviceHeaders(req),
       });
+      if (data.status === 'cancellation_pending') return this.finishCancellation(id, data);
       return data;
     }
 
@@ -247,15 +221,20 @@ export class BookingsController {
     const exists = await prisma.bookings.findUnique({ where: { id } });
     if (!exists) throw new BadRequestException('booking not found');
 
-    const updated = await prisma.bookings.update({
-      where: { id },
-      data: {
+    const updated = await updateCapacityBooking(prisma, id, {
         ...(status ? { status } : {}),
         ...(payment_status ? { payment_status } : {}),
-      },
     });
 
+    if (updated.status === 'cancellation_pending') return this.finishCancellation(id, updated);
     return updated;
+  }
+
+  private async finishCancellation(id: string, pending: any) {
+    const stripe = getStripeClient();
+    if (!stripe) return pending;
+    try { return await reconcileBookingPayment(getPrisma(), stripe, id); }
+    catch { return pending; } // Uncertain external result retains inventory and explicit pending state.
   }
 }
 

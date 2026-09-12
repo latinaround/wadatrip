@@ -1,9 +1,9 @@
-# Starts local dev stack with .env loaded and migration applied
+# Starts local dev stack with .env loaded; migrations require explicit -Migrate
 # Usage (desde la raíz del repo):  .\scripts\dev-all.ps1
-# Opciones: -Migrate:$false  -ForceKill
+# Opciones: -Migrate (only with an explicitly verified DB target)  -ForceKill
 
 param(
-  [switch]$Migrate = $true,
+  [switch]$Migrate = $false,
   [switch]$ForceKill
 )
 

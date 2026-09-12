@@ -101,6 +101,13 @@ test('free tour still requires Bearer but never starts checkout', async t => {
   assert.equal(result.checkoutUrl, undefined);
 });
 
+test('unavailable date or capacity error is shown without checkout or logout', async t => {
+  const f = fixture(t, [{ status: 409, data: { message: 'Not enough spots for this traveler count' } }]);
+  await assert.rejects(f.run(), /Not enough spots/);
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.logouts(), 0);
+});
+
 test('logout while booking is in flight stops checkout', async t => {
   const f = fixture(t, [{ ...booked(), beforeReply: () => f.getSession().logout() }]);
   await assert.rejects(f.run(), requiresSignIn);
@@ -146,6 +153,7 @@ test('free tour notification uses the authenticated DB name, never client identi
     bookings: { create: async ({ data }) => ({ id: 'free-booking', ...data }) },
   };
   const originalLoad = Module._load;
+  require('./helpers/capacity-fixture.cjs').addCapacityFixture(prisma);
   t.mock.method(Module, '_load', function (request, ...args) {
     if (request === '@wadatrip/db') return { getPrisma: () => prisma };
     if (request === '@prisma/client') throw new Error('Real database access forbidden in this test');

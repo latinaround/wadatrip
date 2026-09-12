@@ -239,7 +239,9 @@ export default function TourDetail() {
     setBookingSuccess(null);
     setBookingLoading(true);
     try {
-      const numPeople = Math.max(1, Number(bookingForm.num_people || 1));
+      const numPeople = Number(bookingForm.num_people);
+      if (!Number.isInteger(numPeople) || numPeople < 1) throw new Error('Enter a valid traveler count');
+      if (!bookingForm.date) throw new Error('Choose an available date');
 
       const result = await bookTravelerExperience({
         apiBase,
@@ -252,7 +254,7 @@ export default function TourDetail() {
       });
 
       if (!result.checkoutUrl) {
-        setBookingSuccess('Spot requested. Your host will confirm by email or WhatsApp.');
+        setBookingSuccess('Your free tour booking is confirmed.');
         return;
       }
 
@@ -407,6 +409,8 @@ export default function TourDetail() {
               <Input
                 type="number"
                 min="1"
+                step="1"
+                aria-label="Travelers"
                 value={bookingForm.num_people}
                 onChange={(event) => handleBookingChange('num_people', event.target.value)}
                 placeholder="Travelers"
@@ -414,12 +418,15 @@ export default function TourDetail() {
               />
               <Input
                 type="date"
+                min={new Date().toISOString().slice(0, 10)}
+                aria-label="Booking date (UTC)"
                 value={bookingForm.date}
                 onChange={(event) => handleBookingChange('date', event.target.value)}
                 className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
               />
             </div>
 
+            <p className="mt-3 text-sm text-[#526173]">Dates use UTC. Booking is available only for dates with confirmed spots; availability is checked when you book.</p>
             {!authLoading && (!user || !token) && !bookingError && <p className="mt-4 text-sm text-[#526173]">{SIGN_IN_REQUIRED}</p>}
             {bookingError && <p role="alert" className="mt-4 text-sm text-[#d15371]">{bookingError}</p>}
             {bookingSuccess && <p className="mt-4 text-sm text-[#167c7d]">{bookingSuccess}</p>}

@@ -34,15 +34,16 @@ class FakeStripe {
     assert.equal(key, 'synthetic-stripe-mock-key');
     this.checkout = { sessions: { create: async data => {
       stripeCalls.push({ type: 'checkout', data });
-      return { id: 'synthetic-session', url: 'http://127.0.0.1/synthetic-checkout' };
+      return { id: 'synthetic-session', metadata: data.metadata, url: 'http://127.0.0.1/synthetic-checkout' };
     } } };
     this.paymentIntents = { create: async data => {
       stripeCalls.push({ type: 'intent', data });
-      return { id: 'synthetic-intent', client_secret: 'synthetic-client-secret' };
+      return { id: 'synthetic-intent', metadata: data.metadata, client_secret: 'synthetic-client-secret' };
     } };
   }
 }
 const originalLoad = Module._load;
+require('./helpers/capacity-fixture.cjs').addCapacityFixture(prisma);
 Module._load = function(request, ...args) {
   if (request === '@wadatrip/db') return { getPrisma: () => prisma };
   if (request === '@prisma/client') throw new Error('Real DB forbidden');
@@ -149,7 +150,9 @@ for (const [name, service] of [['gateway', gateway], ['hub', hub], ['gateway -> 
 test('checkout and PaymentIntent use stored amount/currency despite malicious browser inputs', async () => {
   const b = await gateway.create(req, input({ num_people: 2 }));
   await payments.checkout(b.id, { ...req, body: { amount: 1, currency: 'EUR' }, query: { amount: 1 } });
-  await payments.createIntent({ booking_id: b.id, amount: 1, currency: 'EUR', price: 1 }, req);
+  // Each booking has exactly one payment flow; exercise the second endpoint on a separate booking.
+  const intentBooking = await gateway.create(req, input({ num_people: 2 }));
+  await payments.createIntent({ booking_id: intentBooking.id, amount: 1, currency: 'EUR', price: 1 }, req);
   const checkout = stripeCalls[0].data.line_items[0];
   assert.equal(checkout.quantity, 1);
   assert.equal(checkout.price_data.unit_amount, b.amount_cents);

@@ -130,6 +130,7 @@ const prisma = Object.fromEntries(Object.keys(rows).map(model => [model, {
 }]));
 // Replace only DB access. Business logic, JWT verification, guards and Nest routing are real.
 const originalLoad = ModuleLoader._load;
+require('./helpers/capacity-fixture.cjs').addCapacityFixture(prisma);
 ModuleLoader._load = function(request, parent, main) {
   if (request === '@wadatrip/db') return { getPrisma: () => prisma };
   if (request === '@prisma/client') throw new Error('Real Prisma must never load in security HTTP tests');

@@ -12,7 +12,7 @@ import {
 import { getPrisma } from '@wadatrip/db';
 import { requireActor, requireBookingAccess, bookingScope, requireInternalToken } from '@wadatrip/common/security';
 import { bookingSelect } from '@wadatrip/common/public-data';
-import { calculateBookingPrice } from '@wadatrip/common/booking-price';
+import { createCapacityBooking, updateCapacityBooking } from '@wadatrip/common/booking-capacity';
 
 @Controller('bookings')
 export class BookingsController {
@@ -21,36 +21,7 @@ export class BookingsController {
     requireInternalToken(req);
     const prisma = getPrisma();
     const actor = await requireActor(req, prisma);
-    const required = ['listing_id', 'date', 'num_people'];
-    for (const k of required) if (!body?.[k]) throw new BadRequestException(`missing ${k}`);
-
-    const listing = await prisma.listings.findUnique({ where: { id: String(body.listing_id) } });
-    if (!listing) throw new BadRequestException('listing not found');
-
-    const provider_id = listing.provider_id;
-    const date = new Date(String(body.date));
-    if (isNaN(+date)) throw new BadRequestException('invalid date');
-
-    const price = calculateBookingPrice(listing, body.num_people);
-    const isFreeTour = price.amount_cents === 0;
-
-    const user_id = actor.id;
-
-    const trip_id = body.trip_id ? String(body.trip_id) : null;
-    if (trip_id) { const trip = await prisma.trips.findUnique({ where: { id: trip_id } }); if (!trip) throw new BadRequestException('trip not found'); if (trip.user_id !== String(user_id)) throw new BadRequestException('trip does not belong to traveler'); }
-
-    const created = await prisma.bookings.create({
-      data: {
-        listing_id: String(body.listing_id),
-        ...(trip_id ? { trip_id } : {}),
-        provider_id,
-        user_id: String(user_id),
-        date,
-        ...price,
-        status: isFreeTour ? 'confirmed' : 'pending',
-        payment_status: isFreeTour ? 'paid' : 'unpaid',
-      },
-    });
+    const { created } = await createCapacityBooking(prisma, actor, body);
 
     return created;
   }
@@ -147,12 +118,9 @@ export class BookingsController {
     const exists = await prisma.bookings.findUnique({ where: { id } });
     if (!exists) throw new BadRequestException('booking not found');
 
-    const updated = await prisma.bookings.update({
-      where: { id },
-      data: {
+    const updated = await updateCapacityBooking(prisma, id, {
         ...(status ? { status } : {}),
         ...(payment_status ? { payment_status } : {}),
-      },
     });
 
     return updated;

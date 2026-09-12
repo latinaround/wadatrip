@@ -6,12 +6,15 @@ import {
   Body,
   BadRequestException,
   UnauthorizedException,
+  ConflictException,
   Req,
 } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
 import { requireActor, requireProviderAccess, requireBookingAccess } from '@wadatrip/common/security';
 import { validateBookingPrice } from '@wadatrip/common/booking-price';
+import { preparePayment } from '@wadatrip/common/payment-lifecycle';
+import { paymentObject, reconcileBookingPayment } from '../services/booking-payment.service';
 
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 
@@ -96,6 +99,8 @@ export class PaymentsController {
     const items = await prisma.paymentRecord.findMany({
       where: { booking_id: { in: bookingIds } },
       orderBy: { created_at: 'desc' },
+      select: { id: true, booking_id: true, amount_gross_cents: true, currency: true,
+        status: true, resolution: true, amount_charged_cents: true, charged_currency: true, created_at: true },
     });
 
     return { items };
@@ -139,123 +144,65 @@ export class PaymentsController {
 
   @Post('create-intent')
   async createIntent(@Body() body: any, @Req() req: any) {
-    await requireActor(req, getPrisma());
     if (!body?.booking_id) throw new BadRequestException('booking_id is required');
-    const { booking } = await requireBookingAccess(req, getPrisma(), String(body.booking_id), 'pay');
-    const { amount: amountCents, currency } = bookingPaymentAmount(booking);
-    const description = body?.description;
-    const bookingId = body?.booking_id;
+    const prisma = getPrisma() as any;
+    const { booking } = await requireBookingAccess(req, prisma, String(body.booking_id), 'pay');
+    bookingPaymentAmount(booking);
     const stripe = requireStripe();
-
-    const intent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency,
-      description,
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'never',
-      },
-      metadata: { booking_id: bookingId || '' },
-    });
-
-    if (!intent?.client_secret) {
-      throw new BadRequestException('Stripe did not return a clientSecret');
-    }
-
+    const payment = await preparePayment(prisma, booking.id, 'intent', (current, paymentId) => ({
+      amount: current.amount_cents, currency: current.currency,
+      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+      metadata: { booking_id: current.id, payment_record_id: paymentId },
+    }));
+    const intent = await paymentObject(prisma, stripe, payment);
+    const current = await prisma.bookings.findUnique({ where: { id: booking.id } });
+    if (current.status !== 'payment_pending') throw new ConflictException('Payment is no longer awaiting checkout');
+    if (!intent?.client_secret) throw new BadRequestException('Stripe did not return a clientSecret');
     return { clientSecret: intent.client_secret, payment_intent_id: intent.id };
   }
 
   @Post('bookings/:id/checkout')
   async checkout(@Param('id') bookingId: string, @Req() req: any) {
-    const { booking } = await requireBookingAccess(req, getPrisma(), bookingId, 'pay');
-    const { amount: amountCents, currency } = bookingPaymentAmount(booking);
-    const stripe = requireStripe();
-    const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
     const prisma = getPrisma() as any;
-
-    // Obtener provider desde booking
-    const providerId = booking?.listing?.provider_id;
-    if (!providerId) {
-      throw new BadRequestException('Booking has no provider assigned');
-    }
-
-    const provider = booking.provider;
-
-    // Flags
-    const allowNoConnect =
-      (process.env.ALLOW_NO_CONNECT_CHECKOUT || '').toLowerCase() === 'true';
-
-    const hasConnectAccount = Boolean(provider?.stripe_account_id);
-    if (!hasConnectAccount) {
-      if (!allowNoConnect) {
-        console.warn(
-          '[payments.checkout] Missing provider Stripe account, falling back to standard Stripe checkout.',
-        );
-      }
-    }
-
-    // Fee
-    const feePct = Number(process.env.WADATRIP_FEE_PCT || 15);
-    const feeCents = Math.floor((amountCents * feePct) / 100);
-
-    // Checkout Session
-    let session;
-    try {
-      session = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        payment_method_types: ['card'],
-        success_url:
-          process.env.CHECKOUT_SUCCESS_URL ||
-          `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/success`,
-        cancel_url:
-          process.env.CHECKOUT_CANCEL_URL ||
-          `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/cancel`,
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency,
-              unit_amount: amountCents,
-              product_data: {
-                name: booking?.listing?.title || 'Tour booking',
-              },
-            },
-          },
-        ],
-        payment_intent_data: hasConnectAccount
-          ? {
-              application_fee_amount: feeCents,
-              transfer_data: { destination: provider.stripe_account_id },
-              metadata: { booking_id: bookingId },
-            }
-          : {
-              metadata: { booking_id: bookingId, connect_fallback: 'true' },
-            },
-      });
-    } catch (err: any) {
-      console.error('[payments.checkout] Stripe session error:', err?.message || err);
-      throw new BadRequestException('Stripe checkout failed');
-    }
-
-    if (!session?.url) {
-      throw new BadRequestException(
-        'Stripe did not return a checkout session URL',
-      );
-    }
-
-    try {
-      await prisma.bookings.update({
-        where: { id: bookingId },
-        data: {
-          checkout_session_id: session.id || null,
-          payment_intent_id: session.payment_intent ? String(session.payment_intent) : undefined,
-        },
-      });
-    } catch (err: any) {
-      console.error('[payments.checkout] Could not persist checkout metadata:', err?.message || err);
-    }
-
+    const { booking } = await requireBookingAccess(req, prisma, bookingId, 'pay');
+    bookingPaymentAmount(booking);
+    const stripe = requireStripe();
+    const payment = await preparePayment(prisma, bookingId, 'checkout', (current, paymentId) => {
+      const metadata = { booking_id: current.id, payment_record_id: paymentId };
+      const success = new URL(process.env.CHECKOUT_SUCCESS_URL || `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/success`);
+      success.searchParams.set('booking_id', current.id);
+      const cancel = new URL(process.env.CHECKOUT_CANCEL_URL || `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/cancel`);
+      cancel.searchParams.set('booking_id', current.id);
+      const feePct = Number(process.env.WADATRIP_FEE_PCT || 15);
+      if (!Number.isFinite(feePct) || feePct < 0 || feePct > 100) throw new BadRequestException('Invalid payment fee configuration');
+      return {
+        mode: 'payment', payment_method_types: ['card'],
+        // One hour is a processor-session deadline, never permission to release inventory locally.
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        client_reference_id: current.id, metadata,
+        success_url: success.toString(),
+        cancel_url: cancel.toString(),
+        line_items: [{ quantity: 1, price_data: { currency: current.currency, unit_amount: current.amount_cents,
+          product_data: { name: current.listing?.title || 'Tour booking' } } }],
+        payment_intent_data: current.provider?.stripe_account_id ? {
+          application_fee_amount: Math.floor(current.amount_cents * feePct / 100),
+          transfer_data: { destination: current.provider.stripe_account_id }, metadata,
+        } : { metadata: { ...metadata, connect_fallback: 'true' } },
+      };
+    });
+    const session = await paymentObject(prisma, stripe, payment);
+    const current = await prisma.bookings.findUnique({ where: { id: bookingId } });
+    if (current.status !== 'payment_pending') throw new ConflictException('Payment is no longer awaiting checkout');
+    if (!session?.url) throw new ConflictException('Checkout is not open; refresh booking payment status');
     return { url: session.url };
+  }
+
+  @Post('bookings/:id/reconcile')
+  async reconcile(@Param('id') bookingId: string, @Req() req: any) {
+    const prisma = getPrisma() as any;
+    await requireBookingAccess(req, prisma, bookingId);
+    const booking = await reconcileBookingPayment(prisma, requireStripe(), bookingId);
+    return { id: booking.id, status: booking.status, payment_status: booking.payment_status };
   }
 
   @Post('itineraries/:id/checkout')

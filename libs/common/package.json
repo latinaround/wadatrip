@@ -29,6 +29,14 @@
       "types": "./dist/security.d.ts",
       "default": "./dist/security.js"
     },
+    "./payment-lifecycle": {
+      "types": "./dist/payment-lifecycle.d.ts",
+      "default": "./dist/payment-lifecycle.js"
+    },
+    "./booking-capacity": {
+      "types": "./dist/booking-capacity.d.ts",
+      "default": "./dist/booking-capacity.js"
+    },
     "./booking-price": {
       "types": "./dist/booking-price.d.ts",
       "default": "./dist/booking-price.js"
