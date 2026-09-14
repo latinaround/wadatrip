@@ -1,12 +1,22 @@
 import { financialAudit } from './financial-audit';
 // Only normalized, explicitly selected technical/financial fields belong in this inbox.
 export async function receivePaymentEvent(prisma: any, id: string, type: string, payload: any) {
-  await prisma.paymentEvent.upsert({ where: { id }, create: { id, type, payload, status: 'received' }, update: {} });
+  try {
+    await prisma.paymentEvent.upsert({ where: { id }, create: { id, type, payload, status: 'received' }, update: {} });
+  } catch (error: any) {
+    // Receipt runs outside the financial transaction. A concurrent first delivery
+    // can win this insert; reload its durable row, never overwrite its payload/state.
+    // Do not mask connection errors, other uniqueness failures or ambiguous metadata.
+    if (error?.code !== 'P2002' || error.meta?.modelName !== 'PaymentEvent'
+      || !Array.isArray(error.meta?.target) || error.meta.target.length !== 1
+      || error.meta.target[0] !== 'id') throw error;
+  }
   const current = await prisma.paymentEvent.findUnique({ where: { id } });
   if (current.processed_at) return false;
-  await prisma.paymentEvent.updateMany({ where: { id, processed_at: null }, data: {
+  const attempt = await prisma.paymentEvent.updateMany({ where: { id, processed_at: null }, data: {
     status: 'processing', attempts: { increment: 1 }, last_attempt_at: new Date(), error_category: null,
   } });
+  if (attempt.count === 0) return false;
   financialAudit({ event_id: id, operation: type, processor: 'stripe', result: 'processing' });
   return true;
 }

@@ -14,7 +14,7 @@ WITH refs AS (
 ), duplicate_days AS (
   SELECT listing_id, date::date FROM listing_availability GROUP BY listing_id, date::date HAVING count(*) > 1
 ), occupied AS (
-  SELECT listing_id, date::date day, sum(num_people::bigint) used
+  SELECT listing_id, date::date AS booking_day, sum(num_people::bigint) used
   FROM bookings WHERE status NOT IN ('cancelled', 'rejected') GROUP BY listing_id, date::date
 )
 SELECT 'external_reference_multiple_bookings' AS inconsistency, count(*) AS count
@@ -35,8 +35,8 @@ UNION ALL SELECT 'payment_unknown_status', count(*) FROM "PaymentRecord" WHERE l
 UNION ALL SELECT 'event_unprocessed', count(*) FROM "PaymentEvent" WHERE processed_at IS NULL
 UNION ALL SELECT 'participants_invalid', count(*) FROM bookings WHERE num_people < 1
 UNION ALL SELECT 'availability_capacity_invalid', count(*) FROM listing_availability WHERE spots_total < 0 OR spots_available < 0 OR spots_available > spots_total
-UNION ALL SELECT 'occupancy_above_capacity', count(*) FROM occupied o JOIN listing_availability a ON a.listing_id = o.listing_id AND a.date::date = o.day WHERE o.used > a.spots_total
-UNION ALL SELECT 'occupied_day_without_availability', count(*) FROM occupied o WHERE NOT EXISTS (SELECT 1 FROM listing_availability a WHERE a.listing_id = o.listing_id AND a.date::date = o.day)
+UNION ALL SELECT 'occupancy_above_capacity', count(*) FROM occupied o JOIN listing_availability a ON a.listing_id = o.listing_id AND a.date::date = o.booking_day WHERE o.used > a.spots_total
+UNION ALL SELECT 'occupied_day_without_availability', count(*) FROM occupied o WHERE NOT EXISTS (SELECT 1 FROM listing_availability a WHERE a.listing_id = o.listing_id AND a.date::date = o.booking_day)
 UNION ALL SELECT 'booking_ledger_reference_mismatch', count(*) FROM bookings b JOIN "PaymentRecord" p ON p.booking_id = b.id
   WHERE (b.payment_intent_id IS NOT NULL AND p.stripe_payment_intent_id IS NOT NULL AND b.payment_intent_id <> p.stripe_payment_intent_id)
      OR (b.checkout_session_id IS NOT NULL AND p.stripe_checkout_session_id IS NOT NULL AND b.checkout_session_id <> p.stripe_checkout_session_id)

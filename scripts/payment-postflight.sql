@@ -5,7 +5,7 @@ BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
 SET LOCAL statement_timeout = '30s';
 SET LOCAL lock_timeout = '3s';
 WITH occupied AS (
-  SELECT listing_id, date::date day, sum(num_people::bigint) used FROM bookings
+  SELECT listing_id, date::date AS booking_day, sum(num_people::bigint) used FROM bookings
   WHERE inventory_state = 'held' OR (inventory_state IS NULL AND status NOT IN ('cancelled', 'rejected'))
   GROUP BY listing_id, date::date
 )
@@ -18,8 +18,8 @@ UNION ALL SELECT 'paid_confirmation_without_ledger', count(*) FROM bookings b LE
   WHERE b.status IN ('confirmed', 'completed') AND (b.amount_cents IS NULL OR b.amount_cents <> 0)
     AND (p.id IS NULL OR lower(btrim(p.status)) NOT IN ('paid', 'succeeded'))
 UNION ALL SELECT 'confirmed_without_held_inventory', count(*) FROM bookings WHERE status IN ('confirmed', 'completed') AND inventory_state = 'released'
-UNION ALL SELECT 'occupancy_above_capacity', count(*) FROM occupied o JOIN listing_availability a ON a.listing_id = o.listing_id AND a.date::date = o.day WHERE o.used > a.spots_total
-UNION ALL SELECT 'capacity_cache_mismatch', count(*) FROM listing_availability a LEFT JOIN occupied o ON a.listing_id = o.listing_id AND a.date::date = o.day
+UNION ALL SELECT 'occupancy_above_capacity', count(*) FROM occupied o JOIN listing_availability a ON a.listing_id = o.listing_id AND a.date::date = o.booking_day WHERE o.used > a.spots_total
+UNION ALL SELECT 'capacity_cache_mismatch', count(*) FROM listing_availability a LEFT JOIN occupied o ON a.listing_id = o.listing_id AND a.date::date = o.booking_day
   WHERE a.spots_available <> greatest(0, a.spots_total - coalesce(o.used, 0))
 UNION ALL SELECT 'unvalidated_core_constraints', count(*) FROM pg_constraint
   WHERE connamespace = current_schema()::regnamespace AND NOT convalidated
