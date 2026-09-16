@@ -234,6 +234,11 @@ model listings {
   currency         String    @default("USD")
   start_date       DateTime?
   end_date         DateTime?
+  timezone         String?
+  meeting_point    String?   @db.Text
+  cancellation_policy String? @db.Text
+  booking_cutoff_hours Int?
+  operational_contact  String? @db.Text
   tags             String[]
   status           String    @default("pending")
   cover_image_url  String?

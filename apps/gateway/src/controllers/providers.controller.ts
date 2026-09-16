@@ -8,6 +8,7 @@ import {
   Patch,
   Delete,
   BadRequestException,
+  ConflictException,
   UnauthorizedException,
   ForbiddenException,
   Req,
@@ -17,10 +18,22 @@ import { getPrisma } from '@wadatrip/db';
 import type { Request } from 'express';
 import { requireActor, requireAdmin, requireProviderAccess, requireAlertAccess, findOwnedProvider as resolveOwnedProvider, serviceHeaders } from '@wadatrip/common/security';
 import { publicProviderDetailSelect, publicListingSelect, publicProviderSelect, adminProviderDetailSelect, toPublicProvider, toPublicListing } from '@wadatrip/common/public-data';
+import { lockedListing, occupied } from '@wadatrip/common/booking-capacity';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 const hasOwn = Object.prototype.hasOwnProperty;
+
+// Owner/admin projection. Keep operational fields private while avoiding a full
+// ORM object on a route that is also used by public listing detail.
+const managedListingSelect = {
+  id: true, provider_id: true, operator_id: true, title: true, description: true,
+  category: true, city: true, country_code: true, duration_minutes: true,
+  price_from: true, currency: true, start_date: true, end_date: true,
+  timezone: true, meeting_point: true, cancellation_policy: true,
+  booking_cutoff_hours: true, operational_contact: true, tags: true,
+  status: true, cover_image_url: true, created_at: true,
+} as const;
 
 function normalizeTags(tags: any): string[] {
   if (Array.isArray(tags)) return tags.map((t) => String(t));
@@ -124,6 +137,21 @@ function normalizeListingDate(value: any, field: string): Date | null {
     throw new BadRequestException(`${field} must be a valid date`);
   }
   return date;
+}
+
+function normalizeUtcDay(value: any, field = 'date'): Date {
+  const text = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) throw new BadRequestException(`${field} must be YYYY-MM-DD`);
+  const day = new Date(`${text}T00:00:00.000Z`);
+  if (!Number.isFinite(day.getTime()) || day.toISOString().slice(0, 10) !== text) throw new BadRequestException(`${field} must be a valid date`);
+  return day;
+}
+
+function normalizeCutoff(value: any): number | null {
+  if (value == null || value === '') return null;
+  const numberValue = Number(value);
+  if (!Number.isInteger(numberValue) || numberValue < 0 || numberValue > 8760) throw new BadRequestException('booking_cutoff_hours must be an integer from 0 to 8760');
+  return numberValue;
 }
 
 function normalizeListingStatus(value: any, fallback = 'draft') {
@@ -545,6 +573,11 @@ export class ProvidersController {
         currency: isFreeTour ? undefined : normalizeNullableString(body.currency) ?? undefined,
         start_date: startDate,
         end_date: endDate,
+        timezone: normalizeNullableString(body.timezone),
+        meeting_point: normalizeNullableString(body.meeting_point),
+        cancellation_policy: normalizeNullableString(body.cancellation_policy),
+        booking_cutoff_hours: normalizeCutoff(body.booking_cutoff_hours),
+        operational_contact: normalizeNullableString(body.operational_contact),
         tags,
         status: finalStatus,
         cover_image_url: normalizeNullableString(body.cover_image_url ?? body.coverImageUrl),
@@ -646,6 +679,102 @@ export class ProvidersController {
     return { items: mappedItems, total, page, limit };
   }
 
+  @Get('listings/:id/availability')
+  async publicAvailability(@Param('id') id: string, @Req() req: Request) {
+    if (ENABLED) {
+      const { data } = await axios.get(`${HUB}/listings/${encodeURIComponent(id)}/availability`, { headers: serviceHeaders(req) });
+      return data;
+    }
+    const prisma = getPrisma();
+    const listing = await prisma.listings.findUnique({ where: { id: String(id) }, select: { id: true, status: true } });
+    if (!listing || !['published', 'approved'].includes(String(listing.status).toLowerCase())) {
+      throw new BadRequestException('listing not found');
+    }
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const items = await prisma.listing_availability.findMany({
+      where: { listing_id: listing.id, date: { gte: today }, spots_available: { gt: 0 } },
+      orderBy: { date: 'asc' },
+      select: { date: true, spots_available: true },
+    });
+    return { items: items.map((item) => ({ date: item.date.toISOString().slice(0, 10), spots_available: item.spots_available })) };
+  }
+
+  @Get('listings/:id/manage')
+  async getManagedListing(@Param('id') id: string, @Req() req: Request) {
+    const prisma = getPrisma();
+    const { listing } = await authorizeListingMutation(prisma, req, {}, id);
+    if (ENABLED) {
+      const { data } = await axios.get(`${HUB}/listings/${encodeURIComponent(id)}/manage`, { headers: serviceHeaders(req) });
+      return data;
+    }
+    return prisma.listings.findUnique({ where: { id: listing.id }, select: managedListingSelect });
+  }
+
+  @Get('listings/:id/availability/manage')
+  async manageAvailability(@Param('id') id: string, @Req() req: Request) {
+    const prisma = getPrisma();
+    const { listing } = await authorizeListingMutation(prisma, req, {}, id);
+    if (ENABLED) {
+      const { data } = await axios.get(`${HUB}/listings/${encodeURIComponent(id)}/availability/manage`, { headers: serviceHeaders(req) });
+      return data;
+    }
+    const items = await prisma.listing_availability.findMany({ where: { listing_id: listing.id }, orderBy: { date: 'asc' }, select: { id: true, date: true, spots_total: true, spots_available: true } });
+    return { items: items.map((item) => ({ ...item, date: item.date.toISOString().slice(0, 10) })) };
+  }
+
+  @Post('listings/:id/availability')
+  async upsertAvailability(@Param('id') id: string, @Body() body: any, @Req() req: Request) {
+    const prisma = getPrisma();
+    const { listing } = await authorizeListingMutation(prisma, req, {}, id);
+    if (ENABLED) {
+      const { data } = await axios.post(`${HUB}/listings/${encodeURIComponent(id)}/availability`, body, { headers: serviceHeaders(req) });
+      return data;
+    }
+    const day = normalizeUtcDay(body?.date);
+    const spotsTotal = normalizeListingNumber(body?.spots_total, 'spots_total', { integer: true });
+    if (!spotsTotal || spotsTotal < 1) throw new BadRequestException('spots_total must be at least 1');
+    const tomorrow = new Date(Date.now()); tomorrow.setUTCHours(0, 0, 0, 0);
+    if (day < tomorrow) throw new BadRequestException('availability date must not be in the past');
+    const end = new Date(+day + 86400000);
+    const result = await prisma.$transaction(async (tx: any) => {
+      await lockedListing(tx, listing.id);
+      const existingSlots = await tx.listing_availability.findMany({ where: { listing_id: listing.id, date: { gte: day, lt: end } }, orderBy: { id: 'asc' } });
+      if (existingSlots.length > 1) throw new ConflictException('availability is ambiguous for this date; investigate duplicate entries');
+      const existing = existingSlots[0] || null;
+      const used = await occupied(tx, listing.id, day);
+      if (used > spotsTotal) throw new ConflictException('spots_total cannot be below current occupancy');
+      const data = { spots_total: spotsTotal, spots_available: spotsTotal - used };
+      return existing
+        ? tx.listing_availability.update({ where: { id: existing.id }, data })
+        : tx.listing_availability.create({ data: { listing_id: listing.id, date: day, ...data } });
+    });
+    return { ...result, date: result.date.toISOString().slice(0, 10) };
+  }
+
+  @Delete('listings/:id/availability/:date')
+  async deleteAvailability(@Param('id') id: string, @Param('date') rawDate: string, @Req() req: Request) {
+    const prisma = getPrisma();
+    const { listing } = await authorizeListingMutation(prisma, req, {}, id);
+    if (ENABLED) {
+      const { data } = await axios.delete(`${HUB}/listings/${encodeURIComponent(id)}/availability/${encodeURIComponent(rawDate)}`, { headers: serviceHeaders(req) });
+      return data;
+    }
+    const day = normalizeUtcDay(rawDate);
+    const end = new Date(+day + 86400000);
+    await prisma.$transaction(async (tx: any) => {
+      await lockedListing(tx, listing.id);
+      const slots = await tx.listing_availability.findMany({ where: { listing_id: listing.id, date: { gte: day, lt: end } }, orderBy: { id: 'asc' } });
+      if (slots.length > 1) throw new ConflictException('availability is ambiguous for this date; investigate duplicate entries');
+      const slot = slots[0] || null;
+      if (!slot) return;
+      const used = await occupied(tx, listing.id, day);
+      if (used > 0) throw new ConflictException('availability cannot be removed while bookings consume capacity');
+      await tx.listing_availability.delete({ where: { id: slot.id } });
+    });
+    return { ok: true };
+  }
+
   @Get('listings/:id')
   async getListing(@Param('id') id: string, @Req() req: Request) {
     const prisma = getPrisma();
@@ -715,6 +844,11 @@ export class ProvidersController {
     if (body?.currency != null) updateData.currency = nextFreeTour ? null : normalizeNullableString(body.currency);
     if (body?.start_date != null) updateData.start_date = normalizeListingDate(body.start_date, 'start_date');
     if (body?.end_date != null) updateData.end_date = normalizeListingDate(body.end_date, 'end_date');
+    if (body?.timezone != null) updateData.timezone = requireListingText(body.timezone, 'timezone');
+    if (body?.meeting_point != null) updateData.meeting_point = normalizeNullableString(body.meeting_point);
+    if (body?.cancellation_policy != null) updateData.cancellation_policy = normalizeNullableString(body.cancellation_policy);
+    if (body?.booking_cutoff_hours != null) updateData.booking_cutoff_hours = normalizeCutoff(body.booking_cutoff_hours);
+    if (body?.operational_contact != null) updateData.operational_contact = normalizeNullableString(body.operational_contact);
     if (body?.tags != null) updateData.tags = nextTags;
     if (body?.cover_image_url != null || body?.coverImageUrl != null) {
       updateData.cover_image_url = normalizeNullableString(body.cover_image_url ?? body.coverImageUrl);

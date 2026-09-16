@@ -157,6 +157,7 @@ export default function TourDetail() {
     num_people: 1,
     date: '',
   });
+  const [availableDates, setAvailableDates] = useState([]);
 
   useEffect(() => {
     let mounted = true;
@@ -218,6 +219,24 @@ export default function TourDetail() {
   const currentHostInstagramUrl = buildInstagramUrl(currentHost?.provider_instagram_handle);
   const currentGuideHref = buildGuideHref(currentHost?.provider_id);
   const publicTourUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+  useEffect(() => {
+    let mounted = true;
+    if (!currentHost?.id) {
+      setAvailableDates([]);
+      return () => { mounted = false; };
+    }
+    (async () => {
+      try {
+        const response = await fetch(`${apiBase}/listings/${encodeURIComponent(currentHost.id)}/availability`);
+        const payload = await response.json().catch(() => null);
+        if (mounted) setAvailableDates(Array.isArray(payload?.items) ? payload.items : []);
+      } catch {
+        if (mounted) setAvailableDates([]);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [apiBase, currentHost?.id]);
 
   const handleBookingChange = (field, value) => {
     setBookingForm((prev) => ({ ...prev, [field]: value }));
@@ -421,12 +440,15 @@ export default function TourDetail() {
                 min={new Date().toISOString().slice(0, 10)}
                 aria-label="Booking date (UTC)"
                 value={bookingForm.date}
+                list="available-tour-dates"
                 onChange={(event) => handleBookingChange('date', event.target.value)}
                 className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
               />
             </div>
 
-            <p className="mt-3 text-sm text-[#526173]">Dates use UTC. Booking is available only for dates with confirmed spots; availability is checked when you book.</p>
+            <p className="mt-3 text-sm text-[#526173]">Dates use UTC. Choose a date with confirmed spots; availability is checked again when you book.</p>
+            <datalist id="available-tour-dates">{availableDates.map((item) => <option key={item.date} value={item.date}>{item.spots_available} spots available</option>)}</datalist>
+            {!availableDates.length ? <p className="mt-2 text-sm text-[#d15371]">No dates are currently available for booking.</p> : null}
             {!authLoading && (!user || !token) && !bookingError && <p className="mt-4 text-sm text-[#526173]">{SIGN_IN_REQUIRED}</p>}
             {bookingError && <p role="alert" className="mt-4 text-sm text-[#d15371]">{bookingError}</p>}
             {bookingSuccess && <p className="mt-4 text-sm text-[#167c7d]">{bookingSuccess}</p>}

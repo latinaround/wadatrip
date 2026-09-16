@@ -11,6 +11,7 @@ import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../ut
 import { getListingShareCopy } from '../utils/listingMode';
 import { useAuth } from '../context/AuthContext.jsx';
 import { uploadImageFile } from '../services/mediaUpload';
+import OperatorReadinessPanel from '../components/OperatorReadinessPanel.jsx';
 
 const tokenStorageKey = 'wadatrip_token';
 
@@ -49,6 +50,11 @@ const emptyTour = {
   currency: 'USD',
   start_date: '',
   end_date: '',
+  timezone: 'UTC',
+  meeting_point: '',
+  cancellation_policy: '',
+  booking_cutoff_hours: '',
+  operational_contact: '',
   tags: '',
   cover_image_url: '',
   publish_now: true,
@@ -94,12 +100,16 @@ export default function OperatorToursNew() {
   const [tourCoverUploading, setTourCoverUploading] = useState(false);
   const [ownedListings, setOwnedListings] = useState([]);
   const [loadingOwnedListings, setLoadingOwnedListings] = useState(false);
+  const [availabilityItems, setAvailabilityItems] = useState([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityMessage, setAvailabilityMessage] = useState(null);
 
   const accessCodeTrimmed = accessCode.trim();
   const isAuthenticatedMode = Boolean(sessionToken);
   const ownedProviderId = providerStatus?.id ? String(providerStatus.id) : '';
   const providerApprovalStatus = String(providerStatus?.status || providerStatus?.verification_status || '').toLowerCase();
   const providerApproved = ['approved', 'verified'].includes(providerApprovalStatus);
+  const providerLinkReady = Boolean(ownedProviderId);
   const hasOwnedListings = ownedListings.length > 0;
 
   useEffect(() => {
@@ -260,6 +270,51 @@ export default function OperatorToursNew() {
       [field]: field === 'country_code' ? normalizeCountryCode(value) : value,
     }));
   };
+
+  const loadAvailability = useCallback(async (listingId) => {
+    if (!listingId || !sessionToken) { setAvailabilityItems([]); return []; }
+    setAvailabilityLoading(true); setAvailabilityMessage(null);
+    try {
+      const data = await authFetch(`/listings/${encodeURIComponent(listingId)}/availability/manage`, { method: 'GET' });
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setAvailabilityItems(items);
+      return items;
+    } catch (error) {
+      if (error?.status === 401) logout?.();
+      setAvailabilityMessage(error?.message || 'Could not load availability.');
+      return [];
+    } finally { setAvailabilityLoading(false); }
+  }, [authFetch, logout, sessionToken]);
+
+  const saveAvailability = useCallback(async ({ date, spotsTotal }) => {
+    const listingId = editingId || createdTour?.id;
+    if (!listingId) { setAvailabilityMessage('Save or load a tour before adding dates.'); return; }
+    setAvailabilityLoading(true); setAvailabilityMessage(null);
+    try {
+      await authFetch(`/listings/${encodeURIComponent(listingId)}/availability`, {
+        method: 'POST', body: JSON.stringify({ date, spots_total: Number(spotsTotal) }),
+      });
+      await loadAvailability(listingId);
+      setAvailabilityMessage('Availability saved.');
+    } catch (error) {
+      if (error?.status === 401) logout?.();
+      setAvailabilityMessage(error?.message || 'Could not save availability.');
+    } finally { setAvailabilityLoading(false); }
+  }, [authFetch, createdTour?.id, editingId, loadAvailability, logout]);
+
+  const removeAvailability = useCallback(async (date) => {
+    const listingId = editingId || createdTour?.id;
+    if (!listingId) return;
+    setAvailabilityLoading(true); setAvailabilityMessage(null);
+    try {
+      await authFetch(`/listings/${encodeURIComponent(listingId)}/availability/${encodeURIComponent(date)}`, { method: 'DELETE' });
+      await loadAvailability(listingId);
+      setAvailabilityMessage('Availability removed.');
+    } catch (error) {
+      if (error?.status === 401) logout?.();
+      setAvailabilityMessage(error?.message || 'Could not remove availability.');
+    } finally { setAvailabilityLoading(false); }
+  }, [authFetch, createdTour?.id, editingId, loadAvailability, logout]);
 
   const selectTourType = (nextIsFree) => {
     setIsFreeTour(nextIsFree);
@@ -459,6 +514,10 @@ export default function OperatorToursNew() {
       return;
     }
     const providerId = String(tourForm.provider_id || ownedProviderId || '').trim();
+    if (isAuthenticatedMode && !ownedProviderId) {
+      setTourMessage('Link your guide profile in Step 2 before creating a tour.');
+      return;
+    }
     if (!providerId) {
       setTourMessage(t('operator.messages.provider_id_required', 'Provider ID is required.'));
       return;
@@ -485,6 +544,11 @@ export default function OperatorToursNew() {
         currency: tourForm.currency || undefined,
         start_date: tourForm.start_date || undefined,
         end_date: tourForm.end_date || undefined,
+        timezone: tourForm.timezone || undefined,
+        meeting_point: tourForm.meeting_point.trim() || undefined,
+        cancellation_policy: tourForm.cancellation_policy.trim() || undefined,
+        booking_cutoff_hours: tourForm.booking_cutoff_hours === '' ? undefined : Number(tourForm.booking_cutoff_hours),
+        operational_contact: tourForm.operational_contact.trim() || undefined,
         tags: buildTagsPayload(),
         status: tourForm.publish_now ? 'published' : 'draft',
         cover_image_url: coverImageUrl || undefined,
@@ -540,7 +604,7 @@ export default function OperatorToursNew() {
 
     setTourLoading(true);
     try {
-      const data = await authFetch(`/listings/${encodeURIComponent(listingId)}`, { method: 'GET' });
+      const data = await authFetch(`/listings/${encodeURIComponent(listingId)}/manage`, { method: 'GET' });
       setEditingId(listingId);
       setCreatedTour(data);
       setTourForm({
@@ -555,6 +619,11 @@ export default function OperatorToursNew() {
         currency: data?.currency || 'USD',
         start_date: data?.start_date ? String(data.start_date).slice(0, 10) : '',
         end_date: data?.end_date ? String(data.end_date).slice(0, 10) : '',
+        timezone: data?.timezone || 'UTC',
+        meeting_point: data?.meeting_point || '',
+        cancellation_policy: data?.cancellation_policy || '',
+        booking_cutoff_hours: data?.booking_cutoff_hours ?? '',
+        operational_contact: data?.operational_contact || '',
         tags: Array.isArray(data?.tags) ? data.tags.filter((tag) => tag !== 'free_tour').join(', ') : '',
         cover_image_url: data?.cover_image_url || '',
         publish_now: data?.status ? String(data.status).toLowerCase() === 'published' : true,
@@ -562,6 +631,7 @@ export default function OperatorToursNew() {
       setIsFreeTour(Array.isArray(data?.tags) && data.tags.includes('free_tour'));
       setCoverPreview(data?.cover_image_url || '');
       setEditMessage(t('operator.messages.tour_loaded', 'Tour loaded. Update the fields and save.'));
+      loadAvailability(listingId);
     } catch (err) {
       if (err?.status === 401) logout?.();
       setEditMessage(err?.message || t('operator.messages.tour_load_error', 'Error loading tour.'));
@@ -643,6 +713,11 @@ export default function OperatorToursNew() {
         currency: tourForm.currency || undefined,
         start_date: tourForm.start_date || null,
         end_date: tourForm.end_date || null,
+        timezone: tourForm.timezone || null,
+        meeting_point: tourForm.meeting_point.trim() || null,
+        cancellation_policy: tourForm.cancellation_policy.trim() || null,
+        booking_cutoff_hours: tourForm.booking_cutoff_hours === '' ? null : Number(tourForm.booking_cutoff_hours),
+        operational_contact: tourForm.operational_contact.trim() || null,
         tags: buildTagsPayload(),
         cover_image_url: coverImageUrl || null,
       };
@@ -900,6 +975,18 @@ export default function OperatorToursNew() {
             </Button>
           </div>
           </section>
+        ) : null}
+
+        {isAuthenticatedMode ? (
+          <OperatorReadinessPanel
+            provider={providerStatus}
+            listing={createdTour?.id ? createdTour : null}
+            availability={availabilityItems}
+            loading={availabilityLoading}
+            message={availabilityMessage}
+            onSaveAvailability={saveAvailability}
+            onRemoveAvailability={removeAvailability}
+          />
         ) : null}
 
         <section className="page-card" id="edit-tour">
@@ -1168,6 +1255,13 @@ export default function OperatorToursNew() {
             </p>
           </div>
 
+          {isAuthenticatedMode && !providerLinkReady ? (
+            <div className="mt-5 rounded-2xl border border-[#f59e0b]/40 bg-[#f59e0b]/10 p-4 text-sm text-[#f8c66b]" role="status">
+              <p className="font-semibold text-white">Link your guide profile before creating a tour</p>
+              <p className="mt-1">Save the guide profile in Step 2 first. The tour will be attached to your signed-in account; provider IDs cannot be entered manually.</p>
+            </div>
+          ) : null}
+
           {(!isAuthenticatedMode || hasOwnedListings) ? (
             <>
               <form className="mt-6 grid gap-4 md:grid-cols-[2fr_1fr]" onSubmit={handleLoadTour}>
@@ -1392,6 +1486,34 @@ export default function OperatorToursNew() {
                   className="mt-2 h-12 neon-input"
                 />
               </div>
+              <div>
+                <label htmlFor="tour-timezone" className="text-sm text-[#e0e0e0]">
+                  Timezone
+                </label>
+                <Input
+                  id="tour-timezone"
+                  value={tourForm.timezone}
+                  onChange={(event) => handleTourChange('timezone', event.target.value)}
+                  placeholder="America/Lima"
+                  className="mt-2 h-12 neon-input"
+                />
+              </div>
+              <div>
+                <label htmlFor="tour-cutoff" className="text-sm text-[#e0e0e0]">
+                  Booking cutoff (hours)
+                </label>
+                <Input
+                  id="tour-cutoff"
+                  value={tourForm.booking_cutoff_hours}
+                  onChange={(event) => handleTourChange('booking_cutoff_hours', event.target.value)}
+                  type="number"
+                  min="0"
+                  max="8760"
+                  step="1"
+                  placeholder="24"
+                  className="mt-2 h-12 neon-input"
+                />
+              </div>
             </div>
             <div>
               <label htmlFor="tour-description" className="text-sm text-[#e0e0e0]">
@@ -1407,6 +1529,43 @@ export default function OperatorToursNew() {
                 )}
                 className="mt-2 min-h-[120px] neon-input"
               />
+            </div>
+            <div>
+              <label htmlFor="tour-meeting-point" className="text-sm text-[#e0e0e0]">
+                Meeting point
+              </label>
+              <Textarea
+                id="tour-meeting-point"
+                value={tourForm.meeting_point}
+                onChange={(event) => handleTourChange('meeting_point', event.target.value)}
+                placeholder="Where should travelers meet the operator?"
+                className="mt-2 min-h-[120px] neon-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="tour-cancellation-policy" className="text-sm text-[#e0e0e0]">
+                Cancellation policy
+              </label>
+              <Textarea
+                id="tour-cancellation-policy"
+                value={tourForm.cancellation_policy}
+                onChange={(event) => handleTourChange('cancellation_policy', event.target.value)}
+                placeholder="Explain the cancellation terms for travelers."
+                className="mt-2 min-h-[120px] neon-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="tour-operational-contact" className="text-sm text-[#e0e0e0]">
+                Operational contact (private)
+              </label>
+              <Input
+                id="tour-operational-contact"
+                value={tourForm.operational_contact}
+                onChange={(event) => handleTourChange('operational_contact', event.target.value)}
+                placeholder="WhatsApp or phone for booking operations"
+                className="mt-2 h-12 neon-input"
+              />
+              <p className="mt-2 text-xs text-[#a0a0a0]">Used by authorized staff for operations; it is not shown on the public listing.</p>
             </div>
             <div>
               <label htmlFor="tour-tags" className="text-sm text-[#e0e0e0]">
@@ -1504,7 +1663,7 @@ export default function OperatorToursNew() {
             <Button
               type="submit"
               className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
-              disabled={tourLoading}
+              disabled={tourLoading || (isAuthenticatedMode && !providerLinkReady)}
             >
               {tourLoading
                 ? t('operator.publishing_label', 'Publishing...')

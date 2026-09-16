@@ -46,7 +46,7 @@ async function slotForDay(tx: any, listingId: string, day: Date) {
   return slot;
 }
 
-async function occupied(tx: any, listingId: string, day: Date, excludeId?: string) {
+export async function occupied(tx: any, listingId: string, day: Date, excludeId?: string) {
   const result = await tx.bookings.aggregate({
     where: { listing_id: listingId, date: { gte: day, lt: new Date(+day + DAY_MS) },
       // Unknown historical statuses conservatively retain their seats.
