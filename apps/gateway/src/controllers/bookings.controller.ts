@@ -6,10 +6,10 @@ import { bookingSelect } from '@wadatrip/common/public-data';
 import { createCapacityBooking, updateCapacityBooking } from '@wadatrip/common/booking-capacity';
 import { reconcileBookingPayment } from '../services/booking-payment.service';
 import { cancelPolicyBooking } from '@wadatrip/common/booking-cancellation';
+import { sendTransactionalEmail } from '../services/email.service';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
 const EMAIL_FROM = process.env.EMAIL_FROM || '';
 
 function getStripeClient() {
@@ -55,33 +55,7 @@ async function enrichBookingLinks(booking: any) {
 }
 
 async function notifyProviderByEmail(opts: { to: string; subject: string; text: string }) {
-  if (!SENDGRID_API_KEY || !EMAIL_FROM) {
-    return { sent: false, reason: 'email_not_configured' };
-  }
-  try {
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${SENDGRID_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: opts.to }] }],
-        from: { email: EMAIL_FROM },
-        subject: opts.subject,
-        content: [{ type: 'text/plain', value: opts.text }],
-      }),
-    });
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error('[bookings.notify] Email failed', response.status, errText);
-      return { sent: false, reason: 'email_failed' };
-    }
-    return { sent: true };
-  } catch (err: any) {
-    console.error('[bookings.notify] Email error', err?.message || err);
-    return { sent: false, reason: 'email_error' };
-  }
+  return sendTransactionalEmail({ ...opts, from: EMAIL_FROM, logScope: 'bookings.notify' });
 }
 
 @Controller()

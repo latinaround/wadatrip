@@ -7,9 +7,9 @@ import crypto from 'crypto';
 import { getJwtSecret, requireActor } from '@wadatrip/common/security';
 import { safeUser as sanitizeUser } from '@wadatrip/common/public-data';
 import { verifyFirebaseIdToken } from '../utils/firebase-auth';
+import { sendTransactionalEmail } from '../services/email.service';
 
 const TOKEN_TTL_SECONDS = Number(process.env.JWT_TTL_SECONDS) || 60 * 60 * 24 * 7;
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
 const EMAIL_FROM = process.env.EMAIL_FROM || '';
 const AUTH_CODE_TTL_MINUTES = Number(process.env.AUTH_CODE_TTL_MINUTES) || 10;
 const AUTH_CODE_MAX_ATTEMPTS = Number(process.env.AUTH_CODE_MAX_ATTEMPTS) || 5;
@@ -38,35 +38,9 @@ function hashLoginCode(code: string) {
 }
 
 async function sendAuthCodeEmail(opts: { to: string; code: string; role: string }) {
-  if (!SENDGRID_API_KEY || !EMAIL_FROM) {
-    return { sent: false, reason: 'email_not_configured' };
-  }
   const subject = opts.role === 'guide' ? 'Your WadaTrip guide sign-in code' : 'Your WadaTrip sign-in code';
   const text = `Your WadaTrip code is ${opts.code}. It expires in ${AUTH_CODE_TTL_MINUTES} minutes.`;
-  try {
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${SENDGRID_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: opts.to }] }],
-        from: { email: EMAIL_FROM },
-        subject,
-        content: [{ type: 'text/plain', value: text }],
-      }),
-    });
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error('[auth.code] Email failed', response.status, errText);
-      return { sent: false, reason: 'email_failed' };
-    }
-    return { sent: true };
-  } catch (err: any) {
-    console.error('[auth.code] Email error', err?.message || err);
-    return { sent: false, reason: 'email_error' };
-  }
+  return sendTransactionalEmail({ to: opts.to, from: EMAIL_FROM, subject, text, logScope: 'auth.code' });
 }
 
 function authCodeDeliveryMessage(reason: string) {
