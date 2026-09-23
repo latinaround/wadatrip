@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import StatusBadge from './StatusBadge.jsx';
+import { Link } from 'react-router-dom';
 
 const formatDate = (value) => {
   if (!value) return 'No date';
@@ -68,6 +69,7 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
               <TableRow key={booking.id || booking.internalId}>
                 <TableCell className="max-w-[220px] truncate font-medium text-slate-800">
                   {booking.loading ? skeleton('w-32') : (booking.title || 'Untitled booking')}
+                  {!booking.loading && booking.id ? <Link className="block text-xs text-[#167c7d] underline" to={`/checkout/success?booking_id=${encodeURIComponent(booking.id)}`}>Manage booking / cancellation</Link> : null}
                   {booking.provider && !booking.loading && (
                     <span className="block text-xs text-[#a0a0a0]">{booking.provider}</span>
                   )}

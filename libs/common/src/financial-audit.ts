@@ -1,5 +1,5 @@
 const FIELDS = [
-  'booking_id', 'payment_record_id', 'processor', 'payment_intent_id', 'checkout_session_id',
+  'booking_id', 'payment_record_id', 'processor', 'payment_intent_id', 'checkout_session_id', 'refund_id',
   'event_id', 'idempotency_key', 'operation', 'previous_booking_state', 'new_booking_state',
   'previous_payment_state', 'new_payment_state', 'inventory_action', 'expected_amount_cents',
   'expected_currency', 'observed_amount_cents', 'observed_currency', 'result', 'error_category',

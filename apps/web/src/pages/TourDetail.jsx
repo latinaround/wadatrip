@@ -158,6 +158,8 @@ export default function TourDetail() {
     date: '',
   });
   const [availableDates, setAvailableDates] = useState([]);
+  const [termsResult, setTermsResult] = useState(null);
+  const [policyAccepted, setPolicyAccepted] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -221,6 +223,21 @@ export default function TourDetail() {
   const publicTourUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   useEffect(() => {
+    let active = true;
+    setTermsResult(null); setPolicyAccepted(false);
+    if (!currentHost?.id || !bookingForm.date) return;
+    const listingId = currentHost.id, date = bookingForm.date;
+    fetch(`${apiBase}/listings/${encodeURIComponent(listingId)}/booking-terms?date=${encodeURIComponent(date)}`)
+      .then(async response => {
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.message || 'Unable to load booking terms');
+        if (active) setTermsResult({ listingId, date, terms: data.terms });
+      }).catch(error => { if (active) setTermsResult({ listingId, date, error: error.message }); });
+    return () => { active = false; };
+  }, [apiBase, currentHost?.id, bookingForm.date]);
+  const currentTerms = termsResult?.listingId === currentHost?.id && termsResult?.date === bookingForm.date ? termsResult : null;
+
+  useEffect(() => {
     let mounted = true;
     if (!currentHost?.id) {
       setAvailableDates([]);
@@ -261,6 +278,10 @@ export default function TourDetail() {
       const numPeople = Number(bookingForm.num_people);
       if (!Number.isInteger(numPeople) || numPeople < 1) throw new Error('Enter a valid traveler count');
       if (!bookingForm.date) throw new Error('Choose an available date');
+      if (!currentTerms) throw new Error('Please wait while we check the booking terms');
+      if (currentTerms.error) throw new Error(currentTerms.error);
+      if (currentTerms.terms?.bookings_open === false) throw new Error('Reservations have closed for this departure');
+      if (currentTerms.terms?.version && !policyAccepted) throw new Error('Please review and accept the cancellation policy');
 
       const result = await bookTravelerExperience({
         apiBase,
@@ -269,6 +290,7 @@ export default function TourDetail() {
           listing_id: currentHost.id,
           num_people: numPeople,
           date: bookingForm.date || undefined,
+          ...(currentTerms.terms?.version ? { policy_version: currentTerms.terms.version } : {}),
         },
       });
 
@@ -446,7 +468,16 @@ export default function TourDetail() {
               />
             </div>
 
-            <p className="mt-3 text-sm text-[#526173]">Dates use UTC. Choose a date with confirmed spots; availability is checked again when you book.</p>
+            <p className="mt-3 text-sm text-[#526173]">Choose the tour departure date. Availability and the booking deadline are checked again when you book.</p>
+            {currentTerms?.error ? <p role="alert" className="mt-3 text-sm text-[#d15371]">{currentTerms.error}</p> : null}
+            {currentTerms?.terms ? <div className="mt-4 space-y-2 rounded-xl border border-[#d7e6e3] p-4 text-sm text-[#172033]">
+              <p>Departure: {new Date(currentTerms.terms.departure_at).toLocaleString(undefined, { timeZone: currentTerms.terms.timezone })} ({currentTerms.terms.timezone})</p>
+              <p>Meeting point: {currentTerms.terms.meeting_point || 'Check with your operator'}</p>
+              <p>Book by: {new Date(currentTerms.terms.booking_closes_at).toLocaleString(undefined, { timeZone: currentTerms.terms.timezone })}</p>
+              <p>{currentTerms.terms.cancellation_policy}</p>
+              {currentTerms.terms.bookings_open === false ? <p role="alert">Reservations have closed for this departure.</p> : null}
+              {currentTerms.terms.version ? <label className="flex items-start gap-2"><input type="checkbox" checked={policyAccepted} onChange={event => setPolicyAccepted(event.target.checked)} />I have read and accept this cancellation policy.</label> : null}
+            </div> : null}
             <datalist id="available-tour-dates">{availableDates.map((item) => <option key={item.date} value={item.date}>{item.spots_available} spots available</option>)}</datalist>
             {!availableDates.length ? <p className="mt-2 text-sm text-[#d15371]">No dates are currently available for booking.</p> : null}
             {!authLoading && (!user || !token) && !bookingError && <p className="mt-4 text-sm text-[#526173]">{SIGN_IN_REQUIRED}</p>}

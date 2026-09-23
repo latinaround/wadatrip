@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import AuthDialog from '../components/AuthDialog.jsx';
+import BookingCancellationPanel from '../components/BookingCancellationPanel.jsx';
 import { AppConfig } from '../config/appConfig';
 import { bookingStatusMessage } from '../services/bookingStatus';
 
@@ -48,6 +49,7 @@ export default function CheckoutSuccess() {
         {!auth.user ? <button className="neon-cta" onClick={() => setAuthOpen(true)}>Sign in</button>
           : <button className="neon-cta" onClick={() => setRefresh(value => value + 1)}>Refresh status</button>}
         <Link className="neon-outline" to="/tours">Back to tours</Link>
+        {booking ? <BookingCancellationPanel key={`${auth.user?.id}:${booking.id}`} booking={booking} onChanged={() => setRefresh(value => value + 1)} /> : null}
       </div></div>
       <AuthDialog open={authOpen} onClose={() => setAuthOpen(false)} initialIntent="traveler" />
     </section>

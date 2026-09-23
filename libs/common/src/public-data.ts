@@ -51,6 +51,7 @@ export const bookingSelect = {
   id: true, listing_id: true, trip_id: true, provider_id: true, user_id: true,
   status: true, date: true, num_people: true, total_price: true, amount_cents: true,
   currency: true, payment_status: true, checkout_session_id: true, payment_intent_id: true,
+  booking_terms: true, cancellation_requested_at: true, cancellation_refund_due: true, cancellation_source: true,
   created_at: true, listing: { select: publicListingSelect },
   provider: { select: publicProviderSelect }, user: { select: safeUserSelect },
 } as const;

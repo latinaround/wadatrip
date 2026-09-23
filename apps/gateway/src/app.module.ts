@@ -13,6 +13,7 @@ import { WebhooksController } from './controllers/webhooks.controller';
 import { EventsGateway } from './events.gateway';
 import { TripsController } from './controllers/trips.controller';
 import { DevicesController } from './controllers/devices.controller';
+import { BookingAutomationService } from './services/booking-automation.service';
 
 @Module({
   imports: [
@@ -35,6 +36,6 @@ import { DevicesController } from './controllers/devices.controller';
     TripsController,
     DevicesController,
   ],
-  providers: [EventsGateway],
+  providers: [EventsGateway, BookingAutomationService],
 })
 export class AppModule {}

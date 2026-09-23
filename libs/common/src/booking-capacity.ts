@@ -3,6 +3,7 @@ import { calculateBookingPrice } from './booking-price';
 import { financialState, hasFinancialRisk } from './financial-state';
 import { bookingTransition, inventoryState } from './booking-transition';
 import { financialAudit } from './financial-audit';
+import { acceptedBookingTerms } from './booking-policy';
 
 const CONSUMING = ['pending', 'confirmed', 'completed'];
 const RELEASED = ['cancelled', 'rejected'];
@@ -79,6 +80,7 @@ export async function createCapacityBooking(prisma: any, actor: { id: string }, 
     const listing = await lockedListing(tx, String(body.listing_id));
     const price = calculateBookingPrice(listing, body.num_people);
     const allocation = await available(tx, listing, body.date, price.num_people);
+    const terms = acceptedBookingTerms(listing, allocation.day.toISOString().slice(0, 10), body);
     const tripId = body.trip_id ? String(body.trip_id) : null;
     if (tripId) {
       const trip = await tx.trips.findUnique({ where: { id: tripId } });
@@ -90,6 +92,7 @@ export async function createCapacityBooking(prisma: any, actor: { id: string }, 
       status: price.amount_cents === 0 ? 'confirmed' : 'pending',
       payment_status: price.amount_cents === 0 ? 'paid' : 'unpaid',
       inventory_state: 'held',
+      ...(terms ? { booking_terms: terms } : {}),
     } });
     await tx.listing_availability.update({ where: { id: allocation.slot.id }, data: { spots_available: allocation.remaining } });
     return { created, listing };
@@ -104,6 +107,7 @@ export async function updateCapacityBooking(prisma: any, id: string, changes: { 
     const listing = await lockedListing(tx, initial.listing_id);
     const booking = await tx.bookings.findUnique({ where: { id } });
     const nextStatus = changes.status || booking.status;
+    if (nextStatus === 'cancelled' && booking.booking_terms?.version) throw new ConflictException('Use the policy-aware cancellation endpoint');
     if (nextStatus === 'cancelled' && RELEASED.includes(booking.status) && !changes.payment_status) return booking;
     // Payment lifecycle owns paid bookings once an external operation may exist.
     // This also protects legacy bookings whose external IDs predate PaymentRecord.

@@ -1,5 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { syncAutomaticRefund } from './booking-refund.service';
 import { applyPaymentObservation, attachPaymentObject, markPaymentUncertain, PaymentObservation, receivePaymentEvent, failPaymentEvent, assertPaymentOwnership, financialAudit } from '@wadatrip/common/payment-lifecycle';
 
 const externalId = (value: any): string | undefined => typeof value === 'string' ? value : value?.id;
@@ -166,6 +167,7 @@ export async function handleStripeEvent(prisma: any, stripe: any, event: any) {
     return { ok: true, ignored: true };
   }
   const observation = await observeStripeObject(stripe, flow, object);
+  await syncAutomaticRefund(prisma, stripe, observation.bookingId);
   await applyPaymentObservation(prisma, event.id, event.type, observation, true);
   return { ok: true };
   } catch (error) { await failPaymentEvent(prisma, event.id, error); throw error; }

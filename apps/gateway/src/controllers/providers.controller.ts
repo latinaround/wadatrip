@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
+import { bookingTerms, policyConfiguration } from '@wadatrip/common/booking-policy';
 import type { Request } from 'express';
 import { requireActor, requireAdmin, requireProviderAccess, requireAlertAccess, findOwnedProvider as resolveOwnedProvider, serviceHeaders } from '@wadatrip/common/security';
 import { publicProviderDetailSelect, publicListingSelect, publicProviderSelect, adminProviderDetailSelect, toPublicProvider, toPublicListing } from '@wadatrip/common/public-data';
@@ -30,7 +31,7 @@ const managedListingSelect = {
   id: true, provider_id: true, operator_id: true, title: true, description: true,
   category: true, city: true, country_code: true, duration_minutes: true,
   price_from: true, currency: true, start_date: true, end_date: true,
-  timezone: true, meeting_point: true, cancellation_policy: true,
+  timezone: true, meeting_point: true, cancellation_policy: true, departure_time: true, cancellation_policy_version: true,
   booking_cutoff_hours: true, operational_contact: true, tags: true,
   status: true, cover_image_url: true, created_at: true,
 } as const;
@@ -677,6 +678,28 @@ export class ProvidersController {
     }
 
     return { items: mappedItems, total, page, limit };
+  }
+
+  @Get('listings/:id/booking-terms')
+  async publicBookingTerms(@Param('id') id: string, @Query('date') rawDate: string) {
+    const prisma = getPrisma();
+    const day = normalizeUtcDay(rawDate);
+    const listing = await prisma.listings.findUnique({ where: { id }, select: {
+      id: true, status: true, departure_time: true, timezone: true, booking_cutoff_hours: true,
+      cancellation_policy_version: true, cancellation_policy: true, meeting_point: true,
+    } });
+    if (!listing || !['published', 'approved'].includes(listing.status)) throw new BadRequestException('listing not found');
+    const slots = await prisma.listing_availability.count({ where: { listing_id: id,
+      date: { gte: day, lt: new Date(+day + 86400000) }, spots_available: { gt: 0 } } });
+    if (slots !== 1) throw new ConflictException('Date unavailable');
+    return { listing_id: id, date: rawDate, terms: bookingTerms(listing, rawDate) };
+  }
+
+  @Patch('listings/:id/booking-policy')
+  async saveBookingPolicy(@Req() req: Request, @Param('id') id: string, @Body() body: any) {
+    const prisma = getPrisma();
+    await authorizeListingMutation(prisma, req, {}, id);
+    return prisma.listings.update({ where: { id }, data: policyConfiguration(body), select: managedListingSelect });
   }
 
   @Get('listings/:id/availability')

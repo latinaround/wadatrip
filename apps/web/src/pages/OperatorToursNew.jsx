@@ -302,6 +302,22 @@ export default function OperatorToursNew() {
     } finally { setAvailabilityLoading(false); }
   }, [authFetch, createdTour?.id, editingId, loadAvailability, logout]);
 
+  const saveBookingPolicy = async (policy) => {
+    const listingId = editingId || createdTour?.id;
+    if (!listingId) return;
+    setAvailabilityLoading(true); setAvailabilityMessage(null);
+    try {
+      const updated = await authFetch(`/listings/${encodeURIComponent(listingId)}/booking-policy`, { method: 'PATCH', body: JSON.stringify(policy) });
+      setCreatedTour(updated);
+      setTourForm(prev => ({ ...prev, timezone: updated.timezone, meeting_point: updated.meeting_point,
+        booking_cutoff_hours: updated.booking_cutoff_hours, cancellation_policy: updated.cancellation_policy }));
+      setAvailabilityMessage('Booking rules saved. Existing bookings keep their accepted policy.');
+    } catch (error) {
+      if (error?.status === 401) logout?.();
+      setAvailabilityMessage(error?.message || 'Could not save booking rules.');
+    } finally { setAvailabilityLoading(false); }
+  };
+
   const removeAvailability = useCallback(async (date) => {
     const listingId = editingId || createdTour?.id;
     if (!listingId) return;
@@ -985,6 +1001,7 @@ export default function OperatorToursNew() {
             loading={availabilityLoading}
             message={availabilityMessage}
             onSaveAvailability={saveAvailability}
+            onSavePolicy={saveBookingPolicy}
             onRemoveAvailability={removeAvailability}
           />
         ) : null}

@@ -23,7 +23,10 @@ export function bookingTransition(booking: any, payment: any, event: BusinessEve
     if (status === 'cancelled' && inventoryState(booking) === 'released') return { status, financial, resolution, reason, inventory, notification: false };
     reason = 'cancellation_requested';
     if (financial === 'refunded' || (financial === 'failed' && payment?.flow)) { status = 'cancelled'; inventory = 'RELEASE'; resolution = null; }
-    else if (financial === 'succeeded') { status = 'reconciliation_required'; resolution = 'refund_required'; inventory = 'RELEASE'; }
+    else if (financial === 'succeeded') {
+      status = booking.cancellation_refund_due === false ? 'cancelled' : 'reconciliation_required';
+      resolution = booking.cancellation_refund_due === false ? null : 'refund_required'; inventory = 'RELEASE';
+    }
     else { status = 'cancellation_pending'; /* KEEP: no implicit reacquisition for historical cancelled rows. */ }
   } else if (event === 'refunded') {
     financial = 'refunded';
@@ -31,7 +34,11 @@ export function bookingTransition(booking: any, payment: any, event: BusinessEve
     else { status = 'cancelled'; resolution = null; reason = null; inventory = 'RELEASE'; }
   } else if ((event === 'succeeded' || event === 'partial_refund' || event === 'reconciliation_resolved') && financial !== 'refunded') {
     financial = 'succeeded';
-    if (cancelled) { status = 'reconciliation_required'; resolution = 'refund_required'; reason = 'cancellation_requested'; inventory = 'RELEASE'; }
+    if (cancelled) {
+      status = booking.cancellation_refund_due === false ? 'cancelled' : 'reconciliation_required';
+      resolution = booking.cancellation_refund_due === false ? null : 'refund_required';
+      reason = 'cancellation_requested'; inventory = 'RELEASE';
+    }
     else if (['association_mismatch', 'financial_mismatch', 'historical_ambiguity'].includes(reason)) { status = 'reconciliation_required'; }
     else if (!capacityValid || inventoryState(booking) !== 'held') {
       status = 'reconciliation_required'; resolution = 'refund_required'; reason = 'capacity_unavailable';

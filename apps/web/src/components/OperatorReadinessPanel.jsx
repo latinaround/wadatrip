@@ -1,19 +1,33 @@
 import { useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import OperatorBookingPolicyForm from './OperatorBookingPolicyForm.jsx';
+
+const hasNumber = (value) => (typeof value === 'number' || typeof value === 'string')
+  && String(value).trim() !== '' && Number.isFinite(Number(value));
+const hasText = (value) => typeof value === 'string' && value.trim().length > 0;
+
+function hasPrice(listing) {
+  if (String(listing?.currency || '').trim().toUpperCase() !== 'USD') return false;
+  const freeTour = Array.isArray(listing?.tags) && listing.tags.includes('free_tour');
+  if (freeTour && listing.price_from == null) return true;
+  return hasNumber(listing?.price_from) && Number(listing.price_from) >= 0
+    && (!freeTour || Number(listing.price_from) === 0);
+}
 
 const checks = [
   ['profile', 'Provider profile', (p) => p?.name && p?.base_city && p?.country_code && p?.languages?.length],
   ['verification', 'Provider approved', (p) => ['approved', 'verified'].includes(String(p?.status || '').toLowerCase())],
-  ['price', 'Price and currency', (l) => l?.tags?.includes('free_tour') || (Number(l?.price_from) >= 0 && l?.currency)],
-  ['timezone', 'Timezone', (l) => l?.timezone],
-  ['meeting', 'Meeting point', (l) => l?.meeting_point],
-  ['cancellation', 'Cancellation policy', (l) => l?.cancellation_policy],
-  ['cutoff', 'Booking cutoff', (l) => Number.isInteger(Number(l?.booking_cutoff_hours)) && Number(l.booking_cutoff_hours) >= 0],
-  ['payout', 'Stripe Connect payout', (p) => Boolean(p?.stripe_account_id)],
+  ['price', 'Price and currency', (_, l) => hasPrice(l)],
+  ['timezone', 'Timezone', (_, l) => hasText(l?.timezone)],
+  ['meeting', 'Meeting point', (_, l) => hasText(l?.meeting_point)],
+  ['cancellation', 'Cancellation policy', (_, l) => hasText(l?.cancellation_policy)],
+  ['cutoff', 'Booking cutoff', (_, l) => hasNumber(l?.booking_cutoff_hours)
+    && Number.isInteger(Number(l.booking_cutoff_hours)) && Number(l.booking_cutoff_hours) >= 0],
+  ['payout', 'Payout account linked', (p) => hasText(p?.stripe_account_id)],
 ];
 
-export default function OperatorReadinessPanel({ provider, listing, availability = [], loading, message, onSaveAvailability, onRemoveAvailability }) {
+export default function OperatorReadinessPanel({ provider, listing, availability = [], loading, message, onSaveAvailability, onRemoveAvailability, onSavePolicy }) {
   const [date, setDate] = useState('');
   const [spotsTotal, setSpotsTotal] = useState('');
   const ready = useMemo(() => checks.filter(([, , predicate]) => predicate(provider, listing)).length, [provider, listing]);
@@ -32,7 +46,7 @@ export default function OperatorReadinessPanel({ provider, listing, availability
           <h2 id="operator-readiness-title" className="text-xl font-semibold text-white">Make this tour bookable safely</h2>
           <p className="text-sm text-[#a0a0a0]">Complete the operational details and add real dates before sharing the booking link.</p>
         </div>
-        <span className="text-sm font-semibold text-[#cad3df]">{ready}/{checks.length} requirements complete</span>
+        <span className="text-sm font-semibold text-[#cad3df]">{ready}/{checks.length} setup checks complete</span>
       </div>
       <div className="mt-5 grid gap-2 md:grid-cols-2">
         {checks.map(([key, label, predicate]) => {
@@ -42,8 +56,10 @@ export default function OperatorReadinessPanel({ provider, listing, availability
           </div>;
         })}
       </div>
+      <p className="mt-3 text-sm text-[#a0a0a0]">A linked payout account does not confirm that payouts are enabled. Real dates and available spots are also required before travelers can book.</p>
       {canEditAvailability ? (
         <>
+          {onSavePolicy ? <OperatorBookingPolicyForm key={`${listing.id}:${listing.departure_time}:${listing.cancellation_policy_version}`} listing={listing} onSave={onSavePolicy} loading={loading} /> : null}
           <div className="mt-6 border-t border-white/10 pt-5">
             <h3 className="font-semibold text-white">Availability</h3>
             <p className="mt-1 text-sm text-[#a0a0a0]">Use UTC calendar days. Capacity is checked and locked by the backend.</p>

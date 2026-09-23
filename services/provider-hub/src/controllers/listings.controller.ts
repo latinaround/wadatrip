@@ -27,7 +27,7 @@ const managedListingSelect = {
   id: true, provider_id: true, operator_id: true, title: true, description: true,
   category: true, city: true, country_code: true, duration_minutes: true,
   price_from: true, currency: true, start_date: true, end_date: true,
-  timezone: true, meeting_point: true, cancellation_policy: true,
+  timezone: true, meeting_point: true, cancellation_policy: true, departure_time: true, cancellation_policy_version: true,
   booking_cutoff_hours: true, operational_contact: true, tags: true,
   status: true, cover_image_url: true, created_at: true,
 } as const;

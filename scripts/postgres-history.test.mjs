@@ -7,15 +7,17 @@ import { provision, client, verify, deploy, sql } from './postgres-test-target.m
 
 const stamp = Date.now().toString(36);
 let sequence = 0;
-async function historical(run, { legacy = true } = {}) {
+async function historical(run, { legacy = true, recovered = false } = {}) {
   const name = `wadatrip_p05_history_${stamp}_${++sequence}`;
   provision(name);
   const db = client(name);
   try {
     await verify(db, name);
-    assert.equal(deploy(name, true).status, 0, 'original twelve migrations must pass');
-    // Independent pre-lifecycle schema from the historical standalone definitions.
-    if (legacy) sql(name, `
+    assert.equal(deploy(name, recovered ? 'recovered' : true).status, 0,
+      recovered ? 'recovered eighteen-migration baseline must pass' : 'explicit partial twelve-migration fixture must pass');
+    // Only the partial-schema scenario needs independent legacy declarations.
+    // The recovered baseline already contains the original financial tables.
+    if (legacy && !recovered) sql(name, `
       ALTER TABLE bookings ADD amount_cents INTEGER, ADD commission_cents INTEGER,
         ADD operator_share_cents INTEGER, ADD currency TEXT DEFAULT 'usd',
         ADD payment_intent_id TEXT, ADD checkout_session_id TEXT;
@@ -68,6 +70,49 @@ test('history: recover missing money columns without inventing amount/currency',
   assert.equal(booking.amount_cents, null); assert.equal(booking.currency, null);
   assert.equal(booking.inventory_state, null); assert.equal(booking.status, 'pending');
 }, { legacy: false }));
+
+test('history: recovered eighteen-migration baseline upgrades without rewriting legacy paid money or replaying events', () => historical(async (db, name) => {
+  const applied = await db.$queryRawUnsafe('SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL ORDER BY migration_name');
+  assert.equal(applied.length, 18);
+  for (const migration of ['20250924194741_add_auth_fields', '20250925182141_make_password_optional',
+    '20251010021858_add_roles_operator_workflow', '20251117201251_add_ai_verification_fields',
+    '20251126010631_provider_verification_ocr_fields', '20251218182845_init']) {
+    assert.ok(applied.some(row => row.migration_name === migration), `original history includes ${migration}`);
+  }
+  sql(name, `
+    UPDATE bookings SET status='confirmed', payment_status='paid', total_price=120,
+      checkout_session_id='cs_synthetic_recovered' WHERE id='hist-booking';
+    INSERT INTO "PaymentRecord"(id,booking_id,provider_id,amount_gross_cents,commission_cents,
+      amount_net_cents,currency,status,stripe_checkout_session_id,updated_at)
+      VALUES ('recovered-payment','hist-booking','hist-provider',12000,1800,10200,'usd','paid','cs_synthetic_recovered',CURRENT_TIMESTAMP);
+    INSERT INTO "PaymentEvent"(id,type,payload) VALUES ('recovered-event','synthetic.success','{}');
+  `);
+  const ledgerBefore = await db.$queryRawUnsafe('SELECT to_jsonb(p) value FROM "PaymentRecord" p');
+  const bookingBefore = await db.$queryRawUnsafe('SELECT to_jsonb(b) value FROM bookings b');
+  assert.equal(deploy(name).status, 0);
+  const completed = await db.$queryRawUnsafe('SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL');
+  // The recovered eighteen-migration baseline is upgraded by restore history,
+  // payment lifecycle, operator readiness and booking policy automation.
+  assert.equal(completed.length, 22);
+  const ledger = await db.paymentRecord.findUnique({ where: { id: 'recovered-payment' } });
+  const booking = await db.bookings.findUnique({ where: { id: 'hist-booking' } });
+  // Read both snapshots as SQL JSON, avoiding Prisma Date/Decimal transformations.
+  const ledgerAfter = await db.$queryRawUnsafe('SELECT to_jsonb(p) value FROM "PaymentRecord" p');
+  const bookingAfter = await db.$queryRawUnsafe('SELECT to_jsonb(b) value FROM bookings b');
+  for (const [before, after] of [[ledgerBefore[0].value, ledgerAfter[0].value], [bookingBefore[0].value, bookingAfter[0].value]]) {
+    for (const key of Object.keys(before)) assert.deepEqual(after[key], before[key], `preserves historical ${key}`);
+  }
+  assert.equal(booking.amount_cents, null); assert.equal(booking.inventory_state, null);
+  assert.equal(ledger.amount_charged_cents, null); assert.equal(ledger.flow, null);
+  assert.equal(ledger.status, 'paid');
+  const event = await db.paymentEvent.findUnique({ where: { id: 'recovered-event' } });
+  assert.equal(event.status, 'received'); assert.equal(event.processed_at, null); assert.equal(event.attempts, 0);
+  assert.deepEqual(event.payload, {});
+  assert.equal(await db.operatorWallet.count(), 0, 'migration must not apply financial side effects');
+  const post = report(name, 'postflight');
+  assert.equal(post.required_constraints_missing, 0); assert.equal(post.required_indexes_missing, 0);
+  assert.equal(post.booking_legacy_inventory_unknown, 1); assert.equal(post.event_failed_or_unfinished, 1);
+}, { recovered: true }));
 
 test('history: known legacy money, unknown amounts, orphan ledger and invalid occupancy survive; new writes are constrained', () => historical(async (db, name) => {
   sql(name, `

@@ -40,6 +40,7 @@ export async function bookTravelerExperience({ apiBase, getSession, booking }) {
     listing_id: booking.listing_id,
     num_people: booking.num_people,
     date: booking.date,
+    ...(booking.policy_version ? { policy_version: booking.policy_version } : {}),
   });
   if (!created?.id) throw new Error('Booking failed');
   if (created.amount_cents === 0) return { booking: created };

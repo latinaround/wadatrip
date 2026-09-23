@@ -7,6 +7,7 @@ import { bookingTransition, inventoryState } from './booking-transition';
 import { receivePaymentEvent, failPaymentEvent } from './payment-events';
 import { assertPaymentOwnership } from './payment-association';
 import { financialAudit } from './financial-audit';
+import { requirePaymentBeforeCutoff } from './booking-policy';
 export { financialAudit } from './financial-audit';
 export { assertPaymentOwnership } from './payment-association';
 export { receivePaymentEvent, failPaymentEvent } from './payment-events';
@@ -33,6 +34,7 @@ export async function withPaymentBooking(prisma: any, id: string, fn: (tx: any, 
 export async function preparePayment(prisma: any, id: string, flow: 'checkout' | 'intent',
   parameters: (booking: any, paymentId: string) => any) {
   const result = await withPaymentBooking(prisma, id, async (tx, booking, listing) => {
+    requirePaymentBeforeCutoff(booking);
     const price = validateBookingPrice(booking);
     if (price.amount < 50) throw new BadRequestException('Free or below-minimum bookings do not require supported payment');
     const existing = await tx.paymentRecord.findUnique({ where: { booking_id: id } });
@@ -100,7 +102,7 @@ export async function applyPaymentObservation(prisma: any, eventId: string, type
   let audit: Record<string, unknown> | undefined;
   try { const result = await withPaymentBooking(prisma, observation.bookingId, async (tx, booking, listing) => {
     if ((await tx.paymentEvent.findUnique({ where: { id: eventId } }))?.processed_at) return booking;
-    const o = observation;
+    let o = observation;
     if (!Number.isSafeInteger(o.amount) || o.amount < 0 || !/^[a-z]{3}$/.test(o.currency)) {
       throw new BadRequestException('Invalid observed financial amount or currency');
     }
@@ -123,6 +125,11 @@ export async function applyPaymentObservation(prisma: any, eventId: string, type
     if ((bookingMoney === 'succeeded' && ['pending', 'failed'].includes(ledgerMoney))
       || (bookingMoney === 'refunded' && ledgerMoney !== 'refunded')) {
       throw new ConflictException('Contradictory historical financial evidence requires investigation');
+    }
+    // A charge can look refunded while an asynchronous refund is still pending or has failed.
+    // Automated refunds settle only from their own verified processor status.
+    if (o.outcome === 'refunded' && payment.refund_status && payment.refund_status !== 'succeeded') {
+      o = { ...o, outcome: 'succeeded' };
     }
     const persistedRequest = payment.flow && o.paymentId === payment.id
       && payment.request_payload?.metadata?.booking_id === booking.id

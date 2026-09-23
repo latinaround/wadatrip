@@ -13,6 +13,7 @@ import { getPrisma } from '@wadatrip/db';
 import { requireActor, requireBookingAccess, bookingScope, requireInternalToken } from '@wadatrip/common/security';
 import { bookingSelect } from '@wadatrip/common/public-data';
 import { createCapacityBooking, updateCapacityBooking } from '@wadatrip/common/booking-capacity';
+import { cancelPolicyBooking } from '@wadatrip/common/booking-cancellation';
 
 @Controller('bookings')
 export class BookingsController {
@@ -36,6 +37,7 @@ export class BookingsController {
       listing_id: body.listing_id,
       date: body.date ?? tomorrow.toISOString(),
       num_people: body.num_people ?? 1,
+      policy_version: body.policy_version,
       total_price: body.total_price,
       amount_cents: body.amount_cents,
       user_name: body.customer_name,
@@ -100,8 +102,12 @@ export class BookingsController {
     requireInternalToken(req);
     const prisma = getPrisma();
 
-    await requireBookingAccess(req, prisma, id, 'manage');
+    const { actor, booking } = await requireBookingAccess(req, prisma, id, 'manage');
     if (body?.payment_status != null) throw new BadRequestException('payment status is managed by signed payment events');
+    if (String(body?.status).toLowerCase() === 'cancelled' && booking.booking_terms?.version) {
+      await cancelPolicyBooking(prisma, id, actor);
+      return prisma.bookings.findUnique({ where: { id }, select: bookingSelect });
+    }
     const allowedStatus = ['pending', 'confirmed', 'cancelled', 'completed'];
     const allowedPayment = ['unpaid', 'paid', 'failed', 'refunded'];
 

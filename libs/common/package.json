@@ -41,6 +41,14 @@
       "types": "./dist/booking-price.d.ts",
       "default": "./dist/booking-price.js"
     },
+    "./booking-policy": {
+      "types": "./dist/booking-policy.d.ts",
+      "default": "./dist/booking-policy.js"
+    },
+    "./booking-cancellation": {
+      "types": "./dist/booking-cancellation.d.ts",
+      "default": "./dist/booking-cancellation.js"
+    },
     "./public-data": {
       "types": "./dist/public-data.d.ts",
       "default": "./dist/public-data.js"

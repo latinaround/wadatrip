@@ -5,6 +5,7 @@ import { requireActor, requireBookingAccess, bookingScope, serviceHeaders } from
 import { bookingSelect } from '@wadatrip/common/public-data';
 import { createCapacityBooking, updateCapacityBooking } from '@wadatrip/common/booking-capacity';
 import { reconcileBookingPayment } from '../services/booking-payment.service';
+import { cancelPolicyBooking } from '@wadatrip/common/booking-cancellation';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
@@ -184,6 +185,7 @@ export class BookingsController {
       listing_id: body.listing_id,
       date: body.date ?? tomorrow.toISOString(),
       num_people: body.num_people ?? 1,
+      policy_version: body.policy_version,
       total_price: body.total_price,
       amount_cents: body.amount_cents,
       user_name: body.customer_name ?? body.name,
@@ -192,10 +194,23 @@ export class BookingsController {
     };
     return this.create(req, payload);
   }
+  @Post('bookings/:id/cancel')
+  async cancel(@Param('id') id: string, @Req() req: any) {
+    const prisma = getPrisma();
+    const { actor } = await requireBookingAccess(req, prisma, id);
+    await cancelPolicyBooking(prisma, id, actor);
+    // The durable cancellation request is processed independently of the browser.
+    return prisma.bookings.findUnique({ where: { id }, select: bookingSelect });
+  }
+
   @Post('bookings/:id/status')
   async status(@Param('id') id: string, @Body() body: any, @Req() req: any) {
-    await requireBookingAccess(req, getPrisma(), id, 'manage');
+    const { actor, booking } = await requireBookingAccess(req, getPrisma(), id, 'manage');
     if (body?.payment_status != null) throw new BadRequestException('payment status is managed by signed payment events');
+    if (String(body?.status).toLowerCase() === 'cancelled' && booking.booking_terms?.version) {
+      await cancelPolicyBooking(getPrisma(), id, actor);
+      return getPrisma().bookings.findUnique({ where: { id }, select: bookingSelect });
+    }
     if (ENABLED) {
       const { data } = await axios.post(`${HUB}/bookings/${id}/status`, body, {
         headers: serviceHeaders(req),
