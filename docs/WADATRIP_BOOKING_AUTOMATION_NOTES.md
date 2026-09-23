@@ -73,3 +73,23 @@ No registrar tokens, secretos, payloads crudos de Stripe ni PII.
 ## Condición para el primer cobro real
 
 No habilitar Stripe Live mientras exista un refund sin prueba Stripe Test o un operador sin disponibilidad, política, punto de encuentro y configuración de payout verificada.
+
+## Preflight de producción read-only
+
+El preflight autorizado de Render se ejecutó con transacción `REPEATABLE READ READ ONLY`, timeout de sentencia y conexión TLS. No imprimió PII ni identificadores de pago.
+
+Resultado:
+
+- 54 bookings históricas con importe esperado desconocido.
+- 1 `PaymentEvent` sin procesar.
+- 1 `PaymentRecord` histórico en estado `paid`.
+- 69 bookings con `inventory_state` legacy desconocido.
+- 22 días ocupados sin fila de availability histórica.
+- 1 booking confirmada sin ledger financiero suficiente.
+- 5 constraints históricas `NOT VALID`.
+- 0 referencias externas duplicadas o vacías.
+- 0 contradicciones entre booking y ledger.
+- 0 ocupación superior a capacidad.
+- 0 participantes inválidos.
+
+Estos casos permanecen sin cambios. Antes de aplicar la migración en Render se necesita un backup/snapshot verificable y un segundo preflight inmediatamente anterior. La migración nueva es aditiva y fue validada en PostgreSQL real desechable, pero la incertidumbre financiera histórica no debe repararse automáticamente.
