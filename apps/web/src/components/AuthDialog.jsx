@@ -15,7 +15,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
   const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [emailStepOpen, setEmailStepOpen] = useState(initialMode === 'register');
+  const [emailStepOpen, setEmailStepOpen] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [authMethod, setAuthMethod] = useState('code');
   const [codeSent, setCodeSent] = useState(false);
@@ -29,7 +29,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
       setMode(initialMode);
       setIntent(initialIntent);
       setForm(defaultForm);
-      setEmailStepOpen(initialMode === 'register');
+      setEmailStepOpen(true);
       setShowPassword(false);
       setAuthMethod('code');
       setCodeSent(false);
