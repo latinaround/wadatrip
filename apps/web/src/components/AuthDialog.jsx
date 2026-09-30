@@ -80,6 +80,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    event.stopPropagation();
     await runSubmit();
   };
 
@@ -166,7 +167,9 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
 
               {authMethod === 'password' || codeSent ? (
                 <div className="space-y-2">
-                  <Label htmlFor="auth-password">{authMethod === 'code' ? 'Code' : 'Password'}</Label>
+                  <Label htmlFor={authMethod === 'code' ? 'auth-code' : 'auth-password'}>
+                    {authMethod === 'code' ? 'Code' : 'Password'}
+                  </Label>
                   {authMethod === 'code' ? (
                     <Input
                       id="auth-code"
@@ -273,10 +276,9 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
             </Button>
             {emailStepOpen ? (
               <Button
-                type="button"
+                type="submit"
                 className="neon-cta font-black hover:scale-105 transition-all"
                 disabled={submitting}
-                onClick={runSubmit}
               >
                 {submitting
                   ? 'Processing...'
