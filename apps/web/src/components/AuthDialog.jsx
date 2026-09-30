@@ -83,6 +83,19 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
     await runSubmit();
   };
 
+  const resendCode = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await requestCode({ email: form.email, name: form.name, role: isGuideIntent ? 'guide' : 'traveler' });
+      setCodeNotice('We sent a new 6-digit code to your email.');
+    } catch (err) {
+      setError(err?.message || 'Could not resend the code');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose?.()}>
       <DialogContent className="sm:max-w-md bg-[#1a1f3a] border border-[#2d3548] text-white">
@@ -187,6 +200,18 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
               ) : null}
 
               {codeNotice ? <div className="text-sm font-semibold text-[#8df3d8]">{codeNotice}</div> : null}
+
+              {authMethod === 'code' && codeSent ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-fit px-0 text-sm text-[#00D9FF]"
+                  onClick={resendCode}
+                  disabled={submitting}
+                >
+                  Resend code
+                </Button>
+              ) : null}
 
               <Button
                 type="button"
