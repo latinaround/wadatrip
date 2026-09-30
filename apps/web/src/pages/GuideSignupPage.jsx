@@ -39,11 +39,12 @@ async function guideAuthRequest(path, body) {
 export default function GuideSignupPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const isTraveler = searchParams.get('role') === 'traveler';
   const returnTo = useMemo(() => {
     const next = searchParams.get('next');
-    if (!next || !next.startsWith('/')) return '/operator/tours/new';
+    if (!next || !next.startsWith('/')) return isTraveler ? '/account' : '/operator/tours/new';
     return next;
-  }, [searchParams]);
+  }, [isTraveler, searchParams]);
   const initialMode = searchParams.get('mode') === 'login' ? 'login' : 'register';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -72,7 +73,7 @@ export default function GuideSignupPage() {
           const payload = await guideAuthRequest('/auth/request-code', {
             email: email.trim(),
             name: name.trim() || undefined,
-            role: 'guide',
+            role: isTraveler ? 'traveler' : 'guide',
           });
           setCodeSent(true);
           setNotice(payload?.preview_code ? `Use code ${payload.preview_code}` : 'We sent a 6-digit code to your email.');
@@ -87,7 +88,7 @@ export default function GuideSignupPage() {
           email: email.trim(),
           code: code.trim(),
           name: name.trim() || undefined,
-          role: 'guide',
+          role: isTraveler ? 'traveler' : 'guide',
         });
         if (payload?.token) {
           window.localStorage.setItem(tokenStorageKey, payload.token);
@@ -102,7 +103,7 @@ export default function GuideSignupPage() {
           email: email.trim(),
           password,
           name: name.trim() || undefined,
-          role: 'guide',
+          role: isTraveler ? 'traveler' : 'guide',
         });
         if (payload?.token) {
           window.localStorage.setItem(tokenStorageKey, payload.token);

@@ -299,7 +299,7 @@ function App() {
       {!isAdminRoute && (
         <Header
           user={user}
-          onLoginClick={() => setAuthDialogState({ open: true, mode: 'login', intent: 'traveler' })}
+          onLoginClick={() => navigate('/register?mode=login&role=traveler')}
           onGuideClick={() => {
             if (user) {
               window.location.assign('/operator/tours/new');
@@ -371,6 +371,7 @@ function App() {
           <Route path="/tours" element={<Tours />} />
           <Route path="/tours/:id" element={<TourDetail />} />
           <Route path="/guides/:id" element={<GuideProfile />} />
+          <Route path="/register" element={<GuideSignupPage />} />
           <Route path="/guide/register" element={<GuideSignupPage />} />
           <Route path="/operator/tours/new" element={<OperatorToursNew />} />
           <Route path="/checkout/success" element={<CheckoutSuccess />} />
