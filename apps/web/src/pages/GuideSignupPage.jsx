@@ -132,6 +132,12 @@ export default function GuideSignupPage() {
     }
   };
 
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await submit();
+  };
+
   return (
     <div className="page-shell">
       <div className="page-container py-10">
@@ -152,7 +158,7 @@ export default function GuideSignupPage() {
             Travelers book faster when your guide identity is complete: photo, city, languages, bio, and one strong tour.
           </div>
 
-          <div className="mt-6 space-y-4">
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             {mode === 'register' ? (
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-white" htmlFor="guide-name">Name</label>
@@ -199,9 +205,8 @@ export default function GuideSignupPage() {
 
             <div className="flex flex-col gap-3 pt-2">
               <button
-                type="button"
+                type="submit"
                 className="inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] px-6 text-sm font-black uppercase tracking-[0.14em] text-white transition-transform hover:scale-[1.01] disabled:opacity-60"
-                onClick={submit}
                 disabled={busy}
               >
                 {busy
@@ -250,7 +255,7 @@ export default function GuideSignupPage() {
                 {mode === 'register' ? 'Already have an account? Sign in' : 'New guide here? Create your account'}
               </button>
             </div>
-          </div>
+          </form>
 
           <div className="mt-6 text-sm text-[#9aa8bb]">
             Prefer to explore first? <Link to="/tours" className="text-[#16d7d0]">See marketplace examples</Link>
