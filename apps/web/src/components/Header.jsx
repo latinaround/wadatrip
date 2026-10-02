@@ -83,13 +83,12 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
 
           <div className="flex flex-shrink-0 items-center gap-2">
             <LanguageSwitcher />
-            <Button
+            <Button asChild
               variant="secondary"
               size="sm"
               className="hidden bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105 md:flex"
-              onClick={handleGuideClick}
             >
-              {t('nav.list_tour') ?? 'Become a guide'}
+              <a href="/guide/register">{t('nav.list_tour') ?? 'Become a guide'}</a>
             </Button>
             {user ? (
               <div className="hidden items-center gap-2 md:flex">
@@ -102,13 +101,12 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
                 </Button>
               </div>
             ) : (
-              <Button
+              <Button asChild
                 variant="default"
                 size="sm"
                 className="hidden bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105 md:flex"
-                onClick={handleLoginClick}
               >
-                {t('nav.login') ?? 'Login'}
+                <a href="/register?mode=login&role=traveler">{t('nav.login') ?? 'Login'}</a>
               </Button>
             )}
           </div>
@@ -132,12 +130,11 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
                 );
               })}
               <div className="flex flex-col space-y-2 border-t border-[#2d3548] pt-4">
-                <Button
+                <Button asChild
                   size="sm"
                   className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105"
-                  onClick={handleGuideClick}
                 >
-                  {t('nav.list_tour') ?? 'Become a guide'}
+                  <a href="/guide/register" onClick={() => setIsMenuOpen(false)}>{t('nav.list_tour') ?? 'Become a guide'}</a>
                 </Button>
                 {user ? (
                   <>
@@ -154,8 +151,8 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105" onClick={handleLoginClick}>
-                    {t('nav.login') ?? 'Login'}
+                  <Button asChild size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105">
+                    <a href="/register?mode=login&role=traveler" onClick={() => setIsMenuOpen(false)}>{t('nav.login') ?? 'Login'}</a>
                   </Button>
                 )}
               </div>
