@@ -24,7 +24,7 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
 
   const handleLoginClick = () => {
     setIsMenuOpen(false);
-    onLoginClick?.();
+    window.location.assign('/register?mode=login&role=traveler');
   };
 
   const handleGuideClick = () => {
