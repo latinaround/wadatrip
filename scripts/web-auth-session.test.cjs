@@ -54,7 +54,7 @@ async function main() {
     await page.getByRole('heading', { name: `Hi, ${user.name}`, exact: true }).waitFor();
     assert.ok(calls.filter(c => c.path === '/auth/me' && c.authorization === `Bearer ${token}`).length >= 2);
     console.log('PASS: session survives page reload');
-    await page.getByRole('button', { name: /logout|cerrar sesi/i }).first().click();
+    await page.getByRole('button', { name: 'Log out', exact: true }).click();
     await page.getByRole('heading', { name: 'Sign in to view your trips', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => localStorage.getItem('wadatrip_token')), null);
     console.log('PASS: logout removes session and account access');

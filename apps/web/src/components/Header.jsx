@@ -91,7 +91,7 @@ const Header = ({ user, onLogout }) => {
                   {user.name || user.email}
                 </Button>
                 <Button variant="outline" size="sm" className="border-[#16d7d0]/30 bg-transparent text-[#16d7d0] hover:bg-white/5" onClick={handleLogout}>
-                  {t('nav.logout') ?? 'Logout'}
+                  {t('nav.logout', { defaultValue: 'Log out' })}
                 </Button>
               </div>
             ) : (
@@ -133,7 +133,7 @@ const Header = ({ user, onLogout }) => {
                 {user ? (
                   <>
                     <Button size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105" onClick={goToAccount}>
-                      {t('nav.my_trips') ?? 'My trips'}
+                      {t('nav.my_trips', { defaultValue: 'My trips' })}
                     </Button>
                     <Button
                       size="sm"
@@ -141,7 +141,7 @@ const Header = ({ user, onLogout }) => {
                       className="border-[#16d7d0]/30 bg-transparent text-[#16d7d0] hover:bg-white/5"
                       onClick={handleLogout}
                     >
-                      {t('nav.logout') ?? 'Logout'}
+                      {t('nav.logout', { defaultValue: 'Log out' })}
                     </Button>
                   </>
                 ) : (
