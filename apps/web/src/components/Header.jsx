@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import LanguageSwitcher from './LanguageSwitcher';
 import BrandLogo from './BrandLogo';
 
-const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
+const Header = ({ user, onLogout }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -22,15 +22,7 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
     { key: 'privacy_policy', href: '/privacy-policy' },
   ];
 
-  const handleLoginClick = () => {
-    setIsMenuOpen(false);
-    window.location.assign('/register?mode=login&role=traveler');
-  };
-
-  const handleGuideClick = () => {
-    setIsMenuOpen(false);
-    onGuideClick?.();
-  };
+  const guideEntryHref = user ? '/operator/tours/new' : '/guide/register';
 
   const handleLogout = () => {
     setIsMenuOpen(false);
@@ -75,6 +67,8 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
               variant="ghost"
               size="sm"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMenuOpen}
               className="text-white hover:bg-white/10"
             >
               {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -88,7 +82,7 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
               size="sm"
               className="hidden bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105 md:flex"
             >
-              <a href="/guide/register">{t('nav.list_tour') ?? 'Become a guide'}</a>
+              <a href={guideEntryHref}>{t('nav.list_tour') ?? 'Become a guide'}</a>
             </Button>
             {user ? (
               <div className="hidden items-center gap-2 md:flex">
@@ -134,7 +128,7 @@ const Header = ({ user, onLoginClick, onGuideClick, onLogout }) => {
                   size="sm"
                   className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105"
                 >
-                  <a href="/guide/register" onClick={() => setIsMenuOpen(false)}>{t('nav.list_tour') ?? 'Become a guide'}</a>
+                  <a href={guideEntryHref} onClick={() => setIsMenuOpen(false)}>{t('nav.list_tour') ?? 'Become a guide'}</a>
                 </Button>
                 {user ? (
                   <>

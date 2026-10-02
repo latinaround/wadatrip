@@ -107,13 +107,8 @@ export default function Tours() {
     const wantsFree = params.get('free') === 'true' || params.get('free_tour') === 'true';
     const city = params.get('city') || '';
     const country = params.get('country_code') || '';
-    if (wantsFree) setFreeOnly(true);
-    if (city || country) {
-      setFilters((prev) => ({
-        city: city || prev.city,
-        country: country || prev.country,
-      }));
-    }
+    setFreeOnly(wantsFree);
+    setFilters({ city, country });
   }, [location.search]);
 
   useEffect(() => {
@@ -268,13 +263,13 @@ export default function Tours() {
               </div>
               <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">Country</label>
+                  <label htmlFor="tours-country" className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">Country</label>
                   <div className="mt-2">
                     <Select
                       value={normalizeCountryCode(filters.country) || 'all'}
                       onValueChange={(value) => handleFilterChange('country', value === 'all' ? '' : value)}
                     >
-                      <SelectTrigger className="h-[50px] w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 text-sm text-[#172033]">
+                      <SelectTrigger id="tours-country" className="h-[50px] w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 text-sm text-[#172033]">
                         <SelectValue placeholder="Choose a country" />
                       </SelectTrigger>
                       <SelectContent>
@@ -289,8 +284,9 @@ export default function Tours() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">City</label>
+                  <label htmlFor="tours-city" className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">City</label>
                   <input
+                    id="tours-city"
                     value={filters.city}
                     onChange={(event) => handleFilterChange('city', event.target.value)}
                     placeholder={filters.country ? 'Start typing a city' : 'Choose a country, then type a city'}

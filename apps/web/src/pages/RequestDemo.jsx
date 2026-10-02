@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
+import { buildContactEmail, SUPPORT_EMAIL } from '../services/contactEmail'
 
 const RequestDemo = () => {
   const { t } = useTranslation()
@@ -13,10 +15,12 @@ const RequestDemo = () => {
     interests: [],
     message: ''
   })
-  const [formStatus, setFormStatus] = useState(null)
+  const [draftReady, setDraftReady] = useState(false)
+  const draftUrl = buildContactEmail('Wadatrip demo request', formData)
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    setDraftReady(false)
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -26,6 +30,7 @@ const RequestDemo = () => {
 
   const handleCheckboxChange = (e) => {
     const { value, checked } = e.target
+    setDraftReady(false)
     if (checked) {
       setFormData(prev => ({
         ...prev,
@@ -41,22 +46,7 @@ const RequestDemo = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // Simulate form submission
-    setFormStatus('loading')
-    
-    setTimeout(() => {
-      setFormStatus('success')
-      setFormData({
-        name: '',
-        email: '',
-        company: '',
-        position: '',
-        phone: '',
-        employees: '',
-        interests: [],
-        message: ''
-      })
-    }, 1500)
+    setDraftReady(true)
   }
 
   return (
@@ -80,6 +70,7 @@ const RequestDemo = () => {
                     {t('demo.form_title')}
                   </h3>
                   
+                  <p className="text-sm text-[#cad3df] mb-6">{t('email_draft.instructions')}</p>
                   <form onSubmit={handleSubmit}>
                     <div className="grid md:grid-cols-2 gap-6 mb-6">
                       {/* Name */}
@@ -287,17 +278,17 @@ const RequestDemo = () => {
                     <div className="text-right">
                       <button
                         type="submit"
-                        disabled={formStatus === 'loading'}
                         className="neon-cta font-black px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105 disabled:opacity-70"
                       >
-                        {formStatus === 'loading' ? t('demo.submitting') : t('demo.submit_button')}
+                        {t('email_draft.prepare')}
                       </button>
                     </div>
                     
-                    {/* Success Message */}
-                    {formStatus === 'success' && (
-                      <div className="mt-4 p-3 bg-green-50 text-green-800 rounded-md">
-                        {t('demo.success_message')}
+                    {draftReady && (
+                      <div role="status" className="mt-4 space-y-3 rounded-md border border-[#00D9FF]/30 p-4 text-[#cad3df]">
+                        <p>{t('email_draft.ready')}</p>
+                        <a href={draftUrl} className="inline-block text-[#00D9FF] underline">{t('email_draft.open')}</a>
+                        <p>{t('email_draft.fallback', { email: SUPPORT_EMAIL })}</p>
                       </div>
                     )}
                   </form>
@@ -368,9 +359,9 @@ const RequestDemo = () => {
                         {t('demo.questions_title')}
                       </h4>
                       <p className="text-[#e0e0e0] mb-2">{t('demo.questions_text')}</p>
-                      <a href="#" className="text-[#00D9FF] hover:text-[#00D9FF] font-medium">
+                      <Link to="/contact" className="text-[#00D9FF] hover:text-[#00D9FF] font-medium">
                         {t('demo.questions_link')} →
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>

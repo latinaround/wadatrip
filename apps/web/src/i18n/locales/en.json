@@ -1,4 +1,12 @@
 {
+    "paused_feature": { "message": "This feature is currently unavailable. You can browse tours and book available experiences." },
+    "email_draft": {
+        "instructions": "Prepare your message, then send it from your email app.",
+        "prepare": "Prepare email",
+        "ready": "Your draft is ready. It has not been sent yet.",
+        "open": "Open email app to send",
+        "fallback": "If no email app opens, copy your message and email {{email}}."
+    },
     "nav":  {
                 "wadatrip":  "WADATRIP",
                 "products":  "Products",

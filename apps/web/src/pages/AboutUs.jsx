@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 
 const AboutUs = () => {
   const { t } = useTranslation()
@@ -149,12 +150,12 @@ const AboutUs = () => {
               {t('about_us.join_description')}
             </p>
             <div className="flex justify-center space-x-4">
-              <button className="neon-cta font-black px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105">
+              <Link to="/contact" className="neon-cta font-black px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105">
                 {t('about_us.careers_button')}
-              </button>
-              <button className="bg-transparent text-[#00D9FF] border border-[#00D9FF]/30 px-6 py-3 rounded-xl font-medium hover:bg-white/5 transition-colors">
+              </Link>
+              <Link to="/contact" className="bg-transparent text-[#00D9FF] border border-[#00D9FF]/30 px-6 py-3 rounded-xl font-medium hover:bg-white/5 transition-colors">
                 {t('nav.contact')}
-              </button>
+              </Link>
             </div>
           </div>
         </div>

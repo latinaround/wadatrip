@@ -1,4 +1,12 @@
 {
+    "paused_feature": { "message": "Esta función no está disponible por ahora. Puedes buscar tours y reservar experiencias disponibles." },
+    "email_draft": {
+        "instructions": "Prepara tu mensaje y envíalo desde tu aplicación de correo.",
+        "prepare": "Preparar correo",
+        "ready": "Tu borrador está listo. Todavía no se ha enviado.",
+        "open": "Abrir correo para enviar",
+        "fallback": "Si no se abre tu correo, copia el mensaje y escríbenos a {{email}}."
+    },
     "nav":  {
                 "wadatrip":  "WADATRIP",
                 "products":  "Productos",

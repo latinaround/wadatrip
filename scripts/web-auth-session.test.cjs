@@ -43,7 +43,7 @@ async function main() {
     await page.locator('#guide-secret').waitFor();
     assert.equal(calls.filter(c => c.path === '/auth/request-code').length, 1, 'The email notice must correspond to an actual request-code request');
     await page.locator('#guide-secret').fill('123456');
-    await page.getByRole('button', { name: 'Continue to publish tours', exact: true }).click();
+    await page.getByRole('button', { name: 'Continue to your account', exact: true }).click();
     await page.waitForURL(url => url.pathname === '/account');
     await page.getByRole('heading', { name: `Hi, ${user.name}`, exact: true }).waitFor({ timeout: 10000 });
     assert.equal(calls.filter(c => c.path === '/auth/verify-code').length, 1);

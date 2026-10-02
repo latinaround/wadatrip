@@ -1,11 +1,6 @@
 import { Bot, Brain, Compass, Plane } from 'lucide-react'
 
 const Products = () => {
-  const handleOpenWadaAgent = () => {
-    if (typeof window === 'undefined') return;
-    window.dispatchEvent(new Event('wadagent:open'));
-  };
-
   return (
     <div className="page-shell flex flex-col">
       <main className="flex-grow page-container">
@@ -41,7 +36,7 @@ const Products = () => {
                 icon: Bot,
                 title: 'WadaAgent',
                 copy: 'AI assistant that checks operators, tours, and pricing for you.',
-                action: 'Open WadaAgent',
+                action: 'Coming soon',
               },
             ].map(({ icon: Icon, title, copy, action }) => (
               <div
@@ -57,7 +52,7 @@ const Products = () => {
                   {action && (
                     <button
                       type="button"
-                      onClick={handleOpenWadaAgent}
+                      disabled
                       className="mt-2 inline-flex items-center justify-center rounded-lg border border-[#00D9FF]/40 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#00D9FF] transition hover:border-[#00D9FF] hover:text-white"
                     >
                       {action}

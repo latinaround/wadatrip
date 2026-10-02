@@ -1,4 +1,12 @@
 {
+    "paused_feature": { "message": "Cette fonctionnalité est actuellement indisponible. Vous pouvez découvrir les excursions et réserver les expériences disponibles." },
+    "email_draft": {
+        "instructions": "Préparez votre message, puis envoyez-le depuis votre application de messagerie.",
+        "prepare": "Préparer le courriel",
+        "ready": "Votre brouillon est prêt. Il n’a pas encore été envoyé.",
+        "open": "Ouvrir la messagerie pour envoyer",
+        "fallback": "Si aucune application ne s’ouvre, copiez votre message et écrivez à {{email}}."
+    },
   "nav": {
     "wadatrip": "WADATRIP",
     "products": "Products",

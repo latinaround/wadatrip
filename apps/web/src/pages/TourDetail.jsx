@@ -49,9 +49,7 @@ function HostOptionCard({ item, selected, onSelect }) {
   const guideHref = buildGuideHref(item.provider_id);
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(item)}
+    <div
       className={`w-full rounded-[24px] border p-5 text-left transition-all ${selected
         ? 'border-[#167c7d] bg-[linear-gradient(180deg,#e7f7f5_0%,#f3fcfb_100%)] shadow-[0_14px_36px_rgba(22,124,125,0.12)]'
         : 'border-[#e1cdbd] bg-[linear-gradient(180deg,#f7e8db_0%,#fdf5ee_100%)] hover:border-[#d8ecea] hover:bg-[#f8fefd]'
@@ -121,7 +119,10 @@ function HostOptionCard({ item, selected, onSelect }) {
         {item.duration_hours ? <span className="rounded-full bg-[#fff1e5] px-3 py-2 text-[#c36d1f]">{item.duration_hours}h</span> : null}
         {item.language ? <span className="rounded-full bg-[#f7e9f0] px-3 py-2 text-[#b55282]">{item.language}</span> : null}
       </div>
-    </button>
+      <Button type="button" className="mt-4" aria-label={`Select ${item.provider_name || 'host'}`} aria-pressed={selected} onClick={() => onSelect(item)}>
+        {selected ? 'Selected host' : 'Choose this host'}
+      </Button>
+    </div>
   );
 }
 
@@ -262,7 +263,8 @@ export default function TourDetail() {
   const handleCopyPublicLink = async () => {
     if (!publicTourUrl) return;
     try {
-      await navigator.clipboard?.writeText(publicTourUrl);
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(publicTourUrl);
       setShareMessage('Public tour link copied.');
     } catch {
       setShareMessage('Copy the URL from your browser and share it with travelers.');
@@ -271,6 +273,10 @@ export default function TourDetail() {
 
   const handleBooking = async () => {
     if (!currentHost) return;
+    if (!user || !token) {
+      setAuthOpen(true);
+      return;
+    }
     setBookingError(null);
     setBookingSuccess(null);
     setBookingLoading(true);

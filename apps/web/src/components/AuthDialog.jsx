@@ -260,7 +260,7 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
                 onClick={() => {
                   const nextMode = mode === 'register' ? 'login' : 'register';
                   setMode(nextMode);
-                  setEmailStepOpen(nextMode === 'register');
+                  setEmailStepOpen(true);
                   setAuthMethod('code');
                   setCodeSent(false);
                   setCode('');

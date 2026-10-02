@@ -1,13 +1,9 @@
 import React from 'react'
-import FlightPriceAlert from '../components/FlightPriceAlert'
+import PausedFeature from '../components/PausedFeature'
 
 const FlightAlerts = () => {
   return (
-    <div className="page-shell">
-      <div className="page-container">
-        <FlightPriceAlert />
-      </div>
-    </div>
+    <PausedFeature title="Flight Alerts" />
   )
 }
 
