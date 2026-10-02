@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const tokenStorageKey = 'wadatrip_token';
 
@@ -39,6 +40,7 @@ async function guideAuthRequest(path, body) {
 export default function GuideSignupPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { verifyCode } = useAuth();
   const isTraveler = searchParams.get('role') === 'traveler';
   const returnTo = useMemo(() => {
     const next = searchParams.get('next');
@@ -84,15 +86,14 @@ export default function GuideSignupPage() {
           throw new Error('Enter the 6-digit code');
         }
 
-        const payload = await guideAuthRequest('/auth/verify-code', {
+        const payload = await verifyCode({
           email: email.trim(),
           code: code.trim(),
           name: name.trim() || undefined,
           role: isTraveler ? 'traveler' : 'guide',
         });
         if (payload?.token) {
-          window.localStorage.setItem(tokenStorageKey, payload.token);
-          window.location.assign(buildGuideReturnUrl(returnTo, payload.token));
+          navigate(returnTo);
           return;
         }
       } else if (mode === 'register') {
