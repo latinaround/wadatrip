@@ -1,4 +1,11 @@
 {
+    "booking_dates": {
+        "label": "Date de l’excursion", "choose": "Choisir une date", "loading": "Chargement des dates...",
+        "spots_one": "{{count}} place disponible", "spots_other": "{{count}} places disponibles",
+        "help": "Sélectionnez une date en surbrillance. Les autres jours sont indisponibles.",
+        "empty": "Aucune date n’est actuellement disponible pour cette excursion.",
+        "error": "Impossible de charger les dates disponibles.", "retry": "Recharger les dates"
+    },
     "paused_feature": { "message": "Cette fonctionnalité est actuellement indisponible. Vous pouvez découvrir les excursions et réserver les expériences disponibles." },
     "email_draft": {
         "instructions": "Préparez votre message, puis envoyez-le depuis votre application de messagerie.",

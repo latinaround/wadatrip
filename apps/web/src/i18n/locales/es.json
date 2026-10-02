@@ -1,4 +1,11 @@
 {
+    "booking_dates": {
+        "label": "Fecha del tour", "choose": "Elegir fecha", "loading": "Cargando fechas...",
+        "spots_one": "{{count}} cupo disponible", "spots_other": "{{count}} cupos disponibles",
+        "help": "Selecciona una fecha resaltada. Los otros días no están disponibles.",
+        "empty": "No hay fechas disponibles para reservar este tour.",
+        "error": "No pudimos cargar las fechas disponibles.", "retry": "Volver a cargar fechas"
+    },
     "paused_feature": { "message": "Esta función no está disponible por ahora. Puedes buscar tours y reservar experiencias disponibles." },
     "email_draft": {
         "instructions": "Prepara tu mensaje y envíalo desde tu aplicación de correo.",

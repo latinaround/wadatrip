@@ -1,4 +1,11 @@
 {
+    "booking_dates": {
+        "label": "Booking date", "choose": "Choose a date", "loading": "Loading dates...",
+        "spots_one": "{{count}} spot available", "spots_other": "{{count}} spots available",
+        "help": "Select a highlighted date. Other days are unavailable.",
+        "empty": "No dates are currently available for booking.",
+        "error": "We could not load the available dates.", "retry": "Retry loading dates"
+    },
     "paused_feature": { "message": "This feature is currently unavailable. You can browse tours and book available experiences." },
     "email_draft": {
         "instructions": "Prepare your message, then send it from your email app.",

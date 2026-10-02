@@ -11,32 +11,36 @@ async function main() {
   const user = { id: 'synthetic-traveler', name: 'Synthetic Traveler', email: 'traveler@example.invalid', role: 'traveler' };
   const listing = { id: 'csyntheticlisting000001', title: 'Synthetic walking tour', city: 'Lima', country_code: 'PE', status: 'published', price_from: 120, currency: 'USD', provider_id: 'synthetic-provider', provider_name: 'Synthetic Host' };
   const freeListing = { ...listing, id: 'csyntheticlisting000002', title: 'Synthetic free walk', price_from: 0, tags: ['free_tour'] };
+  const alternateListing = { ...listing, id: 'csyntheticlisting000003', provider_id: 'synthetic-alternate-provider', provider_name: 'Synthetic Alternate Host' };
   const departure = new Date(Date.now() + 14 * 86400000).toISOString();
   const date = departure.slice(0, 10);
+  const alternateDate = new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10);
   const terms = { version: 'synthetic-policy-v1', departure_at: departure, booking_closes_at: departure, timezone: 'America/Lima', meeting_point: 'Synthetic meeting point', cancellation_policy: 'Synthetic policy', bookings_open: true };
   const calls = [];
   const errors = [];
   let passed = 0;
   const failures = [];
   try {
-    await context.route('**/*', async route => {
+    const intercept = async route => {
       const request = route.request(), url = new URL(request.url());
       if (url.origin === origin && url.pathname === '/synthetic-checkout') return route.fulfill({ contentType: 'text/html', body: '<h1>Synthetic checkout</h1>' });
       if (!['fetch', 'xhr'].includes(request.resourceType())) return url.origin === origin ? route.continue() : route.abort();
-      calls.push({ path: url.pathname, method: request.method(), authorization: request.headers().authorization, body: request.postDataJSON() });
+      calls.push({ path: url.pathname, date: url.searchParams.get('date'), method: request.method(), authorization: request.headers().authorization, body: request.postDataJSON() });
       let body = [];
       if (url.pathname === '/auth/me') body = user;
       if (url.pathname === '/providers/me') return route.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"No synthetic provider"}' });
-      if (url.pathname === '/listings/search') body = { items: url.searchParams.get('free_tour') === 'true' ? [freeListing] : [listing, freeListing] };
+      if (url.pathname === '/listings/search') body = { items: url.searchParams.get('free_tour') === 'true' ? [freeListing] : [listing, freeListing, alternateListing] };
       if (url.pathname === `/listings/${listing.id}`) body = listing;
       if (url.pathname === `/listings/${freeListing.id}`) body = freeListing;
       if (url.pathname.endsWith('/availability')) body = { items: [{ date, spots_available: 10 }] };
+      if (url.pathname === `/listings/${alternateListing.id}/availability`) body = { items: [{ date: alternateDate, spots_available: 3 }] };
       if (url.pathname.endsWith('/booking-terms')) body = { terms };
       if (url.pathname === '/bookings' && request.method() === 'POST') body = { id: 'synthetic-booking', amount_cents: request.postDataJSON().listing_id === freeListing.id ? 0 : 12000 };
       if (url.pathname === '/payments/bookings/synthetic-booking/checkout') body = { url: `${origin}/synthetic-checkout` };
       if (url.pathname === '/bookings/synthetic-booking') body = { id: 'synthetic-booking', status: 'confirmed', payment_status: 'paid', amount_cents: 12000 };
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-    });
+    };
+    await context.route('**/*', intercept);
     const page = await context.newPage();
     page.setDefaultTimeout(3000);
     page.on('pageerror', error => errors.push(error.message));
@@ -101,6 +105,80 @@ async function main() {
       await page.getByRole('button', { name: 'Sign in to book', exact: true }).click();
       await page.getByRole('dialog').waitFor();
       assert.ok(!calls.slice(before).some(call => call.path === '/bookings'));
+    });
+    await check('Tour date opens a clickable calendar with available days', async () => {
+      await page.goto(`${origin}/tours/${listing.id}`);
+      await page.getByRole('button', { name: /^Booking date:/ }).click();
+      await page.getByRole('gridcell', { name: `${new Intl.DateTimeFormat('en', { dateStyle: 'full' }).format(new Date(`${date}T12:00:00`))} · 10 spots available`, exact: true }).click();
+      await page.getByLabel('I have read and accept this cancellation policy.', { exact: true }).waitFor();
+      assert.ok(calls.some(call => call.path.endsWith('/booking-terms')));
+    });
+    await check('Calendar blocks full and unlisted days', async () => {
+      const full = new Date(`${date}T12:00:00`); full.setDate(full.getDate() === 1 ? 2 : full.getDate() - 1);
+      const fullDate = `${full.getFullYear()}-${String(full.getMonth() + 1).padStart(2, '0')}-${String(full.getDate()).padStart(2, '0')}`;
+      await page.route(`**/listings/${listing.id}/availability`, route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [{ date, spots_available: 10 }, { date: fullDate, spots_available: 0 }, { date: '2000-01-01', spots_available: 10 }, { date: '2026-02-30', spots_available: 10 }] }) }));
+      await page.goto(`${origin}/tours/${listing.id}`);
+      await page.getByRole('button', { name: /^Booking date:/ }).click();
+      assert.ok(await page.getByRole('gridcell', { name: new Intl.DateTimeFormat('en', { dateStyle: 'full' }).format(full), exact: true }).isDisabled());
+      assert.equal(await page.locator('button[name="day"]:not(:disabled)').count(), 1);
+      await page.unroute(`**/listings/${listing.id}/availability`);
+    });
+    await check('Empty availability disables date selection without inventing dates', async () => {
+      await page.route(`**/listings/${listing.id}/availability`, route => route.fulfill({ contentType: 'application/json', body: '{"items":[]}' }));
+      await page.goto(`${origin}/tours/${listing.id}`);
+      await page.getByText('No dates are currently available for booking.', { exact: true }).waitFor();
+      assert.ok(await page.getByRole('button', { name: /^Booking date:/ }).isDisabled());
+      await page.unroute(`**/listings/${listing.id}/availability`);
+    });
+    await check('Calendar navigation reaches availability in a later month', async () => {
+      await page.route(`**/listings/${listing.id}/availability`, route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [{ date, spots_available: 10 }, { date: alternateDate, spots_available: 4 }] }) }));
+      await page.goto(`${origin}/tours/${listing.id}`);
+      await page.getByRole('button', { name: /^Booking date:/ }).click();
+      for (let month = 0; month < 2 && !(await page.getByRole('gridcell', { name: /4 spots available/ }).count()); month++) await page.getByRole('button', { name: /next month/i }).click();
+      await page.getByRole('gridcell', { name: /4 spots available/ }).click();
+      await page.getByLabel('I have read and accept this cancellation policy.', { exact: true }).waitFor();
+      assert.equal(calls.filter(call => call.path.endsWith('/booking-terms')).at(-1).date, alternateDate);
+      await page.unroute(`**/listings/${listing.id}/availability`);
+    });
+    await check('Availability failure is distinct from no dates and Retry recovers', async () => {
+      let attempts = 0;
+      await page.route(`**/listings/${listing.id}/availability`, route => { attempts++; return route.fulfill({ status: attempts === 1 ? 503 : 200, contentType: 'application/json', body: attempts === 1 ? '{"message":"Synthetic outage"}' : JSON.stringify({ items: [{ date, spots_available: 10 }] }) }); });
+      await page.goto(`${origin}/tours/${listing.id}`);
+      await page.getByText('We could not load the available dates.', { exact: true }).waitFor();
+      assert.ok(await page.getByRole('button', { name: /^Booking date:/ }).isDisabled());
+      await page.getByRole('button', { name: 'Retry loading dates', exact: true }).click();
+      await page.getByRole('button', { name: /^Booking date:/ }).click();
+      await page.getByRole('gridcell', { name: /10 spots available/, exact: false }).waitFor();
+      assert.equal(attempts, 2);
+      await page.unroute(`**/listings/${listing.id}/availability`);
+    });
+    await check('Changing host clears the selected day and uses that hosts calendar', async () => {
+      await page.goto(`${origin}/tours/${listing.id}`);
+      await page.getByRole('button', { name: /^Booking date:/ }).click();
+      await page.getByRole('gridcell', { name: /10 spots available/ }).click();
+      await page.getByLabel('I have read and accept this cancellation policy.', { exact: true }).waitFor();
+      await page.getByRole('button', { name: 'Select Synthetic Alternate Host', exact: true }).click();
+      await page.getByRole('button', { name: 'Booking date: Choose a date', exact: true }).click();
+      assert.equal(await page.getByLabel('I have read and accept this cancellation policy.', { exact: true }).count(), 0);
+      await page.getByRole('gridcell', { name: `${new Intl.DateTimeFormat('en', { dateStyle: 'full' }).format(new Date(`${alternateDate}T12:00:00`))} · 3 spots available`, exact: true }).click();
+      await page.getByLabel('I have read and accept this cancellation policy.', { exact: true }).waitFor();
+      assert.ok(calls.some(call => call.path === `/listings/${alternateListing.id}/booking-terms` && call.date === alternateDate));
+    });
+    await check('Calendar keeps the same API day in opposite traveler timezones and mobile fits', async () => {
+      for (const timezoneId of ['America/Los_Angeles', 'Pacific/Kiritimati']) {
+        const zone = await browser.newContext({ timezoneId, viewport: { width: 390, height: 844 } });
+        try {
+          await zone.route('**/*', intercept);
+          const mobile = await zone.newPage();
+          await mobile.goto(`${origin}/tours/${listing.id}`);
+          await mobile.getByRole('button', { name: /^Booking date:/ }).click();
+          const box = await mobile.locator('[data-slot="popover-content"]').boundingBox();
+          assert.ok(box && box.x >= 0 && box.x + box.width <= 390);
+          await mobile.getByRole('gridcell', { name: /10 spots available/ }).click();
+          await mobile.getByLabel('I have read and accept this cancellation policy.', { exact: true }).waitFor();
+          assert.equal(calls.filter(call => call.path.endsWith('/booking-terms')).at(-1).date, date);
+        } finally { await zone.close(); }
+      }
     });
     await check('Clipboard unavailable does not report a successful copy', async () => {
       await page.goto(`${origin}/tours/${listing.id}`);
@@ -191,7 +269,8 @@ async function main() {
       await book.click(); await page.getByText('Enter a valid traveler count', { exact: true }).waitFor();
       assert.ok(!calls.slice(before).some(call => call.path === '/bookings'));
       await page.getByRole('spinbutton', { name: 'Travelers', exact: true }).fill('2');
-      await page.getByLabel('Booking date (UTC)', { exact: true }).fill(date);
+      await page.getByRole('button', { name: /^Booking date:/ }).click();
+      await page.getByRole('gridcell', { name: `${new Intl.DateTimeFormat('en', { dateStyle: 'full' }).format(new Date(`${date}T12:00:00`))} · 10 spots available`, exact: true }).click();
       await page.getByLabel('I have read and accept this cancellation policy.', { exact: true }).check();
       await book.click(); await page.waitForURL('**/synthetic-checkout');
       const booking = calls.slice(before).find(call => call.path === '/bookings');
@@ -202,7 +281,8 @@ async function main() {
     await check('Free-tour button confirms using the backend result without checkout', async () => {
       await page.goto(`${origin}/tours/${freeListing.id}`);
       await page.getByRole('button', { name: 'Join free tour', exact: true }).waitFor();
-      await page.getByLabel('Booking date (UTC)', { exact: true }).fill(date);
+      await page.getByRole('button', { name: /^Booking date:/ }).click();
+      await page.getByRole('gridcell', { name: `${new Intl.DateTimeFormat('en', { dateStyle: 'full' }).format(new Date(`${date}T12:00:00`))} · 10 spots available`, exact: true }).click();
       await page.getByLabel('I have read and accept this cancellation policy.', { exact: true }).check();
       const before = calls.length;
       await page.getByRole('button', { name: 'Join free tour', exact: true }).click();

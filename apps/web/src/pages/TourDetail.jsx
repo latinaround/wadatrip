@@ -11,6 +11,7 @@ import { Input } from '../components/ui/input';
 import BrandLogo from '../components/BrandLogo';
 import { useAuth } from '../context/AuthContext.jsx';
 import AuthDialog from '../components/AuthDialog.jsx';
+import TourDatePicker from '../components/TourDatePicker.jsx';
 import { bookTravelerExperience, SIGN_IN_REQUIRED } from '../services/travelerBooking';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
@@ -158,7 +159,8 @@ export default function TourDetail() {
     num_people: 1,
     date: '',
   });
-  const [availableDates, setAvailableDates] = useState([]);
+  const [availabilityResult, setAvailabilityResult] = useState(null);
+  const [availabilityRetry, setAvailabilityRetry] = useState(0);
   const [termsResult, setTermsResult] = useState(null);
   const [policyAccepted, setPolicyAccepted] = useState(false);
 
@@ -214,6 +216,8 @@ export default function TourDetail() {
   }, [apiBase, id]);
 
   const currentHost = selectedHost || tour;
+  const availability = availabilityResult?.listingId === currentHost?.id ? availabilityResult : null;
+  const availableDates = availability?.items || [];
   const freeTour = isFreeTour(currentHost);
   const currentHostInitials = getInitials(currentHost?.provider_name);
   const currentHostAvatar = resolveProviderAvatar(currentHost);
@@ -240,21 +244,24 @@ export default function TourDetail() {
 
   useEffect(() => {
     let mounted = true;
-    if (!currentHost?.id) {
-      setAvailableDates([]);
-      return () => { mounted = false; };
-    }
+    const listingId = currentHost?.id;
+    const controller = new AbortController();
+    setAvailabilityResult(null);
+    setBookingForm(prev => ({ ...prev, date: '' }));
+    setBookingError(null); setBookingSuccess(null);
+    if (!listingId) return () => { mounted = false; };
     (async () => {
       try {
-        const response = await fetch(`${apiBase}/listings/${encodeURIComponent(currentHost.id)}/availability`);
+        const response = await fetch(`${apiBase}/listings/${encodeURIComponent(listingId)}/availability`, { signal: controller.signal });
         const payload = await response.json().catch(() => null);
-        if (mounted) setAvailableDates(Array.isArray(payload?.items) ? payload.items : []);
+        if (!response.ok || !Array.isArray(payload?.items)) throw new Error('Availability unavailable');
+        if (mounted) setAvailabilityResult({ listingId, items: payload.items, error: false });
       } catch {
-        if (mounted) setAvailableDates([]);
+        if (mounted) setAvailabilityResult({ listingId, items: [], error: true });
       }
     })();
-    return () => { mounted = false; };
-  }, [apiBase, currentHost?.id]);
+    return () => { mounted = false; controller.abort(); };
+  }, [apiBase, currentHost?.id, availabilityRetry]);
 
   const handleBookingChange = (field, value) => {
     setBookingForm((prev) => ({ ...prev, [field]: value }));
@@ -283,7 +290,7 @@ export default function TourDetail() {
     try {
       const numPeople = Number(bookingForm.num_people);
       if (!Number.isInteger(numPeople) || numPeople < 1) throw new Error('Enter a valid traveler count');
-      if (!bookingForm.date) throw new Error('Choose an available date');
+      if (!bookingForm.date || !availableDates.some(item => item.date === bookingForm.date && item.spots_available > 0)) throw new Error('Choose an available date');
       if (!currentTerms) throw new Error('Please wait while we check the booking terms');
       if (currentTerms.error) throw new Error(currentTerms.error);
       if (currentTerms.terms?.bookings_open === false) throw new Error('Reservations have closed for this departure');
@@ -463,14 +470,13 @@ export default function TourDetail() {
                 placeholder="Travelers"
                 className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
               />
-              <Input
-                type="date"
-                min={new Date().toISOString().slice(0, 10)}
-                aria-label="Booking date (UTC)"
+              <TourDatePicker key={currentHost?.id}
+                dates={availableDates}
                 value={bookingForm.date}
-                list="available-tour-dates"
-                onChange={(event) => handleBookingChange('date', event.target.value)}
-                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
+                onChange={date => handleBookingChange('date', date)}
+                loading={!availability}
+                error={availability?.error || false}
+                onRetry={() => setAvailabilityRetry(value => value + 1)}
               />
             </div>
 
@@ -484,8 +490,6 @@ export default function TourDetail() {
               {currentTerms.terms.bookings_open === false ? <p role="alert">Reservations have closed for this departure.</p> : null}
               {currentTerms.terms.version ? <label className="flex items-start gap-2"><input type="checkbox" checked={policyAccepted} onChange={event => setPolicyAccepted(event.target.checked)} />I have read and accept this cancellation policy.</label> : null}
             </div> : null}
-            <datalist id="available-tour-dates">{availableDates.map((item) => <option key={item.date} value={item.date}>{item.spots_available} spots available</option>)}</datalist>
-            {!availableDates.length ? <p className="mt-2 text-sm text-[#d15371]">No dates are currently available for booking.</p> : null}
             {!authLoading && (!user || !token) && !bookingError && <p className="mt-4 text-sm text-[#526173]">{SIGN_IN_REQUIRED}</p>}
             {bookingError && <p role="alert" className="mt-4 text-sm text-[#d15371]">{bookingError}</p>}
             {bookingSuccess && <p className="mt-4 text-sm text-[#167c7d]">{bookingSuccess}</p>}
