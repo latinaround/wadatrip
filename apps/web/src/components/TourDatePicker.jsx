@@ -28,6 +28,8 @@ export default function TourDatePicker({ dates, value, onChange, loading, error,
     .sort((a, b) => a.date.localeCompare(b.date));
   const spots = new Map(available.map(item => [item.date, item.spots_available]));
   const selected = spots.has(value) ? calendarDay(value) : undefined;
+  const firstMonth = calendarDay(available[0]?.date || today);
+  const lastMonth = calendarDay(available[available.length - 1]?.date || today);
   const formatDate = day => new Intl.DateTimeFormat(language, { dateStyle: 'full' }).format(day);
   const text = selected ? formatDate(selected) : t('booking_dates.choose');
 
@@ -36,7 +38,7 @@ export default function TourDatePicker({ dates, value, onChange, loading, error,
       <label htmlFor="booking-date" className="text-sm font-semibold text-[#526173]">{t('booking_dates.label')}</label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button id="booking-date" type="button" variant="outline" disabled={loading || error || !available.length}
+          <Button id="booking-date" type="button" variant="outline" disabled={loading || error}
             aria-label={`${t('booking_dates.label')}: ${text}`}
             className="h-auto min-h-12 w-full justify-start gap-2 whitespace-normal rounded-2xl border-[#d7e6e3] bg-[#fff5ec] text-left text-[#172033]">
             <CalendarDays className="h-4 w-4 shrink-0" />
@@ -44,11 +46,11 @@ export default function TourDatePicker({ dates, value, onChange, loading, error,
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-auto max-w-[calc(100vw-2rem)] rounded-2xl border-[#d7e6e3] bg-white p-2 text-[#172033]">
-          {available.length > 0 && <Calendar mode="single" required initialFocus showOutsideDays={false}
+          <Calendar mode="single" required initialFocus showOutsideDays={false}
             components={{ DayContent: AvailableDayContent }}
             locale={{ en: enUS, es, fr }[language] || enUS}
-            selected={selected} defaultMonth={selected || calendarDay(available[0].date)}
-            fromMonth={calendarDay(available[0].date)} toMonth={calendarDay(available[available.length - 1].date)}
+            selected={selected} defaultMonth={selected || firstMonth}
+            fromMonth={firstMonth} toMonth={lastMonth}
             disabled={day => !spots.has(dateKey(day))}
             modifiers={{ available: day => spots.has(dateKey(day)) }}
             modifiersClassNames={{ available: 'bg-[#e7f7f5] text-[#167c7d] font-semibold' }}
@@ -56,8 +58,8 @@ export default function TourDatePicker({ dates, value, onChange, loading, error,
             onSelect={day => {
               if (!day || !spots.has(dateKey(day))) return;
               onChange(dateKey(day)); setOpen(false);
-            }} />}
-          <p className="px-3 pb-2 text-xs text-[#526173]">{t('booking_dates.help')}</p>
+            }} />
+          <p className="px-3 pb-2 text-xs text-[#526173]">{t(available.length ? 'booking_dates.help' : 'booking_dates.empty')}</p>
         </PopoverContent>
       </Popover>
       {selected && !loading && !error && <p role="status" className="text-xs text-[#167c7d]">{t('booking_dates.spots', { count: spots.get(value) })}</p>}

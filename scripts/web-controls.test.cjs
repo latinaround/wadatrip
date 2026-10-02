@@ -123,11 +123,18 @@ async function main() {
       assert.equal(await page.locator('button[name="day"]:not(:disabled)').count(), 1);
       await page.unroute(`**/listings/${listing.id}/availability`);
     });
-    await check('Empty availability disables date selection without inventing dates', async () => {
+    await check('Empty availability opens a calendar without inventing bookable dates', async () => {
       await page.route(`**/listings/${listing.id}/availability`, route => route.fulfill({ contentType: 'application/json', body: '{"items":[]}' }));
       await page.goto(`${origin}/tours/${listing.id}`);
       await page.getByText('No dates are currently available for booking.', { exact: true }).waitFor();
-      assert.ok(await page.getByRole('button', { name: /^Booking date:/ }).isDisabled());
+      const before = calls.length;
+      await page.getByRole('button', { name: /^Booking date:/ }).click();
+      await page.getByRole('grid').waitFor();
+      assert.ok(await page.locator('button[name="day"]').count() > 0);
+      assert.equal(await page.locator('button[name="day"]:not(:disabled)').count(), 0);
+      await page.locator('[data-slot="popover-content"]').getByText('No dates are currently available for booking.', { exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+      assert.ok(!calls.slice(before).some(call => call.path.endsWith('/booking-terms') || call.path === '/bookings' || call.path.includes('/checkout')));
       await page.unroute(`**/listings/${listing.id}/availability`);
     });
     await check('Calendar navigation reaches availability in a later month', async () => {
