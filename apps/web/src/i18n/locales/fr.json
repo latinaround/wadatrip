@@ -1,4 +1,16 @@
 {
+    "date_requests": {
+        "title": "Demander une date", "inbox": "Demandes de date", "help": "Aucun départ adapté ? Proposez une date à l'hôte. Aucun paiement ni réservation de places.",
+        "operator_help": "Répondez aux voyageurs. Proposez uniquement un départ réel avec assez de places. Une demande ne réserve pas de places.",
+        "sign_in": "Connectez-vous pour demander une date", "date": "Date demandée", "choose": "Choisir une date à proposer", "people": "Voyageurs",
+        "calendar_help": "Vous proposez une date, pas une disponibilité confirmée.", "submit": "Envoyer la demande", "saving": "Enregistrement...",
+        "saved": "Demande enregistrée. Attendez la réponse de l'hôte ou de Wadatrip. Aucun paiement ni place réservée.", "response_notice": "Réponse enregistrée. Le voyageur peut la consulter ; l'envoi du courriel est réessayé si nécessaire.",
+        "refresh": "Actualiser les demandes", "loading": "Chargement...", "empty": "Aucune demande de date.", "load_error": "Impossible de charger les départs.",
+        "state_requested": "En attente d'une réponse", "state_available": "L'hôte a proposé un départ", "state_declined": "L'hôte ne peut pas proposer cette date", "state_cancelled": "Demande clôturée",
+        "offered": "Date proposée", "not_reserved": "Sans réservation. Prix, places et conditions sont vérifiés lors de la réservation.", "view": "Voir le tour pour réserver",
+        "manage": "Gérer ce tour et sa disponibilité", "load_dates": "Charger les départs réels", "offer_date": "Départ à proposer", "spots": "places disponibles",
+        "no_offer_dates": "Aucun départ avec assez de places. Ajoutez une disponibilité réelle avant de proposer une date.", "offer": "Proposer ce départ", "decline": "Ne peut pas proposer de date", "close": "Clôturer la demande", "closed_notice": "Demande clôturée. Aucune réservation ni paiement modifié."
+    },
     "booking_dates": {
         "label": "Date de l’excursion", "choose": "Choisir une date", "loading": "Chargement des dates...",
         "spots_one": "{{count}} place disponible", "spots_other": "{{count}} places disponibles",

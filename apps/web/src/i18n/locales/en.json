@@ -1,4 +1,16 @@
 {
+    "date_requests": {
+        "title": "Request a date", "inbox": "Date requests", "help": "No suitable departure? Ask the host for a date. This is an inquiry: no booking, reserved spots or payment.",
+        "operator_help": "Respond to traveler inquiries. Offer only a real departure with enough spots. Requests do not reserve inventory.",
+        "sign_in": "Sign in to request a date", "date": "Requested date", "choose": "Choose a requested date", "people": "Travelers",
+        "calendar_help": "You are proposing a date, not selecting confirmed availability.", "submit": "Send date request", "saving": "Saving...",
+        "saved": "Request saved. Await the host or Wadatrip team. Nothing is reserved and no payment was taken.", "response_notice": "Response saved. The traveler can review it; email delivery is retried if needed.",
+        "refresh": "Refresh requests", "loading": "Loading requests...", "empty": "No date requests yet.", "load_error": "Could not load departure dates.",
+        "state_requested": "Waiting for a response", "state_available": "Host offered a departure", "state_declined": "Host cannot offer this date", "state_cancelled": "Request closed",
+        "offered": "Offered date", "not_reserved": "Not reserved. Current price, spots and terms are checked again when you book.", "view": "View tour to book",
+        "manage": "Manage this tour and its availability", "load_dates": "Load real departures", "offer_date": "Departure to offer", "spots": "spots available",
+        "no_offer_dates": "No departure has enough spots. Add real availability before offering a date.", "offer": "Offer this departure", "decline": "Cannot offer a date", "close": "Close request", "closed_notice": "Request closed. No booking or payment was affected."
+    },
     "booking_dates": {
         "label": "Booking date", "choose": "Choose a date", "loading": "Loading dates...",
         "spots_one": "{{count}} spot available", "spots_other": "{{count}} spots available",

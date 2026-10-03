@@ -12,6 +12,7 @@ import { getListingShareCopy } from '../utils/listingMode';
 import { useAuth } from '../context/AuthContext.jsx';
 import { uploadImageFile } from '../services/mediaUpload';
 import OperatorReadinessPanel from '../components/OperatorReadinessPanel.jsx';
+import TourDateRequests from '../components/TourDateRequests.jsx';
 
 const tokenStorageKey = 'wadatrip_token';
 
@@ -813,6 +814,8 @@ export default function OperatorToursNew() {
             )}
           </p>
         </header>
+
+        {user && token && <TourDateRequests apiBase={apiBase} operator />}
 
         {!isAuthenticatedMode ? (
           <section className="page-card">

@@ -4,6 +4,7 @@ type EmailOptions = {
   subject: string;
   text: string;
   logScope: string;
+  idempotencyKey?: string;
 };
 
 type EmailResult = { sent: boolean; reason?: 'email_not_configured' | 'email_failed' | 'email_error' };
@@ -26,7 +27,9 @@ export async function sendTransactionalEmail(options: EmailOptions): Promise<Ema
       headers: {
         Authorization: `Bearer ${isResend ? RESEND_API_KEY : SENDGRID_API_KEY}`,
         'Content-Type': 'application/json',
+        ...(isResend && options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
       },
+      ...(options.idempotencyKey ? { signal: AbortSignal.timeout(10000) } : {}),
       body: JSON.stringify(isResend
         ? { from: options.from, to: [options.to], subject: options.subject, text: options.text }
         : {

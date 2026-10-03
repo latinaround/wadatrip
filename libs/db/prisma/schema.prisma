@@ -28,6 +28,7 @@ model users {
   provider_profile    providers?            @relation("ProviderOwner")
   auth_login_codes    auth_login_codes[]
   push_devices        push_devices[]
+  tour_date_requests  tour_date_requests[]
 
 
   @@index([email])
@@ -251,6 +252,7 @@ model listings {
   availability     listing_availability[]
   bookings         bookings[]
   trip_experiences trip_experiences[]
+  date_requests    tour_date_requests[]
 
   @@index([provider_id], name: "idx_listings_provider")
   @@index([city, country_code, category, status], name: "idx_listings_search")
@@ -270,6 +272,48 @@ model provider_documents {
   provider providers @relation(fields: [provider_id], references: [id])
 
   @@index([provider_id], name: "idx_provider_docs_provider")
+}
+
+// An inquiry is never a booking, payment authorization or inventory hold.
+model tour_date_requests {
+  id            String   @id @default(cuid())
+  user_id       String
+  listing_id    String
+  requested_date DateTime @db.Date
+  num_people    Int
+  status        String   @default("requested")
+  response_date DateTime? @db.Date
+  responded_at  DateTime?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  user          users    @relation(fields: [user_id], references: [id])
+  listing       listings @relation(fields: [listing_id], references: [id])
+  notifications tour_request_notifications[]
+
+  @@unique([user_id, listing_id, requested_date], name: "traveler_listing_date_request")
+  @@index([listing_id, status, created_at])
+  @@index([user_id, status, created_at])
+}
+
+// Durable, bounded email retries; the private inbox works even if email fails.
+model tour_request_notifications {
+  id              String   @id @default(cuid())
+  request_id      String
+  audience        String
+  status          String   @default("pending")
+  attempts        Int      @default(0)
+  next_attempt_at DateTime @default(now())
+  lease_until     DateTime?
+  claim_id        String?
+  last_error      String?
+  sent_at         DateTime?
+  created_at      DateTime @default(now())
+
+  request tour_date_requests @relation(fields: [request_id], references: [id])
+
+  @@unique([request_id, audience])
+  @@index([status, next_attempt_at])
 }
 
 model listing_availability {

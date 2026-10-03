@@ -12,6 +12,7 @@ import BrandLogo from '../components/BrandLogo';
 import { useAuth } from '../context/AuthContext.jsx';
 import AuthDialog from '../components/AuthDialog.jsx';
 import TourDatePicker from '../components/TourDatePicker.jsx';
+import TourDateRequests from '../components/TourDateRequests.jsx';
 import { bookTravelerExperience, SIGN_IN_REQUIRED } from '../services/travelerBooking';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
@@ -505,6 +506,8 @@ export default function TourDetail() {
             >
               Copy public tour link
             </Button>
+            <TourDateRequests key={currentHost.id} apiBase={apiBase} listingId={currentHost.id}
+              onSignIn={() => setAuthOpen(true)} onAvailabilityChange={() => setAvailabilityRetry(value => value + 1)} />
           </div>
         </section>
 

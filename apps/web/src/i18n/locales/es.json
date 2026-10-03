@@ -1,4 +1,16 @@
 {
+    "date_requests": {
+        "title": "Solicitar una fecha", "inbox": "Solicitudes de fecha", "help": "¿No hay una salida adecuada? Consulta al anfitrión por una fecha. No crea una reserva, no aparta cupos y no tiene cobro.",
+        "operator_help": "Responde las consultas de viajeros. Ofrece solo una salida real con cupos suficientes. Las solicitudes no apartan inventario.",
+        "sign_in": "Inicia sesión para solicitar una fecha", "date": "Fecha solicitada", "choose": "Elegir una fecha para consultar", "people": "Viajeros",
+        "calendar_help": "Estás proponiendo una fecha, no eligiendo disponibilidad confirmada.", "submit": "Enviar solicitud de fecha", "saving": "Guardando...",
+        "saved": "Solicitud guardada. Espera la respuesta del anfitrión o del equipo Wadatrip. No hay cupos reservados ni cobro.", "response_notice": "Respuesta guardada. El viajero puede consultarla; el envío de correo se reintenta si falla.",
+        "refresh": "Actualizar solicitudes", "loading": "Cargando solicitudes...", "empty": "Aún no hay solicitudes de fecha.", "load_error": "No se pudieron cargar las salidas.",
+        "state_requested": "Esperando respuesta", "state_available": "El anfitrión ofreció una salida", "state_declined": "El anfitrión no puede ofrecer esta fecha", "state_cancelled": "Solicitud cerrada",
+        "offered": "Fecha ofrecida", "not_reserved": "Sin reserva. El precio, los cupos y las condiciones se validan otra vez al reservar.", "view": "Ver tour para reservar",
+        "manage": "Gestionar este tour y su disponibilidad", "load_dates": "Cargar salidas reales", "offer_date": "Salida que ofrecer", "spots": "cupos disponibles",
+        "no_offer_dates": "No hay una salida con suficientes cupos. Añade disponibilidad real antes de ofrecer una fecha.", "offer": "Ofrecer esta salida", "decline": "No puedo ofrecer una fecha", "close": "Cerrar solicitud", "closed_notice": "Solicitud cerrada. No se modificó ninguna reserva ni pago."
+    },
     "booking_dates": {
         "label": "Fecha del tour", "choose": "Elegir fecha", "loading": "Cargando fechas...",
         "spots_one": "{{count}} cupo disponible", "spots_other": "{{count}} cupos disponibles",

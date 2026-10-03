@@ -14,6 +14,8 @@ import { EventsGateway } from './events.gateway';
 import { TripsController } from './controllers/trips.controller';
 import { DevicesController } from './controllers/devices.controller';
 import { BookingAutomationService } from './services/booking-automation.service';
+import { TourDateRequestsController } from './controllers/tour-date-requests.controller';
+import { TourRequestNotificationsService } from './services/tour-request-notifications.service';
 
 @Module({
   imports: [
@@ -35,7 +37,8 @@ import { BookingAutomationService } from './services/booking-automation.service'
     WebhooksController,
     TripsController,
     DevicesController,
+    TourDateRequestsController,
   ],
-  providers: [EventsGateway, BookingAutomationService],
+  providers: [EventsGateway, BookingAutomationService, TourRequestNotificationsService],
 })
 export class AppModule {}
