@@ -1,4 +1,7 @@
 -- Additive only: no historical bookings, payments or inventory are modified.
+BEGIN;
+SET LOCAL lock_timeout = '3s';
+SET LOCAL statement_timeout = '15s';
 CREATE TABLE "tour_date_requests" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "user_id" TEXT NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
@@ -41,3 +44,4 @@ CREATE UNIQUE INDEX "tour_request_notifications_request_id_audience_key"
   ON "tour_request_notifications"("request_id","audience");
 CREATE INDEX "tour_request_notifications_status_next_attempt_at_idx"
   ON "tour_request_notifications"("status","next_attempt_at");
+COMMIT;
