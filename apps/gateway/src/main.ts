@@ -93,7 +93,7 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Operator-Access-Code'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Operator-Access-Code', 'X-Admin-Proof'],
   };
 
   // 🚀 Crear instancia Nest
@@ -130,7 +130,7 @@ async function bootstrap() {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Operator-Access-Code');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Operator-Access-Code, X-Admin-Proof');
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }

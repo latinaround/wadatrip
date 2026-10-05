@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import jwt from 'jsonwebtoken';
 import { timingSafeEqual } from 'crypto';
+import { hasAdminProof } from './admin-proof';
 
 export function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET;
@@ -14,13 +15,14 @@ export function getClaimsFromAuth(req: any): jwt.JwtPayload | null {
   try {
     const claims = jwt.verify(authorization.slice(7).trim(), getJwtSecret(), { algorithms: ['HS256'] });
     return typeof claims === 'object' && typeof claims.sub === 'string' && claims.sub.length > 0
+      && claims.purpose !== 'admin_step_up' && claims.aud !== 'wadatrip-admin'
       && typeof claims.exp === 'number' ? claims : null;
   } catch { return null; }
 }
 
 export type Actor = { id: string; email: string; name: string | null; role: string; verified: boolean; admin: boolean };
 
-export async function requireActor(req: any, prisma: any): Promise<Actor> {
+async function actorIdentity(req: any, prisma: any): Promise<Actor> {
   const claims = getClaimsFromAuth(req);
   if (!claims?.sub) throw new UnauthorizedException('not authenticated');
   const user = await prisma.users.findUnique({ where: { id: claims.sub } });
@@ -31,6 +33,22 @@ export async function requireActor(req: any, prisma: any): Promise<Actor> {
   const emails = String(process.env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
   return { id: user.id, email, name: user.name, role: user.role, verified,
     admin: verified && (user.role === 'admin' || ids.includes(user.id) || emails.includes(email)) };
+}
+
+// Only authentication/enrollment handlers may use eligibility without step-up.
+export async function requireAdminIdentity(req: any, prisma: any): Promise<Actor> {
+  const actor = await actorIdentity(req, prisma);
+  if (!actor.admin) throw new ForbiddenException('admin access is required');
+  return actor;
+}
+
+export async function requireActor(req: any, prisma: any): Promise<Actor> {
+  const actor = await actorIdentity(req, prisma);
+  if (actor.admin && process.env.ADMIN_REQUIRE_MFA === 'true') {
+    actor.admin = await hasAdminProof(req, prisma, actor.id, getJwtSecret());
+  }
+  if (actor.admin) req.adminAuditActorId = actor.id;
+  return actor;
 }
 
 export function requireVerified(actor: Actor) {
@@ -56,6 +74,7 @@ export function serviceHeaders(req?: any): Record<string, string> {
   const token = process.env.INTERNAL_SERVICE_TOKEN;
   if (!token) throw new ForbiddenException('internal service authentication is not configured');
   return { 'x-internal-service-token': token,
+    ...(req?.headers?.['x-admin-proof'] ? { 'x-admin-proof': String(req.headers['x-admin-proof']) } : {}),
     ...(req?.headers?.authorization ? { Authorization: String(req.headers.authorization) } : {}) };
 }
 

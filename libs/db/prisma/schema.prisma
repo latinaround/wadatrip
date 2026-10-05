@@ -29,9 +29,37 @@ model users {
   auth_login_codes    auth_login_codes[]
   push_devices        push_devices[]
   tour_date_requests  tour_date_requests[]
+  admin_mfa           admin_mfa?
+  admin_audit_log     admin_audit_log[]
 
 
   @@index([email])
+}
+
+model admin_mfa {
+  user_id           String @id
+  secret_encrypted  String
+  enabled_at        DateTime?
+  setup_expires_at  DateTime
+  last_counter      BigInt @default(-1)
+  failures          Int @default(0)
+  locked_until      DateTime?
+  version           Int @default(1)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  user users @relation(fields: [user_id], references: [id], onDelete: Restrict)
+}
+
+model admin_audit_log {
+  id           String @id @default(cuid())
+  actor_id     String
+  action       String
+  resource_id  String?
+  result       String
+  created_at   DateTime @default(now())
+  actor users @relation(fields: [actor_id], references: [id], onDelete: Restrict)
+  @@index([actor_id, created_at])
+  @@index([created_at])
 }
 
 model push_devices {

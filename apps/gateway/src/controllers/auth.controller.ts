@@ -21,7 +21,7 @@ function signToken(user: any, emailVerified = false) {
   return jwt.sign(
     { sub: user.id, email: user.email, role: user.role, email_verified: emailVerified },
     secret,
-    { expiresIn: TOKEN_TTL_SECONDS },
+    { expiresIn: TOKEN_TTL_SECONDS, jwtid: crypto.randomUUID() },
   );
 }
 

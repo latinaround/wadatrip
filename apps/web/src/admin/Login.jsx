@@ -1,44 +1,39 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { signInEmail } from './firebase'
+import { useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import { useAdmin } from './auth'
-import { Button } from '@/components/ui/button'
+import { apiFetch } from './api'
+import AuthDialog from '../components/AuthDialog.jsx'
 
 export default function AdminLogin() {
-  const navigate = useNavigate()
-  const { user, isAdmin, ready } = useAdmin()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (ready && user && isAdmin) navigate('/admin/providers', { replace: true })
-  }, [ready, user, isAdmin])
-
-  const onSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      await signInEmail(email.trim(), password)
-      // redirect handled by effect
-    } catch (e) {
-      setError(e?.message || 'Login failed')
-    } finally { setLoading(false) }
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-      <form onSubmit={onSubmit} className="w-full max-w-sm bg-white border rounded-lg p-6 shadow-sm">
-        <h1 className="text-xl font-extrabold text-teal-700 mb-4">Admin Login</h1>
-        <label className="block text-sm font-medium text-gray-700">Email</label>
-        <input className="mt-1 w-full border rounded px-3 py-2" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@wadatrip.com" />
-        <label className="block text-sm font-medium text-gray-700 mt-3">Password</label>
-        <input className="mt-1 w-full border rounded px-3 py-2" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-        {error && (<div className="text-red-600 text-sm mt-3">{error}</div>)}
-        <Button className="w-full mt-4" type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</Button>
-      </form>
-    </div>
-  )
+  const admin = useAdmin()
+  const [open, setOpen] = useState(false), [code, setCode] = useState(''), [setup, setSetup] = useState(null)
+  const [error, setError] = useState(''), [busy, setBusy] = useState(false)
+  if (!admin.ready) return <p className="p-6">Comprobando acceso…</p>
+  if (admin.isAdmin && admin.verified) return <Navigate to="/admin/users" replace />
+  const act = async callback => { setBusy(true); setError(''); try { await callback() } catch (err) { setError(err.message) } finally { setBusy(false) } }
+  return <main className="min-h-screen bg-slate-50 p-6 text-slate-900"><section className="mx-auto max-w-lg space-y-4 rounded-2xl border bg-white p-6">
+    <h1 className="text-2xl font-bold">Administración de Wadatrip</h1>
+    <p>Usa tu cuenta de Wadatrip. Los permisos se verifican en el servidor.</p>
+    {!admin.user ? <button className="rounded bg-teal-700 px-4 py-2 text-white" onClick={() => setOpen(true)}>Iniciar sesión</button> : !admin.isAdmin ? <>
+      <p role="alert">{admin.error || 'Esta cuenta no tiene acceso administrativo.'}</p>
+      <button className="rounded border p-2" onClick={admin.signOut}>Cerrar sesión y cambiar de cuenta</button>
+      <button className="ml-2 rounded border p-2" onClick={admin.refresh}>Volver a comprobar</button>
+    </> : <>
+      <h2 className="font-semibold">Verificación con app autenticadora</h2>
+      {!admin.enrolled && !setup && <button className="rounded border p-2" disabled={busy} onClick={() => act(async () => setSetup(await apiFetch('/admin/mfa/setup', { method: 'POST' })))}>Configurar segundo factor</button>}
+      {setup && <div className="space-y-2 rounded border p-3">
+        <p>Añade una cuenta manualmente en tu app autenticadora: nombre «Wadatrip», clave de configuración y códigos basados en tiempo.</p>
+        <p className="break-all font-mono" aria-label="Clave de configuración">{setup.secret}</p>
+        <p>No compartas esta clave. Al confirmar el primer código, desaparecerá de esta pantalla.</p>
+      </div>}
+      {(admin.enrolled || setup) && <form className="space-y-3" onSubmit={event => { event.preventDefault(); void act(async () => { await admin.verify(code); setSetup(null); setCode('') }) }}>
+        <label htmlFor="admin-otp" className="block">Código de la app autenticadora</label>
+        <input id="admin-otp" className="w-full rounded border p-2" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={event => setCode(event.target.value)} />
+        <button className="rounded bg-teal-700 px-4 py-2 text-white" disabled={busy}>Verificar y entrar</button>
+      </form>}
+      <p className="text-sm">La verificación dura 15 minutos. Si pierdes tu autenticador, solicita recuperación administrativa; no se omite el segundo factor.</p>
+      <button className="rounded border p-2" onClick={admin.signOut}>Cerrar sesión</button>
+    </>}
+    {error && <p role="alert">{error}</p>}
+  </section><AuthDialog open={open} onClose={() => setOpen(false)} initialMode="login" /></main>
 }

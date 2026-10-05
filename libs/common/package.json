@@ -25,6 +25,10 @@
       "types": "./dist/redis.d.ts",
       "default": "./dist/redis.js"
     },
+    "./admin-proof": {
+      "types": "./dist/admin-proof.d.ts",
+      "default": "./dist/admin-proof.js"
+    },
     "./security": {
       "types": "./dist/security.d.ts",
       "default": "./dist/security.js"
