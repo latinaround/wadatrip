@@ -38,6 +38,18 @@ test('rate-limit failures persist despite HTTP-style rejection',async()=>{
  const code=otp()==='000000'?'000001':'000000';for(let i=0;i<5;i++)await assert.rejects(verifyAdminMfa(db,actor,req,code));
  const record=await db.admin_mfa.findUnique({where:{user_id:actor.id}});assert.ok(record.locked_until>Date.now());await assert.rejects(setupAdminMfa(second,actor));
 });
+test('expired unfinished enrollment restarts safely against real PostgreSQL',async()=>{
+ const pending={id:'synthetic-expired-admin',email:'expired@example.invalid',verified:true,admin:true};
+ await db.users.create({data:{id:pending.id,email:pending.email,role:'admin',status:'active'}});
+ const previous=await setupAdminMfa(db,pending);
+ await db.admin_mfa.update({where:{user_id:pending.id},data:{setup_expires_at:new Date(Date.now()-1000),failures:2}});
+ await assert.rejects(verifyAdminMfa(db,pending,req,'123456'),error=>error.getResponse().code==='ADMIN_MFA_SETUP_EXPIRED');
+ const next=await setupAdminMfa(second,pending),record=await db.admin_mfa.findUnique({where:{user_id:pending.id}});
+ assert.notEqual(next.secret,previous.secret);assert.equal(record.failures,2);assert.equal(record.enabled_at,null);
+ const code=totp(decryptSecret(record.secret_encrypted,pending.id),BigInt(Math.floor(Date.now()/30000)));
+ const result=await verifyAdminMfa(db,pending,req,code);assert.ok(result.proof);
+ assert.ok((await db.admin_mfa.findUnique({where:{user_id:pending.id}})).enabled_at);
+});
 test('additive migration upgrades populated historical schema without altering accounts',async()=>{
  provision(legacyName);const baseline=deploy(legacyName,'recovered');assert.equal(baseline.status,0);historical=client(legacyName);await verify(historical,legacyName);
  await historical.$executeRaw`INSERT INTO users(id,email,role,status,created_at) VALUES('synthetic-legacy-user','legacy@example.invalid','traveler','active',CURRENT_TIMESTAMP)`;

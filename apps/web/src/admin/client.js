@@ -27,7 +27,7 @@ export function createAdminClient({ getSession, getBase, onStepUp = () => {}, fe
     if (response.status === 401) { clear(); session.logout(); throw invalid() }
     if (response.status === 403 && payload?.code === 'ADMIN_PRIMARY_REAUTH_REQUIRED') { clear(); session.logout() }
     if (response.status === 403 && payload?.code === 'ADMIN_STEP_UP_REQUIRED') { clear(); onStepUp() }
-    if (!response.ok) throw Object.assign(new Error(payload?.message || 'No se pudo consultar la administración.'), { status: response.status })
+    if (!response.ok) throw Object.assign(new Error(payload?.message || 'No se pudo consultar la administración.'), { status: response.status, code: payload?.code })
     return payload
   }
   return { request, clear, setProof }

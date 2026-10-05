@@ -63,7 +63,10 @@ export async function verifyAdminMfa(prisma: any, actor: any, req: any, code: un
     const record = await tx.admin_mfa.findUnique({ where: { user_id: actor.id } });
     if (!record) return { error: 'Set up your authenticator first' };
     if (record.locked_until && record.locked_until > now) return { error: 'Too many attempts. Try again in 15 minutes' };
-    if (!record.enabled_at && record.setup_expires_at <= now) return { error: 'Setup expired. Start authenticator setup again' };
+    if (!record.enabled_at && record.setup_expires_at <= now) return {
+      error: 'La configuración ha vencido. Reiníciala y añade la nueva clave en tu app autenticadora.',
+      code: 'ADMIN_MFA_SETUP_EXPIRED',
+    };
     const secret = decryptSecret(record.secret_encrypted, actor.id), counter = BigInt(Math.floor(+now / 30000));
     let accepted: bigint | null = null;
     for (const offset of [0n, -1n, 1n]) {
@@ -82,7 +85,7 @@ export async function verifyAdminMfa(prisma: any, actor: any, req: any, code: un
     return { version: record.version };
   });
   // Failed attempts must COMMIT before the response is rejected.
-  if (outcome.error) throw new ForbiddenException(outcome.error);
+  if (outcome.error) throw new ForbiddenException(outcome.code ? { message: outcome.error, code: outcome.code } : outcome.error);
   return { proof: jwt.sign({ purpose: 'admin_step_up', session_hash: adminSessionHash(req), credential_version: outcome.version }, getJwtSecret(),
     { algorithm: 'HS256', subject: actor.id, audience: 'wadatrip-admin', issuer: 'wadatrip', expiresIn: 15 * 60 }), expires_in_seconds: 15 * 60 };
 }

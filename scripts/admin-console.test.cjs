@@ -143,3 +143,26 @@ test('two primary sign-ins in the same second issue distinct session identities'
     const one=jwt.decode(a.token),two=jwt.decode(b.token);assert.equal(one.iat,two.iat);assert.ok(one.jti);assert.notEqual(one.jti,two.jti);assert.notEqual(a.token,b.token);
   }finally{db.users.findUnique=find;db.users.update=update;Module._load=load;Date.now=clock}
 });
+test('expired unfinished setup has a structured recovery error and never issues proof', async()=>{
+ const saved=credential;credential=null;
+ try{
+  await setupAdminMfa(db,actor());credential.setup_expires_at=new Date(Date.now()-1);
+  const r=await http('/admin/mfa/verify',token(),null,{code:code()});assert.equal(r.status,403);assert.equal(r.body.code,'ADMIN_MFA_SETUP_EXPIRED');assert.equal(r.body.proof,undefined);assert.equal(credential.enabled_at,null);
+ }finally{credential=saved}
+});
+test('restarting expired unfinished enrollment changes the key without resetting failures', async()=>{
+ const saved=credential;credential=null;
+ try{
+  const previous=await setupAdminMfa(db,actor());credential.setup_expires_at=new Date(Date.now()-1);credential.failures=2;
+  const next=await setupAdminMfa(db,actor());assert.notEqual(next.secret,previous.secret);assert.ok(new Date(next.expires_at)>new Date());assert.equal(credential.failures,2);assert.equal(credential.enabled_at,null);
+  await assert.rejects(verifyAdminMfa(db,actor(),request(token()),'123456',new Date(+credential.setup_expires_at+1)));
+  const accepted=await verifyAdminMfa(db,actor(),request(token()),code());assert.ok(accepted.proof);assert.ok(credential.enabled_at);
+ }finally{credential=saved}
+});
+test('enabled authenticator remains valid after its original setup deadline', async()=>{
+ const saved=credential;credential=null;
+ try{
+  await setupAdminMfa(db,actor());credential.enabled_at=new Date();credential.setup_expires_at=new Date(Date.now()-1);
+  const accepted=await verifyAdminMfa(db,actor(),request(token()),code());assert.ok(accepted.proof);
+ }finally{credential=saved}
+});

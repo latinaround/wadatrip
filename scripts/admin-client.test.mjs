@@ -24,3 +24,8 @@ test('caller cannot forward a stale proof after memory was cleared',async()=>{
  const current=session();let sent;const c=createAdminClient({getSession:()=>current,getBase:()=>'',fetcher:async(url,init)=>{sent=init.headers;return response(200,{})}});
  c.setProof(proof(Date.now()/1000+60),current.token);c.clear();await c.request('/admin/session',{headers:{'X-Admin-Proof':'stale-proof'}});assert.equal(sent.has('X-Admin-Proof'),false);
 });
+test('structured enrollment expiry reaches the UI without discarding primary login',async()=>{
+ const current=session();let loggedOut=false;current.logout=()=>loggedOut=true;
+ const c=createAdminClient({getSession:()=>current,getBase:()=>'',fetcher:async()=>response(403,{code:'ADMIN_MFA_SETUP_EXPIRED',message:'La configuración ha vencido.'})});
+ await assert.rejects(c.request('/admin/mfa/verify'),error=>error.code==='ADMIN_MFA_SETUP_EXPIRED');assert.equal(loggedOut,false);
+});
