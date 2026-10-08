@@ -166,3 +166,16 @@ test('enabled authenticator remains valid after its original setup deadline', as
   const accepted=await verifyAdminMfa(db,actor(),request(token()),code());assert.ok(accepted.proof);
  }finally{credential=saved}
 });
+test('admin users defaults to excluding test records with explicit reporting scope',async()=>{
+ const saved=credential;credential={...saved,enabled_at:new Date(),version:1};
+ try{
+  const bearer=token(),proof=jwt.sign({purpose:'admin_step_up',session_hash:adminSessionHash(request(bearer)),credential_version:1},process.env.JWT_SECRET,{subject:sourceUser.id,audience:'wadatrip-admin',issuer:'wadatrip',expiresIn:900});
+  const result=await http('/admin/users',bearer,proof);assert.equal(result.status,200);assert.equal(result.body.data_scope,'non_test');assert.equal(result.body.items[0].data_category,'unclassified');
+ }finally{credential=saved}
+});
+test('classification views still require primary authentication and MFA proof',async()=>{
+ for(const scope of ['all','test','non_test']){
+  assert.equal((await http('/admin/users?data_scope='+scope)).status,401);
+  assert.equal((await http('/admin/users?data_scope='+scope,token())).status,403);
+ }
+});

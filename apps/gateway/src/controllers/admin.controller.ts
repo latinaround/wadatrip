@@ -3,6 +3,7 @@ import { getPrisma } from '@wadatrip/db';
 import { getJwtSecret, getClaimsFromAuth, requireAdminIdentity } from '@wadatrip/common/security';
 import { hasAdminProof } from '@wadatrip/common/admin-proof';
 import { setupAdminMfa, verifyAdminMfa } from '../services/admin-mfa.service';
+import { readAdminUsers } from '../services/admin-user-data.service';
 
 export const adminUserSelect = { id: true, name: true, email: true, role: true, status: true, created_at: true, last_login_at: true,
   _count: { select: { bookings: true, tour_date_requests: true } }, provider_profile: { select: { id: true, status: true } } };
@@ -62,11 +63,8 @@ export class AdminController {
   }
   @Get('users')
   async users(@Req() req: any, @Query() query: any, @Res({ passthrough: true }) res: any) {
-    const actor = await this.access(req, res), where: any = {};
-    if (query.q) { const term = String(query.q).trim(); if (term.length > 150) throw new BadRequestException('Search is too long');
-      where.OR = [{ id: term }, { email: { contains: term, mode: 'insensitive' } }, { name: { contains: term, mode: 'insensitive' } }]; }
-    if (query.role) { if (!['traveler','guide','operator','admin'].includes(query.role)) throw new BadRequestException('Invalid role'); where.role = query.role; }
-    return this.read(getPrisma(), actor, 'users', query, where, adminUserSelect, 'users.list');
+    const actor = await this.access(req, res);
+    return readAdminUsers(getPrisma(), actor, query, adminPagination(query), adminUserSelect);
   }
   @Get('date-requests')
   async requests(@Req() req: any, @Query() query: any, @Res({ passthrough: true }) res: any) {

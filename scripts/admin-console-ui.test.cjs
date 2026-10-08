@@ -25,7 +25,13 @@ if(new URL(origin).hostname!=='127.0.0.1')throw Error('Local frontend only');
    if(setupExpired){status=403;body={message:'La configuración ha vencido.',code:'ADMIN_MFA_SETUP_EXPIRED'};}
    else{enrolled=true;proof='synthetic.'+Buffer.from(JSON.stringify({exp:Math.floor(now/1000)+900})).toString('base64url')+'.synthetic';body={proof};}
   }
-  if(u.pathname==='/admin/users')body={items:[{id:'synthetic-traveler',name:'Synthetic Traveler',email:'traveler@example.invalid',role:'traveler',status:'active',created_at:new Date().toISOString(),_count:{bookings:2,tour_date_requests:1}}],total:1};
+  if(u.pathname==='/admin/users'){
+   const scope=u.searchParams.get('data_scope')||'non_test',role=u.searchParams.get('role');
+   const regular={id:'synthetic-traveler',name:'Synthetic Traveler',email:'traveler@example.invalid',role:'traveler',status:'active',created_at:new Date().toISOString(),_count:{bookings:2,tour_date_requests:1},data_category:'unclassified'};
+   const testUser={id:'synthetic-test-guide',name:'Synthetic Test Guide',email:'test@example.invalid',role:'guide',status:'active',created_at:new Date().toISOString(),_count:{bookings:1,tour_date_requests:0},data_category:'test'};
+   const items=(scope==='all'?[regular,testUser]:scope==='test'?[testUser]:[regular]).filter(x=>!role||x.role===role);
+   body={items,total:items.length,data_scope:scope,excluded_test_accounts:scope==='non_test'&&(!role||role==='guide')?1:0};
+  }
   if(u.pathname==='/admin/date-requests')body={items:[{id:'synthetic-inquiry',user_id:'synthetic-traveler',listing_id:'synthetic-listing',requested_date:'2026-10-10',status:'requested',num_people:2,listing:{title:'Synthetic tour'}}],total:1};
   if(u.pathname==='/admin/payment-issues')body={items:[{id:'synthetic-booking',status:'reconciliation_required',inventory_state:'reserved',amount_cents:null,payment:null,listing:{title:'Synthetic tour'}}],total:1};
   if(expire&&u.pathname==='/admin/users'){status=403;body={message:'Verify authenticator',code:'ADMIN_STEP_UP_REQUIRED'};}
@@ -61,6 +67,19 @@ if(new URL(origin).hostname!=='127.0.0.1')throw Error('Local frontend only');
   });
   await run('Users are fetched with shared Bearer and in-memory step-up proof',async()=>{
    await page.getByRole('cell',{name:'traveler@example.invalid',exact:true}).waitFor();const r=calls.find(c=>c.path==='/admin/users');assert.equal(r.headers.authorization,'Bearer '+primary);assert.equal(r.headers['x-admin-proof'],proof);
+  });
+  await run('Default users view excludes tests and explains unclassified accounts',async()=>{
+   assert.equal(await page.getByLabel('Tipo de cuentas').inputValue(),'non_test');await page.getByText('1 cuentas de prueba excluidas de esta consulta. Su historial se conserva.',{exact:true}).waitFor();
+   assert.equal(await page.getByRole('cell',{name:'test@example.invalid',exact:true}).count(),0);await page.getByRole('cell',{name:'Sin clasificar',exact:true}).waitFor();
+  });
+  await run('Test and all views retain labeled historical accounts',async()=>{
+   await page.getByLabel('Tipo de cuentas').selectOption('test');await page.getByRole('cell',{name:'test@example.invalid',exact:true}).waitFor();await page.getByRole('cell',{name:'Prueba',exact:true}).waitFor();assert.equal(await page.getByRole('cell',{name:'traveler@example.invalid',exact:true}).count(),0);
+   await page.getByLabel('Tipo de cuentas').selectOption('all');await page.getByRole('cell',{name:'traveler@example.invalid',exact:true}).waitFor();await page.getByRole('cell',{name:'test@example.invalid',exact:true}).waitFor();
+  });
+  await run('Guide filter composes with test exclusion and does not show a false user count',async()=>{
+   await page.getByLabel('Filtrar').selectOption('guide');await page.getByRole('cell',{name:'test@example.invalid',exact:true}).waitFor();
+   await page.getByLabel('Tipo de cuentas').selectOption('non_test');await page.getByText('No hay registros para esta consulta.',{exact:true}).waitFor();await page.getByText('0 registros',{exact:true}).waitFor();
+   await page.getByLabel('Filtrar').selectOption('');await page.getByRole('cell',{name:'traveler@example.invalid',exact:true}).waitFor();
   });
   await run('Date requests and unknown financial amounts are visible without money actions',async()=>{
    await page.getByRole('link',{name:'Solicitudes de fechas',exact:true}).click();await page.getByRole('cell',{name:'synthetic-inquiry',exact:true}).waitFor();await page.getByRole('link',{name:'Incidencias de pagos',exact:true}).click();await page.getByRole('cell',{name:'synthetic-booking',exact:true}).waitFor();assert.ok(await page.getByRole('cell',{name:'Desconocido',exact:true}).count());assert.equal(await page.getByRole('button',{name:/reembolsar|confirmar/i}).count(),0);

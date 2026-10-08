@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { client, verify, provision, deploy } from './postgres-test-target.mjs';
 const require=createRequire(import.meta.url);
 const {setupAdminMfa,verifyAdminMfa,decryptSecret,totp}=require('../apps/gateway/dist/apps/gateway/src/services/admin-mfa.service.js');
+const {readAdminUsers}=require('../apps/gateway/dist/apps/gateway/src/services/admin-user-data.service.js');
 const {hasAdminProof}=require('@wadatrip/common/admin-proof');
 process.env.JWT_SECRET='synthetic-disposable-admin-key-not-production';
 process.env.ADMIN_MFA_ENCRYPTION_KEY=Buffer.alloc(32,37).toString('base64');
@@ -56,4 +57,20 @@ test('additive migration upgrades populated historical schema without altering a
  const [before]=await historical.$queryRaw`SELECT to_jsonb(u) AS row FROM users u WHERE id='synthetic-legacy-user'`;
  const upgrade=deploy(legacyName);assert.equal(upgrade.status,0);const [after]=await historical.$queryRaw`SELECT to_jsonb(u) AS row FROM users u WHERE id='synthetic-legacy-user'`;
  assert.deepEqual(after,before);assert.equal(await historical.admin_mfa.count(),0);assert.equal(await historical.admin_audit_log.count(),0);
+});
+test('real PostgreSQL applies classification before pagination and preserves user history',async()=>{
+ const synthetic=[
+  {id:'synthetic-classification-test',email:'test.classification@example.invalid',role:'guide'},
+  {id:'synthetic-classification-user',email:'real.classification@example.invalid',role:'guide'},
+  {id:'synthetic-classification-unknown',email:'guide-smoke-classification@example.invalid',role:'traveler'},
+ ];
+ await db.users.createMany({data:synthetic});const ids=synthetic.map(x=>x.id);
+ const before=await db.users.findMany({where:{id:{in:ids}},orderBy:{id:'asc'}});
+ const call=(query,page=1)=>readAdminUsers(db,actor,{q:'classification@example.invalid',...query},{page,limit:1,skip:page-1},{id:true,email:true},[synthetic[0].id]);
+ const first=await call({}),secondPage=await call({},2);assert.equal(first.total,2);assert.equal(first.excluded_test_accounts,1);
+ assert.equal(new Set([...first.items,...secondPage.items].map(x=>x.id)).size,2);assert.ok([...first.items,...secondPage.items].every(x=>x.id!==synthetic[0].id));
+ const tests=await call({data_scope:'test'});assert.equal(tests.total,1);assert.equal(tests.items[0].data_category,'test');
+ const all=await call({data_scope:'all'});assert.equal(all.total,3);
+ const guides=await call({role:'guide'});assert.equal(guides.total,1);assert.equal(guides.items[0].id,synthetic[1].id);
+ assert.deepEqual(await db.users.findMany({where:{id:{in:ids}},orderBy:{id:'asc'}}),before);
 });
