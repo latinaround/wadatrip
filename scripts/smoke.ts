@@ -1,6 +1,7 @@
 import "dotenv/config";
 import axios from "axios";
 import { PrismaClient } from "@prisma/client";
+const { localTestApi, localTestDatabase } = require("./local-test-target.cjs");
 
 type Scenario = {
   total_price?: number;
@@ -26,9 +27,10 @@ async function sleep(ms: number) {
 }
 
 async function main() {
-  const prisma = new PrismaClient();
+  const base = localTestApi(process.env.GATEWAY_URL || undefined);
+  const databaseUrl = localTestDatabase(process.env.DATABASE_URL);
+  const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
   try {
-    const base = process.env.GATEWAY_URL || "http://localhost:3000";
     const authEmail = process.env.SMOKE_USER_EMAIL || "demo@wadatrip.local";
     const authPassword = process.env.SMOKE_USER_PASSWORD || "wadatrip123";
 
@@ -42,13 +44,15 @@ async function main() {
     console.log("Smoke starting at", base);
     console.log("Using providers", providers);
 
-    const auth = await axios.post(`${base}/auth/login`, { email: authEmail, password: authPassword });
+    const auth = await axios.post(`${base}/auth/login`, { email: authEmail, password: authPassword }, { maxRedirects: 0, proxy: false });
     const token = auth.data?.token as string | undefined;
     if (!token) {
       throw new Error("Login did not return a token");
     }
 
     const api = axios.create({
+      maxRedirects: 0,
+      proxy: false,
       baseURL: base,
       headers: { Authorization: `Bearer ${token}` },
       timeout: 60000,
@@ -126,7 +130,7 @@ async function main() {
       throw new Error("Stripe intent did not return clientSecret");
     }
 
-    console.log("Payment intent clientSecret", intent.data.clientSecret?.slice(0, 12) + "...");
+    console.log("Payment intent created");
 
     console.log("✅ Smoke flow completed successfully (real providers)");
   } finally {

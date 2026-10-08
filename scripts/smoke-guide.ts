@@ -1,5 +1,6 @@
 import "dotenv/config";
 import axios from "axios";
+const { localTestApi, localTestDatabase } = require("./local-test-target.cjs");
 
 type AuthResponse = {
   token?: string;
@@ -32,22 +33,12 @@ function buildUniqueEmail() {
 }
 
 function resolveBaseUrl() {
-  const explicit = process.env.SMOKE_GUIDE_BASE_URL?.trim();
-  if (explicit) return explicit.replace(/\/$/, "");
-
-  const gateway = process.env.GATEWAY_URL?.trim();
-  const allowLocal = String(process.env.SMOKE_GUIDE_ALLOW_LOCALHOST || "").toLowerCase() === "true";
-  if (gateway && !allowLocal) {
-    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(gateway)) {
-      return "https://wadatrip.onrender.com";
-    }
-  }
-
-  return (gateway || "https://wadatrip.onrender.com").replace(/\/$/, "");
+  return localTestApi(process.env.SMOKE_GUIDE_BASE_URL?.trim() || process.env.GATEWAY_URL?.trim() || undefined);
 }
 
 async function main() {
   const base = resolveBaseUrl();
+  localTestDatabase(process.env.DATABASE_URL);
   const email = process.env.SMOKE_GUIDE_EMAIL || buildUniqueEmail();
   const password = process.env.SMOKE_GUIDE_PASSWORD || "GuideTest123!";
   const name = process.env.SMOKE_GUIDE_NAME || "Guide Smoke";
@@ -60,7 +51,7 @@ async function main() {
     password,
     name,
     role: "guide",
-  });
+  }, { maxRedirects: 0, proxy: false });
 
   const token = register.data?.token;
   if (!token) {
@@ -71,6 +62,8 @@ async function main() {
   }
 
   const api = axios.create({
+    maxRedirects: 0,
+    proxy: false,
     baseURL: base,
     headers: { Authorization: `Bearer ${token}` },
     timeout: 30000,

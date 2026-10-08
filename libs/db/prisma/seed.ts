@@ -1,7 +1,9 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+const { localTestDatabase } = require('../../../scripts/local-test-target.cjs');
 
-const prisma = new PrismaClient();
+const databaseUrl = localTestDatabase(process.env.DATABASE_URL);
+const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
 const SALT_ROUNDS = Number(process.env.AUTH_SALT_ROUNDS || 12);
 
 type DestinationCoverSeed = {
