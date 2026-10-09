@@ -91,3 +91,13 @@ test('readiness requires Stripe-confirmed transfers and payouts', () => {
   assert.match(text, /✓ Payouts enabled/);
   assert.match(text, /8\/8/);
 });
+
+test('operator tour editing gives immediate feedback and restores the sole tour after Stripe return', () => {
+  const page = fs.readFileSync(path.resolve(__dirname, '../apps/web/src/pages/OperatorToursNew.jsx'), 'utf8');
+  assert.match(page, /const \[loadingTourId, setLoadingTourId\] = useState\(null\)/);
+  assert.match(page, /loadingTourId === listing\.id/);
+  assert.match(page, /document\.getElementById\('tour-details'\)\?\.scrollIntoView/);
+  assert.match(page, /id="tour-details"/);
+  assert.match(page, /ownedListings\.length === 1/);
+  assert.match(page, /handleLoadTourById\(ownedListings\[0\]\.id, \{ scroll: false \}\)/);
+});

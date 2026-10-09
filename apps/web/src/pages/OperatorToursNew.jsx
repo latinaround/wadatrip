@@ -88,6 +88,8 @@ export default function OperatorToursNew() {
   const [tourMessage, setTourMessage] = useState(null);
   const [providerLoading, setProviderLoading] = useState(false);
   const [tourLoading, setTourLoading] = useState(false);
+  const [loadingTourId, setLoadingTourId] = useState(null);
+  const [autoLoadAttempted, setAutoLoadAttempted] = useState(false);
   const [providerLookupId, setProviderLookupId] = useState('');
   const [createdTour, setCreatedTour] = useState(null);
   const [editLookup, setEditLookup] = useState('');
@@ -664,7 +666,7 @@ export default function OperatorToursNew() {
     }
   };
 
-  const handleLoadTourById = async (listingId) => {
+  const handleLoadTourById = async (listingId, { scroll = true } = {}) => {
     setEditMessage(null);
     if (!listingId) {
       setEditMessage(t('operator.messages.tour_link_required', 'Enter a tour link or ID.'));
@@ -672,9 +674,11 @@ export default function OperatorToursNew() {
     }
 
     setTourLoading(true);
+    setLoadingTourId(listingId);
     try {
       const data = await authFetch(`/listings/${encodeURIComponent(listingId)}/manage`, { method: 'GET' });
       setEditingId(listingId);
+      setEditLookup(listingId);
       setCreatedTour(data);
       setTourForm({
         provider_id: data?.provider_id || '',
@@ -701,11 +705,23 @@ export default function OperatorToursNew() {
       setCoverPreview(data?.cover_image_url || '');
       setEditMessage(t('operator.messages.tour_loaded', 'Tour loaded. Update the fields and save.'));
       loadAvailability(listingId);
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('edit', listingId);
+        url.searchParams.delete('connect');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        if (scroll) {
+          window.requestAnimationFrame(() => {
+            document.getElementById('tour-details')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        }
+      }
     } catch (err) {
       if (err?.status === 401) logout?.();
       setEditMessage(err?.message || t('operator.messages.tour_load_error', 'Error loading tour.'));
     } finally {
       setTourLoading(false);
+      setLoadingTourId(null);
     }
   };
 
@@ -742,6 +758,14 @@ export default function OperatorToursNew() {
       setPendingEditId(null);
     }
   }, [pendingEditId, accessCodeTrimmed, sessionToken]);
+
+  useEffect(() => {
+    if (!sessionToken || editingId || pendingEditId || loadingTourId || autoLoadAttempted) return;
+    if (ownedListings.length === 1) {
+      setAutoLoadAttempted(true);
+      handleLoadTourById(ownedListings[0].id, { scroll: false });
+    }
+  }, [autoLoadAttempted, editingId, loadingTourId, ownedListings, pendingEditId, sessionToken]);
 
   const handleLoadTour = async (event) => {
     event.preventDefault();
@@ -981,11 +1005,16 @@ export default function OperatorToursNew() {
                     onClick={() => handleLoadTourById(listing.id)}
                     disabled={tourLoading}
                   >
-                    {tourLoading && editingId === listing.id ? t('operator.loading_label', 'Loading...') : 'Edit this tour'}
+                    {loadingTourId === listing.id
+                      ? t('operator.loading_label', 'Loading...')
+                      : editingId === listing.id
+                        ? 'Editing this tour'
+                        : 'Edit this tour'}
                   </Button>
                 </div>
               ))}
             </div>
+            {editMessage ? <p className="mt-3 text-sm text-[#00D9FF]" role="status">{editMessage}</p> : null}
             <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
               <div>
                 <label htmlFor="edit-tour-link" className="text-sm text-[#e0e0e0]">
@@ -1312,7 +1341,7 @@ export default function OperatorToursNew() {
           </div>
         </section>
 
-        <section className="page-card">
+        <section className="page-card" id="tour-details">
           <div className="space-y-1">
             <p className="text-sm text-[#00D9FF]">
               {isAuthenticatedMode && !hasOwnedListings && !editingId
