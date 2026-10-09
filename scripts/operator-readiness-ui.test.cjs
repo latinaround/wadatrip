@@ -83,9 +83,9 @@ test('a Stripe reference alone is not payout readiness and operators can continu
   assert.match(text, /Continue payout setup/);
 });
 
-test('readiness requires Stripe-confirmed charges and payouts', () => {
+test('readiness requires Stripe-confirmed transfers and payouts', () => {
   const text = render({ ...provider, id: 'provider-synthetic' }, listing, {
-    payoutStatus: { linked: true, ready: true, charges_enabled: true, payouts_enabled: true },
+    payoutStatus: { linked: true, ready: true, transfers_enabled: true, payouts_enabled: true },
     onConnectPayout: () => {},
   });
   assert.match(text, /✓ Payouts enabled/);

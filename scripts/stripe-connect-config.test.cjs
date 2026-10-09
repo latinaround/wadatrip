@@ -15,13 +15,16 @@ new Function('require', 'module', 'exports', compiled)((id) => {
   throw new Error(`Unexpected dependency: ${id}`);
 }, loaded, loaded.exports);
 
-const { stripeConnectCapabilities, stripeConnectUrls, stripeConnectStatus } = loaded.exports;
+const { stripeConnectCapabilities, stripeConnectServiceAgreement, stripeConnectUrls, stripeConnectStatus } = loaded.exports;
 
-test('Stripe Connect requests the payment and transfer capabilities needed by an operator', () => {
+test('Stripe Connect requests only the transfer capability needed by a payout-only operator', () => {
   assert.deepEqual(stripeConnectCapabilities(), {
-    card_payments: { requested: true },
     transfers: { requested: true },
   });
+});
+
+test('Stripe Connect uses the recipient agreement required for payout-only accounts', () => {
+  assert.deepEqual(stripeConnectServiceAgreement(), { service_agreement: 'recipient' });
 });
 
 test('Stripe Connect refuses missing, placeholder and insecure production return URLs', () => {
@@ -40,10 +43,10 @@ test('Stripe Connect accepts explicit HTTPS Wadatrip return URLs', () => {
   assert.equal(new URL(urls.refreshUrl).searchParams.get('connect'), 'refresh');
 });
 
-test('a stored account ID is not ready until Stripe confirms account capabilities', () => {
-  assert.equal(stripeConnectStatus({ id: 'acct_synthetic', details_submitted: false, charges_enabled: false, payouts_enabled: false }).ready, false);
-  assert.equal(stripeConnectStatus({ id: 'acct_synthetic', details_submitted: true, charges_enabled: true, payouts_enabled: true, requirements: { currently_due: ['synthetic'] } }).ready, false);
-  assert.equal(stripeConnectStatus({ id: 'acct_synthetic', details_submitted: true, charges_enabled: true, payouts_enabled: true, requirements: {} }).ready, true);
+test('a payout-only account is ready only when transfers and payouts are active', () => {
+  assert.equal(stripeConnectStatus({ id: 'acct_synthetic', details_submitted: false, payouts_enabled: false, capabilities: {} }).ready, false);
+  assert.equal(stripeConnectStatus({ id: 'acct_synthetic', details_submitted: true, payouts_enabled: true, capabilities: { transfers: 'active' }, requirements: { currently_due: ['synthetic'] } }).ready, false);
+  assert.equal(stripeConnectStatus({ id: 'acct_synthetic', details_submitted: true, charges_enabled: false, payouts_enabled: true, capabilities: { transfers: 'active' }, requirements: {} }).ready, true);
 });
 
 test('booking payment routes require a ready destination and contain no platform-charge fallback', () => {
@@ -51,7 +54,8 @@ test('booking payment routes require a ready destination and contain no platform
   assert.match(controller, /requireReadyPayoutAccount\(stripe, booking\)/);
   assert.match(controller, /idempotencyKey: `wadatrip-connect-account:\$\{providerId\}`/);
   assert.match(controller, /capabilities: stripeConnectCapabilities\(\)/);
-  assert.match(controller, /accounts\.update\(accountId, \{ capabilities: stripeConnectCapabilities\(\) \}\)/);
+  assert.match(controller, /tos_acceptance: stripeConnectServiceAgreement\(\)/);
+  assert.match(controller, /accounts\.update\(accountId, \{\s*capabilities: stripeConnectCapabilities\(\),\s*tos_acceptance: stripeConnectServiceAgreement\(\),\s*\}\)/);
   assert.doesNotMatch(controller, /connect_fallback/);
   assert.doesNotMatch(controller, /example\.com\/reauth|example\.com\/return/);
 });

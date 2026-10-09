@@ -15,7 +15,7 @@ process.env.ADMIN_USER_IDS = '';
 for (const key of ['DATABASE_URL', 'DATABASE_URL_LOCAL', 'DATABASE_URL_REMOTE', 'SENDGRID_API_KEY', 'EMAIL_FROM', 'STRIPE_SECRET', 'STRIPE_WEBHOOK_SECRET']) delete process.env[key];
 const jwt = require('jsonwebtoken');
 const user = { id: 'traveler', email: 'traveler@example.test', name: 'Synthetic Traveler', status: 'active', role: 'traveler' };
-const provider = { id: 'provider', user_id: 'owner', stripe_account_id: null };
+const provider = { id: 'provider', user_id: 'owner', stripe_account_id: 'acct_synthetic_recipient' };
 const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: '10m' });
 const req = { headers: { authorization: `Bearer ${token}`, 'x-internal-service-token': process.env.INTERNAL_SERVICE_TOKEN } };
 let listing, bookings, stripeCalls;
@@ -32,6 +32,18 @@ const prisma = {
 class FakeStripe {
   constructor(key) {
     assert.equal(key, 'synthetic-stripe-mock-key');
+    this.accounts = { retrieve: async id => {
+      assert.equal(id, provider.stripe_account_id);
+      return {
+        id,
+        metadata: { wadatrip_provider_id: provider.id },
+        details_submitted: true,
+        charges_enabled: false,
+        payouts_enabled: true,
+        capabilities: { transfers: 'active' },
+        requirements: {},
+      };
+    } };
     this.checkout = { sessions: { create: async data => {
       stripeCalls.push({ type: 'checkout', data });
       return { id: 'synthetic-session', metadata: data.metadata, url: 'http://127.0.0.1/synthetic-checkout' };

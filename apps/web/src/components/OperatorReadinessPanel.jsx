@@ -25,7 +25,7 @@ const checks = [
   ['cutoff', 'Booking cutoff', (_, l) => hasNumber(l?.booking_cutoff_hours)
     && Number.isInteger(Number(l.booking_cutoff_hours)) && Number(l.booking_cutoff_hours) >= 0],
   ['payout', 'Payouts enabled', (_, __, payout) => payout?.ready === true
-    && payout?.charges_enabled === true && payout?.payouts_enabled === true],
+    && payout?.transfers_enabled === true && payout?.payouts_enabled === true],
 ];
 
 export default function OperatorReadinessPanel({ provider, listing, availability = [], loading, message, onSaveAvailability, onRemoveAvailability, onSavePolicy, payoutStatus, payoutLoading = false, payoutMessage, onConnectPayout }) {

@@ -4,9 +4,12 @@ type ConnectEnvironment = Record<string, string | undefined>;
 
 export function stripeConnectCapabilities() {
   return {
-    card_payments: { requested: true as const },
     transfers: { requested: true as const },
   };
+}
+
+export function stripeConnectServiceAgreement() {
+  return { service_agreement: 'recipient' as const };
 }
 
 function connectUrl(name: 'CONNECT_RETURN_URL' | 'CONNECT_REFRESH_URL', env: ConnectEnvironment): string {
@@ -38,11 +41,12 @@ export function stripeConnectStatus(account: any) {
   if (!account || account.deleted) {
     return {
       linked: Boolean(account), ready: false, details_submitted: false,
-      charges_enabled: false, payouts_enabled: false, requirements_due: true,
+      charges_enabled: false, transfers_enabled: false, payouts_enabled: false, requirements_due: true,
     };
   }
   const detailsSubmitted = account.details_submitted === true;
   const chargesEnabled = account.charges_enabled === true;
+  const transfersEnabled = account.capabilities?.transfers === 'active';
   const payoutsEnabled = account.payouts_enabled === true;
   const requirements = account.requirements || {};
   const requirementsDue = ['currently_due', 'past_due', 'pending_verification'].some(
@@ -50,9 +54,10 @@ export function stripeConnectStatus(account: any) {
   );
   return {
     linked: true,
-    ready: detailsSubmitted && chargesEnabled && payoutsEnabled && !requirementsDue,
+    ready: detailsSubmitted && transfersEnabled && payoutsEnabled && !requirementsDue,
     details_submitted: detailsSubmitted,
     charges_enabled: chargesEnabled,
+    transfers_enabled: transfersEnabled,
     payouts_enabled: payoutsEnabled,
     requirements_due: requirementsDue,
   };
