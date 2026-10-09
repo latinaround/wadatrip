@@ -104,6 +104,9 @@ export default function OperatorToursNew() {
   const [availabilityItems, setAvailabilityItems] = useState([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityMessage, setAvailabilityMessage] = useState(null);
+  const [payoutStatus, setPayoutStatus] = useState({ linked: false, ready: false });
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutMessage, setPayoutMessage] = useState(null);
 
   const accessCodeTrimmed = accessCode.trim();
   const isAuthenticatedMode = Boolean(sessionToken);
@@ -248,6 +251,55 @@ export default function OperatorToursNew() {
   useEffect(() => {
     loadOwnedListings();
   }, [loadOwnedListings]);
+
+  const loadPayoutStatus = useCallback(async (providerId) => {
+    if (!providerId || !sessionToken) {
+      setPayoutStatus({ linked: false, ready: false });
+      return null;
+    }
+    try {
+      const status = await authFetch(`/payments/connect/${encodeURIComponent(providerId)}/status`, { method: 'GET' });
+      setPayoutStatus(status || { linked: false, ready: false });
+      return status;
+    } catch (error) {
+      if (error?.status === 401) logout?.();
+      setPayoutStatus({ linked: Boolean(providerStatus?.stripe_account_id), ready: false });
+      setPayoutMessage(error?.message || 'Could not verify payout status.');
+      return null;
+    }
+  }, [authFetch, logout, providerStatus?.stripe_account_id, sessionToken]);
+
+  useEffect(() => {
+    if (!ownedProviderId) return;
+    loadPayoutStatus(ownedProviderId);
+  }, [loadPayoutStatus, ownedProviderId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const result = new URLSearchParams(window.location.search).get('connect');
+    if (result === 'return') setPayoutMessage('Returned from Stripe. Verifying payout readiness…');
+    if (result === 'refresh') setPayoutMessage('The Stripe setup link expired. Continue payout setup to get a new secure link.');
+  }, []);
+
+  const connectPayout = useCallback(async () => {
+    if (!ownedProviderId) {
+      setPayoutMessage('Save your guide profile before connecting payouts.');
+      return;
+    }
+    setPayoutLoading(true); setPayoutMessage(null);
+    try {
+      const data = await authFetch(`/payments/connect/${encodeURIComponent(ownedProviderId)}/link`, { method: 'POST' });
+      const destination = new URL(String(data?.url || ''));
+      if (destination.protocol !== 'https:' || destination.hostname !== 'connect.stripe.com') {
+        throw new Error('Stripe returned an invalid onboarding destination.');
+      }
+      window.location.assign(destination.toString());
+    } catch (error) {
+      if (error?.status === 401) logout?.();
+      setPayoutMessage(error?.message || 'Could not open Stripe payout setup.');
+      setPayoutLoading(false);
+    }
+  }, [authFetch, logout, ownedProviderId]);
 
   const providerCitySuggestions = useMemo(
     () => getCitySuggestions(providerForm.country_code),
@@ -1003,6 +1055,10 @@ export default function OperatorToursNew() {
             availability={availabilityItems}
             loading={availabilityLoading}
             message={availabilityMessage}
+            payoutStatus={payoutStatus}
+            payoutLoading={payoutLoading}
+            payoutMessage={payoutMessage}
+            onConnectPayout={connectPayout}
             onSaveAvailability={saveAvailability}
             onSavePolicy={saveBookingPolicy}
             onRemoveAvailability={removeAvailability}

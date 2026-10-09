@@ -24,8 +24,8 @@ new Function('require', 'module', 'exports', compiled)((id) => {
 const Panel = loaded.exports.default;
 const provider = { name: 'Synthetic guide', base_city: 'Lima', country_code: 'PE', languages: ['es'], status: 'approved' };
 const listing = { id: 'synthetic-listing', price_from: '50.00', currency: 'USD', timezone: 'America/Lima', meeting_point: 'Synthetic meeting point', cancellation_policy: 'Synthetic policy', booking_cutoff_hours: 24, tags: [] };
-function render(p = provider, l = listing) {
-  return renderToStaticMarkup(React.createElement(Panel, { provider: p, listing: l, availability: [] })).replace(/<[^>]*>/g, '');
+function render(p = provider, l = listing, extra = {}) {
+  return renderToStaticMarkup(React.createElement(Panel, { provider: p, listing: l, availability: [], ...extra })).replace(/<[^>]*>/g, '');
 }
 
 test('listing operational fields complete the checklist independently of provider fields', () => {
@@ -73,10 +73,21 @@ test('cutoff is only complete for an explicit nonnegative integer', () => {
   }
 });
 
-test('a payout reference is described as linked, not proof that payouts or bookings are enabled', () => {
-  const text = render({ ...provider, stripe_account_id: 'acct_synthetic_fixture' });
-  assert.match(text, /✓ Payout account linked/);
-  assert.match(text, /does not confirm that payouts are enabled/);
-  assert.doesNotMatch(text, /8\/8 requirements complete/);
-  assert.match(text, /No dates configured yet/);
+test('a Stripe reference alone is not payout readiness and operators can continue setup', () => {
+  const text = render({ ...provider, id: 'provider-synthetic', stripe_account_id: 'acct_synthetic_fixture' }, listing, {
+    payoutStatus: { linked: true, ready: false },
+    onConnectPayout: () => {},
+  });
+  assert.match(text, /○ Payouts enabled/);
+  assert.match(text, /7\/8/);
+  assert.match(text, /Continue payout setup/);
+});
+
+test('readiness requires Stripe-confirmed charges and payouts', () => {
+  const text = render({ ...provider, id: 'provider-synthetic' }, listing, {
+    payoutStatus: { linked: true, ready: true, charges_enabled: true, payouts_enabled: true },
+    onConnectPayout: () => {},
+  });
+  assert.match(text, /✓ Payouts enabled/);
+  assert.match(text, /8\/8/);
 });

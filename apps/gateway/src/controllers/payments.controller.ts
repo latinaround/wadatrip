@@ -15,6 +15,7 @@ import { requireActor, requireProviderAccess, requireBookingAccess } from '@wada
 import { validateBookingPrice } from '@wadatrip/common/booking-price';
 import { preparePayment } from '@wadatrip/common/payment-lifecycle';
 import { paymentObject, reconcileBookingPayment } from '../services/booking-payment.service';
+import { stripeConnectStatus, stripeConnectUrls } from '../services/stripe-connect.service';
 
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 
@@ -26,9 +27,31 @@ function bookingPaymentAmount(booking: any) {
   return price;
 }
 
+function marketplaceFeeAmount(amountCents: number) {
+  const feePct = Number(process.env.WADATRIP_FEE_PCT || 15);
+  if (!Number.isFinite(feePct) || feePct < 0 || feePct > 100) {
+    throw new BadRequestException('Invalid payment fee configuration');
+  }
+  return Math.floor(amountCents * feePct / 100);
+}
+
+async function requireReadyPayoutAccount(stripe: any, booking: any) {
+  const accountId = String(booking?.provider?.stripe_account_id || '').trim();
+  if (!accountId) throw new ConflictException('Operator payout setup is incomplete');
+  const account = await stripe.accounts.retrieve(accountId);
+  const associatedProvider = String(account?.metadata?.wadatrip_provider_id || '');
+  if (associatedProvider && associatedProvider !== booking.provider_id) {
+    throw new ConflictException('Payout account association mismatch');
+  }
+  if (!stripeConnectStatus(account).ready) {
+    throw new ConflictException('Operator payout account is not ready');
+  }
+  return accountId;
+}
+
 function normalizeCountryCode(raw: any): string {
   const value = String(raw || '').trim();
-  if (!value) return 'US';
+  if (!value) throw new BadRequestException('Provider country is required for payout setup');
   const upper = value.toUpperCase();
   if (/^[A-Z]{2}$/.test(upper)) return upper;
 
@@ -63,7 +86,9 @@ function normalizeCountryCode(raw: any): string {
     ITALY: 'IT',
   };
 
-  return known[normalized] || 'US';
+  const country = known[normalized];
+  if (!country) throw new BadRequestException('Provider country is not supported by payout setup');
+  return country;
 }
 
 // Minimal Stripe wrapper (throws when Stripe is misconfigured)
@@ -105,11 +130,27 @@ export class PaymentsController {
 
     return { items };
   }
+  @Get('connect/:providerId/status')
+  async connectStatus(@Param('providerId') providerId: string, @Req() req: any) {
+    const { provider } = await requireProviderAccess(req, getPrisma(), providerId);
+    if (!provider.stripe_account_id) return stripeConnectStatus(null);
+    const account = await requireStripe().accounts.retrieve(provider.stripe_account_id);
+    const associatedProvider = String(account?.metadata?.wadatrip_provider_id || '');
+    if (associatedProvider && associatedProvider !== providerId) {
+      throw new ConflictException('Payout account association mismatch');
+    }
+    return stripeConnectStatus(account);
+  }
+
   @Post('connect/:providerId/link')
   async connectLink(@Param('providerId') providerId: string, @Req() req: any) {
     const { provider } = await requireProviderAccess(req, getPrisma(), providerId);
+    const providerStatus = String(provider.status || provider.verification_status || '').toLowerCase();
+    if (!['approved', 'verified'].includes(providerStatus)) {
+      throw new BadRequestException('Provider must be approved before payout setup');
+    }
+    const { returnUrl, refreshUrl } = stripeConnectUrls();
     const stripe = requireStripe();
-    const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
     const prisma = getPrisma() as any;
 
     let accountId = provider.stripe_account_id;
@@ -119,19 +160,26 @@ export class PaymentsController {
         type: 'express',
         email: provider.email,
         country: stripeCountry,
-      });
+        metadata: { wadatrip_provider_id: providerId },
+      }, { idempotencyKey: `wadatrip-connect-account:${providerId}` });
       accountId = acct.id;
 
       await prisma.providers.update({
         where: { id: providerId },
         data: { stripe_account_id: accountId },
       });
+    } else {
+      const existing = await stripe.accounts.retrieve(accountId);
+      const associatedProvider = String(existing?.metadata?.wadatrip_provider_id || '');
+      if (existing?.deleted || (associatedProvider && associatedProvider !== providerId)) {
+        throw new ConflictException('Payout account association mismatch');
+      }
     }
 
     const link = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: process.env.CONNECT_REFRESH_URL || 'https://example.com/reauth',
-      return_url: process.env.CONNECT_RETURN_URL || 'https://example.com/return',
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
       type: 'account_onboarding',
     });
 
@@ -149,9 +197,12 @@ export class PaymentsController {
     const { booking } = await requireBookingAccess(req, prisma, String(body.booking_id), 'pay');
     bookingPaymentAmount(booking);
     const stripe = requireStripe();
+    const payoutAccountId = await requireReadyPayoutAccount(stripe, booking);
     const payment = await preparePayment(prisma, booking.id, 'intent', (current, paymentId) => ({
       amount: current.amount_cents, currency: current.currency,
       automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+      application_fee_amount: marketplaceFeeAmount(current.amount_cents),
+      transfer_data: { destination: payoutAccountId },
       metadata: { booking_id: current.id, payment_record_id: paymentId },
     }));
     const intent = await paymentObject(prisma, stripe, payment);
@@ -167,14 +218,13 @@ export class PaymentsController {
     const { booking } = await requireBookingAccess(req, prisma, bookingId, 'pay');
     bookingPaymentAmount(booking);
     const stripe = requireStripe();
+    const payoutAccountId = await requireReadyPayoutAccount(stripe, booking);
     const payment = await preparePayment(prisma, bookingId, 'checkout', (current, paymentId) => {
       const metadata = { booking_id: current.id, payment_record_id: paymentId };
       const success = new URL(process.env.CHECKOUT_SUCCESS_URL || `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/success`);
       success.searchParams.set('booking_id', current.id);
       const cancel = new URL(process.env.CHECKOUT_CANCEL_URL || `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/cancel`);
       cancel.searchParams.set('booking_id', current.id);
-      const feePct = Number(process.env.WADATRIP_FEE_PCT || 15);
-      if (!Number.isFinite(feePct) || feePct < 0 || feePct > 100) throw new BadRequestException('Invalid payment fee configuration');
       return {
         mode: 'payment', payment_method_types: ['card'],
         // One hour is a processor-session deadline, never permission to release inventory locally.
@@ -184,10 +234,10 @@ export class PaymentsController {
         cancel_url: cancel.toString(),
         line_items: [{ quantity: 1, price_data: { currency: current.currency, unit_amount: current.amount_cents,
           product_data: { name: current.listing?.title || 'Tour booking' } } }],
-        payment_intent_data: current.provider?.stripe_account_id ? {
-          application_fee_amount: Math.floor(current.amount_cents * feePct / 100),
-          transfer_data: { destination: current.provider.stripe_account_id }, metadata,
-        } : { metadata: { ...metadata, connect_fallback: 'true' } },
+        payment_intent_data: {
+          application_fee_amount: marketplaceFeeAmount(current.amount_cents),
+          transfer_data: { destination: payoutAccountId }, metadata,
+        },
       };
     });
     const session = await paymentObject(prisma, stripe, payment);

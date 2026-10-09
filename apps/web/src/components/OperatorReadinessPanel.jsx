@@ -24,13 +24,14 @@ const checks = [
   ['cancellation', 'Cancellation policy', (_, l) => hasText(l?.cancellation_policy)],
   ['cutoff', 'Booking cutoff', (_, l) => hasNumber(l?.booking_cutoff_hours)
     && Number.isInteger(Number(l.booking_cutoff_hours)) && Number(l.booking_cutoff_hours) >= 0],
-  ['payout', 'Payout account linked', (p) => hasText(p?.stripe_account_id)],
+  ['payout', 'Payouts enabled', (_, __, payout) => payout?.ready === true
+    && payout?.charges_enabled === true && payout?.payouts_enabled === true],
 ];
 
-export default function OperatorReadinessPanel({ provider, listing, availability = [], loading, message, onSaveAvailability, onRemoveAvailability, onSavePolicy }) {
+export default function OperatorReadinessPanel({ provider, listing, availability = [], loading, message, onSaveAvailability, onRemoveAvailability, onSavePolicy, payoutStatus, payoutLoading = false, payoutMessage, onConnectPayout }) {
   const [date, setDate] = useState('');
   const [spotsTotal, setSpotsTotal] = useState('');
-  const ready = useMemo(() => checks.filter(([, , predicate]) => predicate(provider, listing)).length, [provider, listing]);
+  const ready = useMemo(() => checks.filter(([, , predicate]) => predicate(provider, listing, payoutStatus)).length, [provider, listing, payoutStatus]);
   const canEditAvailability = Boolean(listing?.id);
   const save = async (event) => {
     event.preventDefault();
@@ -50,13 +51,22 @@ export default function OperatorReadinessPanel({ provider, listing, availability
       </div>
       <div className="mt-5 grid gap-2 md:grid-cols-2">
         {checks.map(([key, label, predicate]) => {
-          const complete = predicate(provider, listing);
+          const complete = predicate(provider, listing, payoutStatus);
           return <div key={key} className={`rounded-xl border px-3 py-2 text-sm ${complete ? 'border-[#167c7d]/50 bg-[#e7f7f5]/10 text-[#8df3d8]' : 'border-[#f59e0b]/30 bg-[#f59e0b]/5 text-[#f8c66b]'}`}>
             {complete ? '✓' : '○'} {label}
           </div>;
         })}
       </div>
-      <p className="mt-3 text-sm text-[#a0a0a0]">A linked payout account does not confirm that payouts are enabled. Real dates and available spots are also required before travelers can book.</p>
+      <p className="mt-3 text-sm text-[#a0a0a0]">Wadatrip confirms payout readiness with Stripe. Real dates and available spots are also required before travelers can book.</p>
+      {provider?.id && onConnectPayout ? (
+        <div className="mt-4 rounded-xl border border-[#00D9FF]/20 bg-[#0a0e27]/60 p-4">
+          <Button type="button" disabled={payoutLoading} onClick={onConnectPayout} className="h-11 neon-cta">
+            {payoutLoading ? 'Opening Stripe…' : payoutStatus?.linked ? 'Continue payout setup' : 'Connect payout account'}
+          </Button>
+          <p className="mt-2 text-sm text-[#a0a0a0]">Stripe securely collects identity and bank details. Wadatrip never receives card or bank credentials.</p>
+          {payoutMessage ? <p className="mt-2 text-sm text-[#8df3d8]">{payoutMessage}</p> : null}
+        </div>
+      ) : null}
       {canEditAvailability ? (
         <>
           {onSavePolicy ? <OperatorBookingPolicyForm key={`${listing.id}:${listing.departure_time}:${listing.cancellation_policy_version}`} listing={listing} onSave={onSavePolicy} loading={loading} /> : null}

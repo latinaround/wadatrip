@@ -35,7 +35,8 @@ test('late cancellation of a settled booking does not automatically award a refu
   assert.equal(next.inventory, 'RELEASE');
 });
 
-test('terms snapshot requires explicit policy acceptance and uses the listing timezone', () => {
+test('terms snapshot requires explicit policy acceptance and uses the listing timezone', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-08T12:00:00.000Z') });
   const listing = { timezone: 'America/Lima', departure_time: '09:30', booking_cutoff_hours: 24,
     cancellation_policy_version: 'flexible_24h_v1', meeting_point: 'Synthetic point' };
   const terms = bookingTerms(listing, '2026-10-10', new Date('2026-10-08T12:00:00.000Z'));
