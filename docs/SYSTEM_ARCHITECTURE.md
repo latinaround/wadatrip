@@ -60,13 +60,25 @@ The payment layer receives that total and currency, then calls Stripe; it owns p
 constraints, external session/payment IDs, payment status and charged amounts.
 Neither browser input nor Stripe determines the marketplace price.
 
-Current coupling: gateway payments and webhooks use Stripe directly; booking reads also
-use Stripe to enrich checkout/receipt links. DB fields include providers.stripe_account_id,
-itineraries.operator_stripe_account_id, bookings.checkout_session_id/payment_intent_id,
-and PaymentRecord.stripe_payment_intent_id/stripe_checkout_session_id.
-PaymentRecord.provider_id denotes the marketplace operator, not a payment processor.
-A future multi-processor change would need an explicit processor discriminator and
-external references. No schema change is required for P0 server-authoritative pricing.
+Current coupling: gateway payments, Connect onboarding and webhooks use Stripe directly;
+booking reads also use Stripe to enrich checkout/receipt links. DB fields include
+providers.stripe_account_id, itineraries.operator_stripe_account_id,
+bookings.checkout_session_id/payment_intent_id, and the Stripe-specific references on
+PaymentRecord. PaymentRecord.processor already identifies the processor, while
+PaymentRecord.provider_id identifies the marketplace operator.
+
+Portability decision confirmed 2026-10-09: changing payment processor must not rewrite
+users, listings, canonical prices, bookings, inventory, ownership or the Wadatrip booking
+state machine. A replacement requires a new processor adapter for payment creation,
+signed event verification, refunds, reconciliation and payouts, plus generalized external
+reference fields or a compatible reference table. Existing Stripe references remain as
+historical evidence. Processor credentials and selection belong in deployment
+configuration; this architecture decision belongs in documentation, never in `.env`.
+
+Stripe remains the only implemented processor for the MVP. This boundary makes a future
+replacement incremental, but operating a proprietary payment processor would still
+require PCI controls, fraud and dispute handling, settlement, reconciliation, regulatory
+compliance and payout infrastructure. It is not treated as a configuration-only switch.
 
 The initial pricing fix corroborates stored booking totals against the current listing
 before payment because older totals were client-controlled. A changed listing price
