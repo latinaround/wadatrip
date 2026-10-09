@@ -2,6 +2,13 @@ import { BadRequestException } from '@nestjs/common';
 
 type ConnectEnvironment = Record<string, string | undefined>;
 
+export function stripeConnectCapabilities() {
+  return {
+    card_payments: { requested: true as const },
+    transfers: { requested: true as const },
+  };
+}
+
 function connectUrl(name: 'CONNECT_RETURN_URL' | 'CONNECT_REFRESH_URL', env: ConnectEnvironment): string {
   const raw = String(env[name] || '').trim();
   if (!raw) throw new BadRequestException(`${name} is not configured`);

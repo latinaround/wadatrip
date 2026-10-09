@@ -15,7 +15,14 @@ new Function('require', 'module', 'exports', compiled)((id) => {
   throw new Error(`Unexpected dependency: ${id}`);
 }, loaded, loaded.exports);
 
-const { stripeConnectUrls, stripeConnectStatus } = loaded.exports;
+const { stripeConnectCapabilities, stripeConnectUrls, stripeConnectStatus } = loaded.exports;
+
+test('Stripe Connect requests the payment and transfer capabilities needed by an operator', () => {
+  assert.deepEqual(stripeConnectCapabilities(), {
+    card_payments: { requested: true },
+    transfers: { requested: true },
+  });
+});
 
 test('Stripe Connect refuses missing, placeholder and insecure production return URLs', () => {
   assert.throws(() => stripeConnectUrls({ NODE_ENV: 'production' }));
@@ -43,6 +50,8 @@ test('booking payment routes require a ready destination and contain no platform
   const controller = fs.readFileSync(path.resolve(__dirname, '../apps/gateway/src/controllers/payments.controller.ts'), 'utf8');
   assert.match(controller, /requireReadyPayoutAccount\(stripe, booking\)/);
   assert.match(controller, /idempotencyKey: `wadatrip-connect-account:\$\{providerId\}`/);
+  assert.match(controller, /capabilities: stripeConnectCapabilities\(\)/);
+  assert.match(controller, /accounts\.update\(accountId, \{ capabilities: stripeConnectCapabilities\(\) \}\)/);
   assert.doesNotMatch(controller, /connect_fallback/);
   assert.doesNotMatch(controller, /example\.com\/reauth|example\.com\/return/);
 });

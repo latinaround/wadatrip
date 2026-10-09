@@ -15,7 +15,7 @@ import { requireActor, requireProviderAccess, requireBookingAccess } from '@wada
 import { validateBookingPrice } from '@wadatrip/common/booking-price';
 import { preparePayment } from '@wadatrip/common/payment-lifecycle';
 import { paymentObject, reconcileBookingPayment } from '../services/booking-payment.service';
-import { stripeConnectStatus, stripeConnectUrls } from '../services/stripe-connect.service';
+import { stripeConnectCapabilities, stripeConnectStatus, stripeConnectUrls } from '../services/stripe-connect.service';
 
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 
@@ -160,6 +160,7 @@ export class PaymentsController {
         type: 'express',
         email: provider.email,
         country: stripeCountry,
+        capabilities: stripeConnectCapabilities(),
         metadata: { wadatrip_provider_id: providerId },
       }, { idempotencyKey: `wadatrip-connect-account:${providerId}` });
       accountId = acct.id;
@@ -174,6 +175,7 @@ export class PaymentsController {
       if (existing?.deleted || (associatedProvider && associatedProvider !== providerId)) {
         throw new ConflictException('Payout account association mismatch');
       }
+      await stripe.accounts.update(accountId, { capabilities: stripeConnectCapabilities() });
     }
 
     const link = await stripe.accountLinks.create({
