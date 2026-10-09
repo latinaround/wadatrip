@@ -15,7 +15,7 @@ new Function('require', 'module', 'exports', compiled)((id) => {
   throw new Error(`Unexpected dependency: ${id}`);
 }, loaded, loaded.exports);
 
-const { stripeConnectCapabilities, stripeConnectServiceAgreement, stripeConnectUrls, stripeConnectStatus } = loaded.exports;
+const { stripeConnectAccountUpdate, stripeConnectCapabilities, stripeConnectServiceAgreement, stripeConnectUrls, stripeConnectStatus } = loaded.exports;
 
 test('Stripe Connect requests only the transfer capability needed by a payout-only operator', () => {
   assert.deepEqual(stripeConnectCapabilities(), {
@@ -25,6 +25,25 @@ test('Stripe Connect requests only the transfer capability needed by a payout-on
 
 test('Stripe Connect uses the recipient agreement required for payout-only accounts', () => {
   assert.deepEqual(stripeConnectServiceAgreement(), { service_agreement: 'recipient' });
+});
+
+test('configured recipient accounts are not sent protected onboarding fields again', () => {
+  assert.equal(stripeConnectAccountUpdate({
+    tos_acceptance: { service_agreement: 'recipient' },
+    capabilities: { transfers: 'inactive' },
+  }), null);
+  assert.deepEqual(stripeConnectAccountUpdate({
+    tos_acceptance: { service_agreement: 'recipient' },
+    capabilities: {},
+  }), { capabilities: { transfers: { requested: true } } });
+  assert.deepEqual(stripeConnectAccountUpdate({ tos_acceptance: {}, capabilities: {} }), {
+    capabilities: { transfers: { requested: true } },
+    tos_acceptance: { service_agreement: 'recipient' },
+  });
+  assert.throws(() => stripeConnectAccountUpdate({
+    tos_acceptance: { service_agreement: 'full' },
+    capabilities: {},
+  }));
 });
 
 test('Stripe Connect refuses missing, placeholder and insecure production return URLs', () => {
@@ -55,7 +74,8 @@ test('booking payment routes require a ready destination and contain no platform
   assert.match(controller, /idempotencyKey: `wadatrip-connect-account:\$\{providerId\}`/);
   assert.match(controller, /capabilities: stripeConnectCapabilities\(\)/);
   assert.match(controller, /tos_acceptance: stripeConnectServiceAgreement\(\)/);
-  assert.match(controller, /accounts\.update\(accountId, \{\s*capabilities: stripeConnectCapabilities\(\),\s*tos_acceptance: stripeConnectServiceAgreement\(\),\s*\}\)/);
+  assert.match(controller, /const accountUpdate = stripeConnectAccountUpdate\(existing\)/);
+  assert.match(controller, /if \(accountUpdate\) await stripe\.accounts\.update\(accountId, accountUpdate\)/);
   assert.doesNotMatch(controller, /connect_fallback/);
   assert.doesNotMatch(controller, /example\.com\/reauth|example\.com\/return/);
 });

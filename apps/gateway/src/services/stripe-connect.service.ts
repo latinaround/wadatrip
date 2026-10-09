@@ -12,6 +12,24 @@ export function stripeConnectServiceAgreement() {
   return { service_agreement: 'recipient' as const };
 }
 
+export function stripeConnectAccountUpdate(account: any) {
+  const agreement = String(account?.tos_acceptance?.service_agreement || '').toLowerCase();
+  if (agreement && agreement !== 'recipient') {
+    throw new BadRequestException('Existing payout account uses an incompatible service agreement');
+  }
+
+  const transferStatus = String(account?.capabilities?.transfers || '').toLowerCase();
+  const transferRequested = ['active', 'inactive', 'pending'].includes(transferStatus);
+  if (agreement === 'recipient') {
+    return transferRequested ? null : { capabilities: stripeConnectCapabilities() };
+  }
+
+  return {
+    capabilities: stripeConnectCapabilities(),
+    tos_acceptance: stripeConnectServiceAgreement(),
+  };
+}
+
 function connectUrl(name: 'CONNECT_RETURN_URL' | 'CONNECT_REFRESH_URL', env: ConnectEnvironment): string {
   const raw = String(env[name] || '').trim();
   if (!raw) throw new BadRequestException(`${name} is not configured`);
