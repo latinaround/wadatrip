@@ -785,7 +785,8 @@ export default function OperatorToursNew() {
     }
   };
 
-  const handleUpdateTour = async () => {
+  const handleUpdateTour = async (event) => {
+    event?.preventDefault();
     setTourMessage(null);
     setEditMessage(null);
     if (!editingId) {
@@ -1396,7 +1397,7 @@ export default function OperatorToursNew() {
             </>
           ) : null}
 
-          <form className="mt-6 grid gap-5" onSubmit={handleCreateTour}>
+          <form className="mt-6 grid gap-5" onSubmit={editingId ? handleUpdateTour : handleCreateTour}>
             <div>
               <label htmlFor="tour-provider-id" className="text-sm text-[#e0e0e0]">
                 {isAuthenticatedMode ? 'Linked provider ID' : t('operator.tour_provider_id_label', 'Provider ID')}
@@ -1749,17 +1750,19 @@ export default function OperatorToursNew() {
                 If upload fails, paste a public image URL or use the destination cover.
               </p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-[#e0e0e0]">
-              <input
-                id="tour-publish-now"
-                type="checkbox"
-                checked={tourForm.publish_now}
-                onChange={(event) => handleTourChange('publish_now', event.target.checked)}
-              />
-              <label htmlFor="tour-publish-now">
-                {t('operator.publish_now_label', 'Publish immediately')}
-              </label>
-            </div>
+            {!editingId ? (
+              <div className="flex items-center gap-2 text-sm text-[#e0e0e0]">
+                <input
+                  id="tour-publish-now"
+                  type="checkbox"
+                  checked={tourForm.publish_now}
+                  onChange={(event) => handleTourChange('publish_now', event.target.checked)}
+                />
+                <label htmlFor="tour-publish-now">
+                  {t('operator.publish_now_label', 'Publish immediately')}
+                </label>
+              </div>
+            ) : null}
             {isAuthenticatedMode && !providerApproved ? (
               <p className="text-sm text-[#f7c6a5]">
                 Your provider status is currently `{providerApprovalStatus || 'pending'}`. New tours may be saved as draft until approval.
@@ -1771,29 +1774,26 @@ export default function OperatorToursNew() {
               disabled={tourLoading || (isAuthenticatedMode && !providerLinkReady)}
             >
               {tourLoading
-                ? t('operator.publishing_label', 'Publishing...')
-                : isFreeTour
-                  ? 'Publish free tour'
-                  : t('operator.publish_button', 'Publish tour')}
+                ? editingId
+                  ? t('operator.saving_label', 'Saving...')
+                  : t('operator.publishing_label', 'Publishing...')
+                : editingId
+                  ? t('operator.update_button', 'Update tour')
+                  : isFreeTour
+                    ? 'Publish free tour'
+                    : t('operator.publish_button', 'Publish tour')}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-12 w-full border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white md:w-auto"
-              onClick={handleUpdateTour}
-              disabled={tourLoading || !editingId}
-            >
-              {tourLoading ? t('operator.saving_label', 'Saving...') : t('operator.update_button', 'Update tour')}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              className="h-12 w-full md:w-auto"
-              onClick={handleDeleteTour}
-              disabled={tourLoading || !editingId}
-            >
-              {tourLoading ? t('operator.deleting_label', 'Deleting...') : t('operator.delete_button', 'Delete tour')}
-            </Button>
+            {editingId ? (
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-12 w-full md:w-auto"
+                onClick={handleDeleteTour}
+                disabled={tourLoading}
+              >
+                {tourLoading ? t('operator.deleting_label', 'Deleting...') : t('operator.delete_button', 'Delete tour')}
+              </Button>
+            ) : null}
           </form>
           {tourMessage && <p className="mt-4 text-sm text-[#00D9FF]">{tourMessage}</p>}
           {createdTour?.id && (

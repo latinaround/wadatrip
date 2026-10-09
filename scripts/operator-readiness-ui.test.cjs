@@ -101,3 +101,11 @@ test('operator tour editing gives immediate feedback and restores the sole tour 
   assert.match(page, /ownedListings\.length === 1/);
   assert.match(page, /handleLoadTourById\(ownedListings\[0\]\.id, \{ scroll: false \}\)/);
 });
+
+test('editing an existing tour cannot accidentally submit the create-tour action', () => {
+  const page = fs.readFileSync(path.resolve(__dirname, '../apps/web/src/pages/OperatorToursNew.jsx'), 'utf8');
+  assert.match(page, /onSubmit=\{editingId \? handleUpdateTour : handleCreateTour\}/);
+  assert.match(page, /event\?\.preventDefault\(\)/);
+  assert.match(page, /editingId\s*\? t\('operator\.update_button', 'Update tour'\)/);
+  assert.doesNotMatch(page, /onClick=\{handleUpdateTour\}/);
+});
