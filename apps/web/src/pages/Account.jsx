@@ -11,6 +11,7 @@ import SummaryCards from '../components/dashboard/SummaryCards.jsx';
 import BookingsList from '../components/dashboard/BookingsList.jsx';
 import PaymentsList from '../components/dashboard/PaymentsList.jsx';
 import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
+import { paymentAmountCents } from '../utils/accountDisplay.js';
 
 const apiBase = (AppConfig.api.baseUrl || '').replace(/\/$/, '');
 
@@ -90,6 +91,8 @@ const normalizeBookings = (payload) => {
       people,
       status: String(statusRaw || '').toLowerCase(),
       paymentStatus: String(paymentRaw || '').toLowerCase(),
+      departureAt: item.booking_terms?.departure_at || null,
+      timezone: item.booking_terms?.timezone || null,
     };
   });
 };
@@ -97,18 +100,12 @@ const normalizeBookings = (payload) => {
 const normalizePayments = (payload) => {
   const items = toArray(payload, ['payments', 'items', 'data', 'results']);
   return items.map((item, index) => {
-    const amountCents = typeof item.amount_cents === 'number'
-      ? item.amount_cents
-      : typeof item.amount === 'number'
-        ? Math.round(item.amount * 100)
-        : typeof item.total === 'number'
-          ? Math.round(item.total * 100)
-          : Number(item.amount_cents || item.amount || item.total || 0);
+    const amountCents = paymentAmountCents(item);
     return {
       id: item.id || item.payment_id || item.intent_id || item.reference || `payment-${index}`,
       bookingId: item.booking_id || item.bookingId || item.metadata?.booking_id || item.reference || null,
       amountCents: amountCents || 0,
-      currency: item.currency || item.currency_code || item.currencyCode || item.payment?.currency || 'USD',
+      currency: item.charged_currency || item.currency || item.currency_code || item.currencyCode || item.payment?.currency || 'USD',
       status: String(item.status || item.payment_status || item.intent_status || '').toLowerCase(),
       method: item.method || item.payment_method || item.source || 'card',
       createdAt: item.created_at || item.createdAt || item.date || item.timestamp || item.updated_at,
@@ -240,7 +237,7 @@ const Account = () => {
       setItineraries(normalizeItineraries(data));
     } catch (error) {
       setItineraries([]);
-      setItinerariesError(error?.message || 'Could not load itineraries');
+      setItinerariesError(error?.status === 404 ? null : (error?.message || 'Could not load itineraries'));
       if (error?.status === 401) logout?.();
     } finally {
       setItinerariesLoading(false);
@@ -273,6 +270,7 @@ const Account = () => {
     setPaymentsError(null);
     try {
       const data = await fetchFirstAvailable([
+        '/payments/user-history?limit=10',
         '/payments/mine?limit=10',
         '/payments/history?limit=10',
         '/payments?mine=1&limit=10',

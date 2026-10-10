@@ -3,20 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import StatusBadge from './StatusBadge.jsx';
 import { Link } from 'react-router-dom';
-
-const formatDate = (value) => {
-  if (!value) return 'No date';
-  try {
-    return new Date(value).toLocaleString(undefined, {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return value;
-  }
-};
+import { formatBookingDeparture } from '../../utils/accountDisplay.js';
 
 const formatCurrency = (value, currency = 'USD') => {
   if (typeof value !== 'number' || Number.isNaN(value)) return '-';
@@ -74,7 +61,7 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
                     <span className="block text-xs text-[#a0a0a0]">{booking.provider}</span>
                   )}
                 </TableCell>
-                <TableCell>{booking.loading ? skeleton('w-24') : formatDate(booking.date)}</TableCell>
+                <TableCell>{booking.loading ? skeleton('w-24') : formatBookingDeparture(booking)}</TableCell>
                 <TableCell>{booking.loading ? skeleton('w-10') : (booking.people ?? '-')}</TableCell>
                 <TableCell>{booking.loading ? skeleton('w-16') : formatCurrency(booking.total, booking.currency)}</TableCell>
                 <TableCell>{booking.loading ? skeleton('w-20') : <StatusBadge status={booking.status} />}</TableCell>
