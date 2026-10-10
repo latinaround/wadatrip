@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { uploadImageFile } from '../services/mediaUpload';
 import OperatorReadinessPanel from '../components/OperatorReadinessPanel.jsx';
 import TourDateRequests from '../components/TourDateRequests.jsx';
+import { formatBookingDeparture } from '../utils/accountDisplay.js';
 
 const tokenStorageKey = 'wadatrip_token';
 
@@ -109,6 +110,9 @@ export default function OperatorToursNew() {
   const [payoutStatus, setPayoutStatus] = useState({ linked: false, ready: false });
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutMessage, setPayoutMessage] = useState(null);
+  const [providerBookings, setProviderBookings] = useState([]);
+  const [providerBookingsLoading, setProviderBookingsLoading] = useState(false);
+  const [providerBookingsError, setProviderBookingsError] = useState(null);
 
   const accessCodeTrimmed = accessCode.trim();
   const isAuthenticatedMode = Boolean(sessionToken);
@@ -253,6 +257,32 @@ export default function OperatorToursNew() {
   useEffect(() => {
     loadOwnedListings();
   }, [loadOwnedListings]);
+
+  const loadProviderBookings = useCallback(async () => {
+    if (!sessionToken || !ownedProviderId) {
+      setProviderBookings([]);
+      return [];
+    }
+    setProviderBookingsLoading(true);
+    setProviderBookingsError(null);
+    try {
+      const data = await authFetch(`/bookings?provider_id=${encodeURIComponent(ownedProviderId)}&limit=50`, { method: 'GET' });
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setProviderBookings(items);
+      return items;
+    } catch (error) {
+      if (error?.status === 401) logout?.();
+      setProviderBookings([]);
+      setProviderBookingsError(error?.message || 'Could not load incoming bookings.');
+      return [];
+    } finally {
+      setProviderBookingsLoading(false);
+    }
+  }, [authFetch, logout, ownedProviderId, sessionToken]);
+
+  useEffect(() => {
+    loadProviderBookings();
+  }, [loadProviderBookings]);
 
   const loadPayoutStatus = useCallback(async (providerId) => {
     if (!providerId || !sessionToken) {
@@ -893,6 +923,60 @@ export default function OperatorToursNew() {
         </header>
 
         {user && token && <TourDateRequests apiBase={apiBase} operator />}
+
+        {isAuthenticatedMode && ownedProviderId ? (
+          <section className="page-card">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-[#00D9FF]">Operations</p>
+                <h2 className="text-xl font-semibold text-white">Incoming bookings</h2>
+                <p className="text-sm text-[#a0a0a0]">Confirmed and pending reservations for tours owned by this operator account.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={loadProviderBookings} disabled={providerBookingsLoading}>
+                {providerBookingsLoading ? 'Refreshing...' : 'Refresh bookings'}
+              </Button>
+            </div>
+
+            {providerBookingsError ? (
+              <p className="mt-4 rounded-xl border border-rose-400/30 bg-rose-950/30 px-4 py-3 text-sm text-rose-200" role="alert">
+                {providerBookingsError}
+              </p>
+            ) : null}
+
+            {!providerBookingsLoading && providerBookings.length === 0 ? (
+              <p className="mt-5 text-sm text-[#a0a0a0]">No incoming bookings yet.</p>
+            ) : (
+              <div className="mt-5 grid gap-3">
+                {providerBookings.map((booking) => {
+                  const departure = formatBookingDeparture({
+                    date: booking.date,
+                    departureAt: booking.booking_terms?.departure_at,
+                    timezone: booking.booking_terms?.timezone,
+                  });
+                  const total = Number(booking.total_price);
+                  const totalLabel = Number.isFinite(total)
+                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(total)
+                    : '—';
+                  return (
+                    <div key={booking.id} className="grid gap-2 rounded-2xl border border-[#2d3548]/70 bg-[#0a0e27]/60 p-4 text-sm text-[#cad3df] md:grid-cols-[1.5fr_1.2fr_0.7fr_0.8fr_0.8fr] md:items-center">
+                      <div>
+                        <p className="font-semibold text-white">{booking.listing?.title || 'Tour booking'}</p>
+                        <p className="text-xs text-[#a0a0a0]">{booking.user?.name || booking.user?.email || 'Traveler'}</p>
+                      </div>
+                      <p>{departure}</p>
+                      <p>{booking.num_people || 1} traveler{Number(booking.num_people || 1) === 1 ? '' : 's'}</p>
+                      <p>{totalLabel}</p>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full border border-[#00D9FF]/30 px-2 py-1">{booking.status || 'pending'}</span>
+                        <span className="rounded-full border border-[#00D9FF]/30 px-2 py-1">{booking.payment_status || 'unpaid'}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        ) : null}
 
         {!isAuthenticatedMode ? (
           <section className="page-card">

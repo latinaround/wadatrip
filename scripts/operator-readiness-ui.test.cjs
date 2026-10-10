@@ -109,3 +109,11 @@ test('editing an existing tour cannot accidentally submit the create-tour action
   assert.match(page, /editingId\s*\? t\('operator\.update_button', 'Update tour'\)/);
   assert.doesNotMatch(page, /onClick=\{handleUpdateTour\}/);
 });
+
+test('an authenticated operator can review incoming bookings for their own provider', () => {
+  const page = fs.readFileSync(path.resolve(__dirname, '../apps/web/src/pages/OperatorToursNew.jsx'), 'utf8');
+  assert.match(page, /\/bookings\?provider_id=\$\{encodeURIComponent\(ownedProviderId\)\}&limit=50/);
+  assert.match(page, /Incoming bookings/);
+  assert.match(page, /No incoming bookings yet/);
+  assert.match(page, /booking\.user\?\.name \|\| booking\.user\?\.email/);
+});
