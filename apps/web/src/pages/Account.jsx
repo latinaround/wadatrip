@@ -180,6 +180,7 @@ const Account = () => {
   const [guideLoading, setGuideLoading] = useState(false);
   const [guideSaving, setGuideSaving] = useState(false);
   const [guideMessage, setGuideMessage] = useState(null);
+  const [showGuideSetup, setShowGuideSetup] = useState(false);
 
   const fetchJson = useCallback(async (path, init = {}) => {
     if (!token) throw new Error('User is not authenticated');
@@ -425,19 +426,19 @@ const Account = () => {
 
   return (
     <section className="bg-[#0a0e27] py-16">
-      <div className="container mx-auto px-4 space-y-10">
-        <div className="space-y-1">
+      <div className="container mx-auto flex flex-col gap-10 px-4">
+        <div className="order-1 space-y-1">
           <h1 className="text-3xl font-bold text-white">Hi, {user.name || user.email}</h1>
-          <p className="text-[#a0a0a0]">Manage your itineraries, account identity, and public guide profile from one place.</p>
+          <p className="text-[#a0a0a0]">Manage your trips, bookings, payments, and profile.</p>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="order-4 grid gap-6 xl:grid-cols-2">
           <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-white">Account identity</h2>
+                <h2 className="text-lg font-semibold text-white">Your profile</h2>
                 <p className="mt-1 text-sm text-[#a0a0a0]">
-                  This account signs your actions with JWT. Manage your display name and primary email here.
+                  Manage the name and email used for your Wadatrip account.
                 </p>
               </div>
             </div>
@@ -461,7 +462,7 @@ const Account = () => {
                   type="email"
                 />
                 <p className="mt-2 text-xs text-[#a0a0a0]">
-                  If you change this email, your guide profile stays linked to the same account identity.
+                  We use this address for sign-in and important account updates.
                 </p>
               </div>
               {accountMessage ? (
@@ -478,18 +479,34 @@ const Account = () => {
           <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-white">Guide ownership</h2>
+                <h2 className="text-lg font-semibold text-white">
+                  {guideProfile || showGuideSetup ? 'Host profile' : 'Host on Wadatrip'}
+                </h2>
                 <p className="mt-1 text-sm text-[#a0a0a0]">
-                  Only your authenticated session can edit this profile. It no longer depends on a shared code alone.
+                  {guideProfile || showGuideSetup
+                    ? 'Manage the public profile connected securely to your account.'
+                    : 'Create and sell tours when you are ready. Your traveler account stays the same.'}
                 </p>
               </div>
-              <div className="rounded-full border border-[#00D9FF]/30 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[#7dd3fc]">
-                {guideStatusLabel}
-              </div>
+              {guideProfile || showGuideSetup ? (
+                <div className="rounded-full border border-[#00D9FF]/30 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[#7dd3fc]">
+                  {guideStatusLabel}
+                </div>
+              ) : null}
             </div>
 
             {guideLoading ? (
               <div className="mt-6 text-sm text-[#a0a0a0]">Loading your guide profile...</div>
+            ) : !guideProfile && !showGuideSetup ? (
+              <div className="mt-6 space-y-5">
+                <div className="rounded-xl border border-[#2d3548] bg-[#0a0e27]/60 p-4 text-sm text-[#cad3df]">
+                  <p>Publish real departures, manage availability, and receive traveler bookings from one operator workspace.</p>
+                  <p className="mt-2 text-[#a0a0a0]">Creating a host profile starts a review. It does not change your existing trips or payments.</p>
+                </div>
+                <Button type="button" className="h-12 neon-cta font-black" onClick={() => setShowGuideSetup(true)}>
+                  Become a host
+                </Button>
+              </div>
             ) : (
               <form className="mt-6 space-y-4" onSubmit={handleSaveGuide}>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -642,18 +659,26 @@ const Account = () => {
                       <Link to={guidePublicHref}>View public profile</Link>
                     </Button>
                   ) : null}
-                  <Button asChild variant="outline" className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
-                    <Link to="/operator/tours/new">Manage tours</Link>
-                  </Button>
+                  {guideProfile ? (
+                    <Button asChild variant="outline" className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
+                      <Link to="/operator/tours/new">Manage tours</Link>
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="outline" className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white" onClick={() => setShowGuideSetup(false)}>
+                      Not now
+                    </Button>
+                  )}
                 </div>
               </form>
             )}
           </div>
         </div>
 
-        <SummaryCards stats={stats} />
+        <div className="order-2">
+          <SummaryCards stats={stats} />
+        </div>
 
-        <div className="grid gap-6 xl:grid-cols-3">
+        <div className="order-3 grid gap-6 xl:grid-cols-3">
           <div className="space-y-6 xl:col-span-2">
             <BookingsList
               bookings={bookings}
@@ -717,19 +742,6 @@ const Account = () => {
               loading={paymentsLoading}
               error={paymentsError}
             />
-
-            <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-white">Security posture</h2>
-              <p className="mt-2 text-sm text-[#a0a0a0]">
-                WadaTrip already protects the account with JWT-based auth and account ownership, but this is still not bank-grade security.
-              </p>
-              <ul className="mt-4 space-y-2 text-sm text-[#a0a0a0]">
-                <li>Your account and guide profile are now linked through `user_id`.</li>
-                <li>Your public guide profile is edited from your own authenticated session.</li>
-                <li>The guide email inherits your main account identity.</li>
-                <li>There is still room to harden XSS protection, token rotation, and future password reset / MFA flows.</li>
-              </ul>
-            </div>
           </div>
         </div>
       </div>
