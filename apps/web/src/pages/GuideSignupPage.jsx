@@ -148,12 +148,22 @@ export default function GuideSignupPage() {
             {mode === 'login' ? 'Step 1 of 2' : isTraveler ? 'Join Wadatrip' : 'Become a guide'}
           </p>
           <h1 className="mt-3 text-3xl font-semibold">
-            {mode === 'login' ? isTraveler ? 'Sign in to your account' : 'Sign in to publish your tour' : isTraveler ? 'Create your traveler account' : 'Create your guide account'}
+            {authMethod === 'code'
+              ? isTraveler ? 'Continue with email' : 'Continue as a guide'
+              : mode === 'login'
+                ? isTraveler ? 'Sign in to your account' : 'Sign in to publish your tour'
+                : isTraveler ? 'Create your traveler account' : 'Create your guide account'}
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-[#cad3df]">
-            {isTraveler ? 'Enter your email and a 6-digit code to access your account and bookings.' : mode === 'login'
-              ? 'Enter your email, receive a 6-digit code, and then we will take you straight to Publish tours.'
-              : 'Start with your email, enter a one-time code, and then publish your first tour.'}
+            {authMethod === 'code'
+              ? isTraveler
+                ? 'We will email you a 6-digit code. If you are new to Wadatrip, your traveler account will be created after verification.'
+                : 'We will email you a 6-digit code. New guides get an account after verification; operator approval remains separate.'
+              : isTraveler
+                ? 'Use your email and password to access your account and bookings.'
+                : mode === 'login'
+                  ? 'Use your email and password to manage your tours.'
+                  : 'Create your guide account, then complete your operator profile.'}
           </p>
 
           {!isTraveler && <div className="mt-6 rounded-2xl border border-[#00D9FF]/20 bg-[#0f172a]/50 px-4 py-3 text-sm text-[#c8f7f4]">
@@ -241,21 +251,29 @@ export default function GuideSignupPage() {
                 {authMethod === 'code' ? 'Use password instead' : 'Use a 6-digit code instead'}
               </button>
 
-              <button
-                type="button"
-                className="self-start text-sm text-[#cad3df]"
-                onClick={() => {
-                  const nextMode = mode === 'register' ? 'login' : 'register';
-                  setMode(nextMode);
-                  setCodeSent(false);
-                  setCode('');
-                  setNotice('');
-                  setError('');
-                }}
-                disabled={busy}
-              >
-                {mode === 'register' ? 'Already have an account? Sign in' : isTraveler ? 'New here? Create your account' : 'New guide here? Create your account'}
-              </button>
+              {authMethod === 'password' ? (
+                <button
+                  type="button"
+                  className="self-start text-sm text-[#cad3df]"
+                  onClick={() => {
+                    const nextMode = mode === 'register' ? 'login' : 'register';
+                    setMode(nextMode);
+                    setCodeSent(false);
+                    setCode('');
+                    setNotice('');
+                    setError('');
+                  }}
+                  disabled={busy}
+                >
+                  {mode === 'register' ? 'Already have an account? Sign in' : isTraveler ? 'Create an account with password' : 'Create a guide account with password'}
+                </button>
+              ) : (
+                <p className="text-sm text-[#cad3df]">
+                  {isTraveler
+                    ? 'New traveler? Verifying your email creates your account automatically.'
+                    : 'New guide? Verifying your email creates your guide account.'}
+                </p>
+              )}
             </div>
           </form>
 

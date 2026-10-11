@@ -97,7 +97,7 @@ async function main() {
       await page.goto(origin);
       await page.locator('header a[href="/guide/register"]').first().click();
       await page.waitForURL('**/guide/register');
-      await page.getByRole('heading', { name: 'Create your guide account', exact: true }).waitFor();
+      await page.getByRole('heading', { name: 'Continue as a guide', exact: true }).waitFor();
     });
     await check('Anonymous Sign in to book opens authentication without creating a booking', async () => {
       await page.goto(`${origin}/tours/${listing.id}`);
@@ -201,7 +201,8 @@ async function main() {
     });
     await check('Traveler login describes the traveler destination', async () => {
       await page.goto(`${origin}/register?mode=login&role=traveler`);
-      await page.getByRole('heading', { name: 'Sign in to your account', exact: true }).waitFor();
+      await page.getByRole('heading', { name: 'Continue with email', exact: true }).waitFor();
+      await page.getByText('New traveler? Verifying your email creates your account automatically.', { exact: true }).waitFor();
     });
     await check('Unavailable code delivery displays an error rather than a sent notice', async () => {
       await page.route('**/auth/request-code', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"Synthetic delivery unavailable"}' }));
@@ -212,12 +213,13 @@ async function main() {
       assert.equal(await page.locator('#guide-secret').count(), 0);
       await page.unroute('**/auth/request-code');
     });
-    await check('Switching modal sign-up back to login keeps the email form usable', async () => {
+    await check('Passwordless modal explains automatic account creation without a redundant sign-up action', async () => {
       await page.goto(`${origin}/tours/${listing.id}`);
       await page.getByRole('button', { name: 'Sign in to book', exact: true }).click();
       const dialog = page.getByRole('dialog');
-      await dialog.getByRole('button', { name: 'New here? Create an account', exact: true }).click();
-      await dialog.getByRole('button', { name: 'Already have an account? Sign in', exact: true }).click();
+      await dialog.getByRole('heading', { name: 'Continue with email', exact: true }).waitFor();
+      await dialog.getByText('New traveler? Verifying your email creates your account automatically.', { exact: true }).waitFor();
+      assert.equal(await dialog.getByRole('button', { name: 'New here? Create an account', exact: true }).count(), 0);
       assert.ok(await dialog.getByRole('button', { name: 'Email me a code', exact: true }).isVisible());
     });
     await check('Paused alerts do not accept a no-op submission', async () => {

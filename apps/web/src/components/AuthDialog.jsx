@@ -40,11 +40,14 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
 
   const isGuideIntent = intent === 'guide';
   const title = useMemo(() => {
+    if (authMethod === 'code') {
+      return isGuideIntent ? 'Continue as a guide' : 'Continue with email';
+    }
     if (mode === 'register') {
       return isGuideIntent ? 'Create your guide account' : 'Create your account';
     }
     return isGuideIntent ? 'Sign in as a guide' : 'Sign in';
-  }, [isGuideIntent, mode]);
+  }, [authMethod, isGuideIntent, mode]);
 
   const handleInput = (field) => (event) => {
     setForm(prev => ({ ...prev, [field]: event.target.value }));
@@ -103,7 +106,11 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {mode === 'register'
+            {authMethod === 'code'
+              ? isGuideIntent
+                ? 'We will email you a 6-digit code. New guides get an account after verification; operator approval remains separate.'
+                : 'We will email you a 6-digit code. If you are new to Wadatrip, your traveler account will be created after verification.'
+              : mode === 'register'
               ? (
                   isGuideIntent
                     ? 'Create a guide account first, then publish your public profile and tours from the same identity.'
@@ -253,10 +260,11 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
           )}
 
           <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-sm text-[#00D9FF]"
+            {authMethod === 'password' ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-sm text-[#00D9FF]"
                 onClick={() => {
                   const nextMode = mode === 'register' ? 'login' : 'register';
                   setMode(nextMode);
@@ -268,12 +276,19 @@ const AuthDialog = ({ open, onClose, initialMode = 'login', initialIntent = 'tra
                   setError(null);
                 }}
               >
-              {mode === 'register'
-                ? 'Already have an account? Sign in'
-                : isGuideIntent
-                  ? 'New guide here? Create your account'
-                  : 'New here? Create an account'}
-            </Button>
+                {mode === 'register'
+                  ? 'Already have an account? Sign in'
+                  : isGuideIntent
+                    ? 'Create a guide account with password'
+                    : 'Create an account with password'}
+              </Button>
+            ) : (
+              <p className="text-sm text-[#cad3df]">
+                {isGuideIntent
+                  ? 'New guide? Verifying your email creates your guide account.'
+                  : 'New traveler? Verifying your email creates your account automatically.'}
+              </p>
+            )}
             {emailStepOpen ? (
               <Button
                 type="submit"
