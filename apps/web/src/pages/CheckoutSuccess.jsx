@@ -46,9 +46,17 @@ export default function CheckoutSuccess() {
       <div className="page-container py-8 md:py-10"><div className="page-card space-y-4 text-center" aria-live="polite">
         <h1 className="text-3xl font-semibold neon-title">{message.title}</h1>
         <p>{!auth.user ? 'Sign in to check your booking.' : !bookingId ? 'Open your booking from your account to check its status.' : error || message.body}</p>
-        {!auth.user ? <button className="neon-cta" onClick={() => setAuthOpen(true)}>Sign in</button>
-          : <button className="neon-cta" onClick={() => setRefresh(value => value + 1)}>Refresh status</button>}
-        <Link className="neon-outline" to="/tours">Back to tours</Link>
+        <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
+          {!auth.user ? (
+            <button className="neon-cta" onClick={() => setAuthOpen(true)}>Sign in</button>
+          ) : (
+            <>
+              <Link className="neon-cta" to="/account">View my trips</Link>
+              <button className="neon-outline" onClick={() => setRefresh(value => value + 1)}>Refresh booking status</button>
+            </>
+          )}
+          <Link className="neon-outline" to="/tours">Explore more tours</Link>
+        </div>
         {booking ? <BookingCancellationPanel key={`${auth.user?.id}:${booking.id}`} booking={booking} onChanged={() => setRefresh(value => value + 1)} /> : null}
       </div></div>
       <AuthDialog open={authOpen} onClose={() => setAuthOpen(false)} initialIntent="traveler" />
