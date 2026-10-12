@@ -7,6 +7,12 @@ export default function BookingCancellationPanel({ booking, onChanged }) {
   const [accepted, setAccepted] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const terms = booking?.booking_terms;
   if (!terms?.version) return null;
+  const deadline = new Date(terms.cancellation_deadline);
+  const freeCancellation = Number.isFinite(+deadline) && Date.now() <= +deadline;
+  const amount = Number.isSafeInteger(booking.amount_cents) && booking.amount_cents > 0
+    ? new Intl.NumberFormat(undefined, { style: 'currency', currency: booking.currency || 'USD' }).format(booking.amount_cents / 100)
+    : null;
+  const actionLabel = freeCancellation && amount ? `Cancel booking — refund ${amount}` : 'Cancel booking';
   const request = async () => {
     if (!accepted || busy) return;
     const token = auth.token, actor = auth.user?.id;
@@ -32,7 +38,7 @@ export default function BookingCancellationPanel({ booking, onChanged }) {
     <p>Free cancellation until {new Date(terms.cancellation_deadline).toLocaleString(undefined, { timeZone: terms.timezone })} ({terms.timezone}). The server checks the time when it receives your request.</p>
     {!booking.cancellation_requested_at && !['cancelled', 'completed', 'rejected'].includes(booking.status) ? <>
       <label className="flex items-start gap-2"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} />I want to cancel this booking and understand the refund policy above.</label>
-      <button className="neon-outline" disabled={!accepted || busy} onClick={request}>{busy ? 'Requesting cancellation…' : 'Cancel booking'}</button>
+      <button className="neon-outline" disabled={!accepted || busy} onClick={request}>{busy ? 'Requesting cancellation…' : actionLabel}</button>
     </> : null}
     {error ? <p role="alert">{error}</p> : null}
   </section>;

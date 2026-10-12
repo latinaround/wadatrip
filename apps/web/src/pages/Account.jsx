@@ -427,9 +427,13 @@ const Account = () => {
   return (
     <section className="bg-[#0a0e27] py-16">
       <div className="container mx-auto flex flex-col gap-10 px-4">
-        <div className="order-1 space-y-1">
+        <div className="order-1 space-y-4">
           <h1 className="text-3xl font-bold text-white">Hi, {user.name || user.email}</h1>
           <p className="text-[#a0a0a0]">Manage your trips, bookings, payments, and profile.</p>
+          <div className="flex flex-wrap gap-3">
+            <a className="neon-cta" href="#my-trips">My trips</a>
+            <Link className="neon-outline" to="/tours">Explore tours</Link>
+          </div>
         </div>
 
         <div className="order-4 grid gap-6 xl:grid-cols-2">
@@ -678,7 +682,7 @@ const Account = () => {
           <SummaryCards stats={stats} />
         </div>
 
-        <div className="order-3 grid gap-6 xl:grid-cols-3">
+        <div id="my-trips" className="order-3 scroll-mt-24 grid gap-6 xl:grid-cols-3">
           <div className="space-y-6 xl:col-span-2">
             <BookingsList
               bookings={bookings}

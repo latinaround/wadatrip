@@ -88,11 +88,13 @@ test('reconciliation, cancellation pending and released inventory never send con
 });
 
 test('cancelled booking sends cancellation but skips a stale unsent confirmation', async () => {
-  Object.assign(booking, { status: 'cancelled', inventory_state: 'released' });
+  Object.assign(booking, { status: 'cancelled', payment_status: 'refunded', inventory_state: 'released' });
+  booking.payment.status = 'refunded';
   notifications.push(row('confirmed', 'traveler'), row('cancelled', 'traveler'));
   const sent = [];
   await sendBookingNotifications(prisma, async options => { sent.push(options); return { sent: true }; });
   assert.equal(sent.length, 1); assert.match(sent[0].subject, /cancelled/i);
+  assert.match(sent[0].text, /Refund completed: \$50\.00/);
   assert.equal(notifications.find(item => item.kind === 'confirmed').status, 'skipped');
   assert.equal(notifications.find(item => item.kind === 'cancelled').status, 'sent');
 });

@@ -62,11 +62,19 @@ function operatorEmail(booking: any) {
   return owner?.status === 'active' ? owner.email : '';
 }
 
+function cancellationPaymentLine(booking: any) {
+  if (booking.amount_cents === 0) return 'Payment: no payment was required for this booking.';
+  const payment = String(booking.payment?.status || booking.payment_status || '').toLowerCase();
+  if (payment === 'refunded') return `Refund completed: ${moneyLabel(booking)}. The original payment method may take time to display it.`;
+  if (booking.cancellation_refund_due === false) return 'Refund: no automatic refund is due under the accepted cancellation policy.';
+  return 'Payment and refund status: review the booking in your Wadatrip account.';
+}
+
 function emailFor(notification: any, booking: any) {
   const title = booking.listing?.title || 'your experience';
   const accountUrl = 'https://www.wadatrip.com/account';
   const operatorUrl = 'https://www.wadatrip.com/operator/tours/new';
-  const travelerName = booking.user?.name || 'Traveler';
+  const travelerName = booking.user?.name || 'Name not provided';
   const hostName = booking.provider?.name || 'your host';
   const common = `Tour: ${title}\nDate: ${departureLabel(booking)}\nTravelers: ${booking.num_people}\nBooking reference: ${booking.id}`;
 
@@ -88,13 +96,13 @@ function emailFor(notification: any, booking: any) {
     return {
       to: booking.user?.status === 'active' ? booking.user.email : '',
       subject: `Wadatrip booking cancelled: ${title}`,
-      text: `Your booking has been cancelled.\n\n${common}\n\nPayment and refund details, when applicable, are shown in your account: ${accountUrl}`,
+      text: `Your booking has been cancelled.\n\n${common}\n${cancellationPaymentLine(booking)}\n\nView your booking: ${accountUrl}`,
     };
   }
   return {
     to: operatorEmail(booking),
     subject: `Wadatrip: booking cancelled for ${title}`,
-    text: `A booking has been cancelled.\n\n${common}\nTraveler: ${travelerName}\n\nReview the final booking and payment state: ${operatorUrl}`,
+    text: `A booking has been cancelled.\n\n${common}\nTraveler: ${travelerName}\n${cancellationPaymentLine(booking)}\n\nReview the final booking and payment state: ${operatorUrl}`,
   };
 }
 

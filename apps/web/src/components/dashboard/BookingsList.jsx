@@ -18,6 +18,13 @@ const skeleton = (className) => (
   <span className={`inline-block h-4 animate-pulse rounded bg-slate-200 ${className}`} />
 );
 
+const bookingActionLabel = (booking) => {
+  if (booking.status === 'cancelled' && booking.paymentStatus === 'refunded') return 'View refund details';
+  if (['cancellation_pending', 'reconciliation_required'].includes(booking.status)) return 'View cancellation status';
+  if (booking.status === 'confirmed') return 'Manage or cancel booking';
+  return 'View booking';
+};
+
 const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
   <Card className="border border-[#2d3548]/60 shadow-sm">
     <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -56,7 +63,7 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
               <TableRow key={booking.id || booking.internalId}>
                 <TableCell className="max-w-[220px] truncate font-medium text-slate-800">
                   {booking.loading ? skeleton('w-32') : (booking.title || 'Untitled booking')}
-                  {!booking.loading && booking.id ? <Link className="block text-xs text-[#167c7d] underline" to={`/checkout/success?booking_id=${encodeURIComponent(booking.id)}`}>Manage booking / cancellation</Link> : null}
+                  {!booking.loading && booking.id ? <Link className="mt-1 block text-sm font-semibold text-[#22d3ee] underline" to={`/checkout/success?booking_id=${encodeURIComponent(booking.id)}`}>{bookingActionLabel(booking)}</Link> : null}
                   {booking.provider && !booking.loading && (
                     <span className="block text-xs text-[#a0a0a0]">{booking.provider}</span>
                   )}
