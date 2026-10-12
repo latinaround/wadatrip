@@ -379,7 +379,7 @@ function fixture({ capacity = 1, free = false } = {}) {
     };
   }
   const stripe = { checkout: { sessions: processor('checkout') }, paymentIntents: processor('intent'), charges: { retrieve: async () => { throw new Error('Unexpected charge lookup'); } } };
-  const create = async () => (await createCapacityBooking(prisma, { id: 'synthetic-traveler' }, { listing_id: listing.id, date: tomorrow, num_people: 1 })).created;
+  const create = async () => (await createCapacityBooking(prisma, { id: 'synthetic-traveler', name: 'Synthetic Traveler' }, { listing_id: listing.id, date: tomorrow, num_people: 1 })).created;
   const prepare = (id, flow = 'checkout') => preparePayment(prisma, id, flow, (b, paymentId) => ({ metadata: { booking_id: b.id, payment_record_id: paymentId }, amount: b.amount_cents, currency: b.currency }));
   const observe = (b, outcome = 'succeeded', extra = {}) => ({ bookingId: b.id, outcome, amount: 12000, currency: 'usd', ...extra });
   return { prisma, stripe, create, prepare, observe, state: () => state, objects, creates: () => creates };

@@ -29,7 +29,7 @@ async function listing(capacity = 1, price = 120) {
   await gateway.listing_availability.create({ data: { id: `${id}-slot`, listing_id: id, date: new Date(date), spots_total: capacity, spots_available: capacity } });
   return id;
 }
-const create = (db, id, people = 1) => createCapacityBooking(db, { id: 'p05-user' }, { listing_id: id, date, num_people: people });
+const create = (db, id, people = 1) => createCapacityBooking(db, { id: 'p05-user', name: 'Synthetic Traveler' }, { listing_id: id, date, num_people: people });
 const parameters = (booking, id) => ({ metadata: { booking_id: booking.id, payment_record_id: id }, amount: booking.amount_cents, currency: booking.currency });
 async function reserved(capacity = 1, price = 120) {
   const id = await listing(capacity, price), { created: booking } = await create(gateway, id);

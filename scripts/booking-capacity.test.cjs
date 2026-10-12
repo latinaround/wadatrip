@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { createCapacityBooking, updateCapacityBooking, requireReservedCapacity } = require('@wadatrip/common/booking-capacity');
 const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 const later = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
-const actor = { id: 'synthetic-traveler' };
+const actor = { id: 'synthetic-traveler', name: 'Synthetic Traveler' };
 const rejected = error => [400, 409].includes(error.getStatus?.());
 
 function fixture({ total = 3, tags = [], price = '120.00' } = {}) {
@@ -68,6 +68,16 @@ function fixture({ total = 3, tags = [], price = '120.00' } = {}) {
   return { prisma, listing, rows, slots, notifications, create, transactions: () => transactions,
     existing: (status, people, extra = {}) => rows.push({ id: `existing-${rows.length}`, listing_id: 'listing', date: new Date(tomorrow), num_people: people, status, ...extra }) };
 }
+
+test('booking requires the traveler name from the authenticated database actor', async () => {
+  const f = fixture();
+  await assert.rejects(
+    createCapacityBooking(f.prisma, { id: actor.id, name: '   ' }, { listing_id: 'listing', date: tomorrow, num_people: 1 }),
+    /Traveler name is required before booking/,
+  );
+  assert.equal(f.rows.length, 0);
+  assert.equal(f.transactions(), 0);
+});
 
 for (const people of [0, -1, 1.5, 100000]) test(`traveler count ${people} rejected by server/canonical capacity`, async () => {
   const f = fixture(); await assert.rejects(f.create({ num_people: people }), rejected); assert.equal(f.rows.length, 0);

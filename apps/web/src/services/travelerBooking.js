@@ -1,4 +1,5 @@
 export const SIGN_IN_REQUIRED = 'Please sign in to book this experience. Your session may have expired.';
+export const TRAVELER_NAME_REQUIRED = 'Add your name to your Wadatrip account before booking.';
 
 function sessionError() {
   return Object.assign(new Error(SIGN_IN_REQUIRED), { status: 401 });
@@ -8,6 +9,9 @@ function sessionError() {
 export async function bookTravelerExperience({ apiBase, getSession, booking }) {
   const session = getSession();
   if (session.loading || !session.user || !session.token) throw sessionError();
+  if (!String(session.user.name || '').trim()) {
+    throw Object.assign(new Error(TRAVELER_NAME_REQUIRED), { status: 400, code: 'traveler_name_required' });
+  }
 
   const assertSession = () => {
     const current = getSession();

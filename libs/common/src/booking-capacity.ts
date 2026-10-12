@@ -75,8 +75,9 @@ export async function available(tx: any, listing: any, date: any, people: number
   return { day, slot, remaining: slot.spots_total - used - people };
 }
 
-export async function createCapacityBooking(prisma: any, actor: { id: string }, body: any) {
+export async function createCapacityBooking(prisma: any, actor: { id: string; name?: string | null }, body: any) {
   if (!body?.listing_id) throw new BadRequestException('listing_id is required');
+  if (!String(actor?.name || '').trim()) throw new BadRequestException('Traveler name is required before booking');
   return prisma.$transaction(async (tx: any) => {
     const listing = await lockedListing(tx, String(body.listing_id));
     const price = calculateBookingPrice(listing, body.num_people);

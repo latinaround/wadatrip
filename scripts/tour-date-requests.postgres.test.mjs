@@ -19,7 +19,7 @@ Module._load = function(name, ...args) {
 const { sendRequestNotifications } = require('../apps/gateway/dist/apps/gateway/src/services/tour-request-notifications.service.js');
 Module._load = originalLoad;
 const day = new Date(Date.now() + 7 * 86400000).toISOString().slice(0,10);
-const actor = id => ({ id, email:`${id}@example.invalid`, verified:true, role:'traveler', name:null, admin:false });
+const actor = id => ({ id, email:`${id}@example.invalid`, verified:true, role:'traveler', name:'Synthetic Traveler', admin:false });
 const request = () => domain.createDateRequest(db, actor('synthetic-traveler'), { listing_id:'synthetic-listing',date:day,num_people:2 });
 async function seed(prisma, legacy = false) {
   if (legacy) {

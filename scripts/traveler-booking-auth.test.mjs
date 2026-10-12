@@ -2,13 +2,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Module, { createRequire } from 'node:module';
-import { bookTravelerExperience, SIGN_IN_REQUIRED } from '../apps/web/src/services/travelerBooking.js';
+import { bookTravelerExperience, SIGN_IN_REQUIRED, TRAVELER_NAME_REQUIRED } from '../apps/web/src/services/travelerBooking.js';
 
 function fixture(t, responses = []) {
   const calls = [];
   let logouts = 0;
   let session = {
-    user: { id: 'traveler-a' }, token: 'synthetic-traveler-token', loading: false,
+    user: { id: 'traveler-a', name: 'Synthetic Traveler' }, token: 'synthetic-traveler-token', loading: false,
     logout() { logouts++; session = { ...session, user: null, token: null }; },
   };
   t.mock.method(globalThis, 'fetch', async (url, init) => {
@@ -55,6 +55,13 @@ test('anonymous, incomplete or still-loading session never sends booking or chec
     f.setSession({ user: { id: 'traveler-a' }, token: 'synthetic-token', loading: false, ...changes });
     await assert.rejects(f.run(), requiresSignIn);
   }
+  assert.equal(f.calls.length, 0);
+});
+
+test('authenticated traveler without a saved display name never sends booking or checkout', async t => {
+  const f = fixture(t);
+  f.setSession({ ...f.getSession(), user: { id: 'traveler-a', name: '   ' } });
+  await assert.rejects(f.run(), error => error.code === 'traveler_name_required' && error.message === TRAVELER_NAME_REQUIRED);
   assert.equal(f.calls.length, 0);
 });
 
@@ -170,7 +177,6 @@ test('free tour creates durable notifications from authenticated booking identit
   for (const [name, clientIdentity] of [
     ['Synthetic Traveler', {}],
     ['Synthetic Traveler', { user_name: 'Forged Name', user_id: 'other-user', user_email: 'forged@example.test', role: 'admin' }],
-    [null, {}],
   ]) {
     traveler.name = name;
     const result = await controller.create({ headers: { authorization: `Bearer ${token}` } }, {
@@ -185,5 +191,9 @@ test('free tour creates durable notifications from authenticated booking identit
     assert.ok(outbox.every(row => row.kind === 'confirmed'));
     assert.ok(!/Forged Name|forged@example|Untrusted claim/.test(JSON.stringify(outbox)));
   }
-  assert.equal(bookingNotifications.length, 6);
+  traveler.name = null;
+  await assert.rejects(controller.create({ headers: { authorization: `Bearer ${token}` } }, {
+    listing_id: 'free-tour', date: '2026-12-01', num_people: 2,
+  }), /Traveler name is required before booking/);
+  assert.equal(bookingNotifications.length, 4);
 });

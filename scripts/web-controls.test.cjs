@@ -8,7 +8,7 @@ async function main() {
   const origin = new URL(process.argv[2] || 'http://localhost:4173').origin;
   const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const user = { id: 'synthetic-traveler', name: 'Synthetic Traveler', email: 'traveler@example.invalid', role: 'traveler' };
+  let user = { id: 'synthetic-traveler', name: 'Synthetic Traveler', email: 'traveler@example.invalid', role: 'traveler' };
   const listing = { id: 'csyntheticlisting000001', title: 'Synthetic walking tour', city: 'Lima', country_code: 'PE', status: 'published', price_from: 120, currency: 'USD', provider_id: 'synthetic-provider', provider_name: 'Synthetic Host' };
   const freeListing = { ...listing, id: 'csyntheticlisting000002', title: 'Synthetic free walk', price_from: 0, tags: ['free_tour'] };
   const alternateListing = { ...listing, id: 'csyntheticlisting000003', provider_id: 'synthetic-alternate-provider', provider_name: 'Synthetic Alternate Host' };
@@ -25,9 +25,13 @@ async function main() {
       const request = route.request(), url = new URL(request.url());
       if (url.origin === origin && url.pathname === '/synthetic-checkout') return route.fulfill({ contentType: 'text/html', body: '<h1>Synthetic checkout</h1>' });
       if (!['fetch', 'xhr'].includes(request.resourceType())) return url.origin === origin ? route.continue() : route.abort();
-      calls.push({ path: url.pathname, date: url.searchParams.get('date'), method: request.method(), authorization: request.headers().authorization, body: request.postDataJSON() });
+      calls.push({ path: url.pathname, date: url.searchParams.get('date'), method: request.method(), authorization: request.headers().authorization, contentType: request.headers()['content-type'], body: request.postDataJSON() });
       let body = [];
       if (url.pathname === '/auth/me') body = user;
+      if (url.pathname === '/auth/update' && request.method() === 'PATCH') {
+        user = { ...user, name: String(request.postDataJSON()?.name || '').trim() };
+        body = user;
+      }
       if (url.pathname === '/providers/me') return route.fulfill({ status: 404, contentType: 'application/json', body: '{"message":"No synthetic provider"}' });
       if (url.pathname === '/listings/search') body = { items: url.searchParams.get('free_tour') === 'true' ? [freeListing] : [listing, freeListing, alternateListing] };
       if (url.pathname === `/listings/${listing.id}`) body = listing;
@@ -257,7 +261,7 @@ async function main() {
       await page.getByRole('button', { name: user.name, exact: true }).waitFor();
       assert.equal(await link.getAttribute('href'), '/operator/tours/new');
       await link.click(); await page.waitForURL('**/operator/tours/new');
-      await page.getByRole('heading', { name: 'Create your first tour', exact: true }).first().waitFor();
+      await page.getByRole('heading', { name: 'Operator dashboard', exact: true }).first().waitFor();
     });
     await check('Mobile menu and Login navigate correctly', async () => {
       await page.evaluate(() => localStorage.clear());
@@ -266,6 +270,24 @@ async function main() {
       await page.getByRole('button', { name: 'Open menu', exact: true }).click();
       const login = page.locator('header a[href="/register?mode=login&role=traveler"]').filter({ visible: true });
       await login.click(); await page.waitForURL('**/register?mode=login&role=traveler');
+    });
+    await check('Traveler without a name saves it with Bearer before booking and sends no booking identity', async () => {
+      user = { ...user, name: null };
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.evaluate(() => localStorage.setItem('wadatrip_token', 'synthetic-browser-test-token'));
+      await page.goto(`${origin}/tours/${listing.id}`);
+      await page.getByRole('button', { name: 'Add your name to book', exact: true }).waitFor();
+      const before = calls.length;
+      await page.getByLabel('Traveler name', { exact: true }).fill('Saved Synthetic Traveler');
+      await page.getByRole('button', { name: 'Save name', exact: true }).click();
+      await page.getByText('Name saved. You can now complete your booking.', { exact: true }).waitFor();
+      const update = calls.slice(before).find(call => call.path === '/auth/update');
+      assert.equal(update.method, 'PATCH');
+      assert.equal(update.authorization, 'Bearer synthetic-browser-test-token');
+      assert.match(update.contentType, /^application\/json/);
+      assert.deepEqual(update.body, { name: 'Saved Synthetic Traveler' });
+      assert.ok(!calls.slice(before).some(call => call.path === '/bookings'));
+      await page.getByRole('button', { name: 'Book and pay securely', exact: true }).waitFor();
     });
     await check('Booking controls validate input and paid checkout uses Bearer without client price or identity', async () => {
       await page.setViewportSize({ width: 1440, height: 1000 });
@@ -299,14 +321,14 @@ async function main() {
       assert.ok(calls.slice(before).some(call => call.path === '/bookings'));
       assert.ok(!calls.slice(before).some(call => call.path.endsWith('/checkout')));
     });
-    await check('Return-page Refresh status verifies backend and Back to tours navigates', async () => {
+    await check('Return-page refresh verifies backend and Explore more tours navigates', async () => {
       await page.goto(`${origin}/checkout/success?booking_id=synthetic-booking`);
       await page.getByRole('heading', { name: 'Your booking is confirmed', exact: true }).waitFor();
       const before = calls.filter(call => call.path.endsWith('/reconcile')).length;
-      await page.getByRole('button', { name: 'Refresh status', exact: true }).click();
+      await page.getByRole('button', { name: 'Refresh booking status', exact: true }).click();
       await page.getByRole('heading', { name: 'Your booking is confirmed', exact: true }).waitFor();
       assert.equal(calls.filter(call => call.path.endsWith('/reconcile')).length, before + 1);
-      await page.getByRole('link', { name: 'Back to tours', exact: true }).click(); await page.waitForURL('**/tours');
+      await page.getByRole('link', { name: 'Explore more tours', exact: true }).click(); await page.waitForURL('**/tours');
     });
     await check('Language menu changes visible contact controls', async () => {
       await page.setViewportSize({ width: 1440, height: 1000 });

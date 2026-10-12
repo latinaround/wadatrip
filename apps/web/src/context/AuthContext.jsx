@@ -35,6 +35,7 @@ const AuthContext = createContext({
   verifyCode: async () => {},
   logout: () => {},
   refreshProfile: async () => {},
+  updateProfile: async () => {},
 });
 
 async function jsonRequest(path, options = {}) {
@@ -45,10 +46,11 @@ async function jsonRequest(path, options = {}) {
 
   let response;
   try {
+    const { headers = {}, ...requestOptions } = options;
     response = await fetch(`${baseUrl}${path}`, {
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...requestOptions,
+      headers: { 'Content-Type': 'application/json', ...headers },
       signal: controller.signal,
-      ...options,
     });
   } catch (err) {
     if (err?.name === 'AbortError') {
@@ -181,6 +183,18 @@ export function AuthProvider({ children }) {
 
   const refreshProfile = useCallback(async () => fetchProfile(token), [fetchProfile, token]);
 
+  const updateProfile = useCallback(async ({ name }) => {
+    if (!token) throw new Error('Please sign in to update your profile.');
+    const payload = await jsonRequest('/auth/update', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name }),
+    });
+    setUser(payload);
+    setError(null);
+    return payload;
+  }, [token]);
+
   const value = useMemo(() => ({
     user,
     token,
@@ -192,7 +206,8 @@ export function AuthProvider({ children }) {
     verifyCode,
     logout,
     refreshProfile,
-  }), [user, token, loading, error, login, register, requestCode, verifyCode, logout, refreshProfile]);
+    updateProfile,
+  }), [user, token, loading, error, login, register, requestCode, verifyCode, logout, refreshProfile, updateProfile]);
 
   return (
     <AuthContext.Provider value={value}>

@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import AuthDialog from '../components/AuthDialog.jsx';
 import TourDatePicker from '../components/TourDatePicker.jsx';
 import TourDateRequests from '../components/TourDateRequests.jsx';
-import { bookTravelerExperience, SIGN_IN_REQUIRED } from '../services/travelerBooking';
+import { bookTravelerExperience, SIGN_IN_REQUIRED, TRAVELER_NAME_REQUIRED } from '../services/travelerBooking';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -155,6 +155,8 @@ export default function TourDetail() {
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [travelerName, setTravelerName] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
   const [shareMessage, setShareMessage] = useState(null);
   const [bookingForm, setBookingForm] = useState({
     num_people: 1,
@@ -164,6 +166,10 @@ export default function TourDetail() {
   const [availabilityRetry, setAvailabilityRetry] = useState(0);
   const [termsResult, setTermsResult] = useState(null);
   const [policyAccepted, setPolicyAccepted] = useState(false);
+
+  useEffect(() => {
+    setTravelerName(String(user?.name || ''));
+  }, [user?.id, user?.name]);
 
   useEffect(() => {
     let mounted = true;
@@ -279,10 +285,33 @@ export default function TourDetail() {
     }
   };
 
+  const handleSaveTravelerName = async () => {
+    const name = travelerName.trim();
+    setBookingError(null);
+    if (!name) {
+      setBookingError(TRAVELER_NAME_REQUIRED);
+      return;
+    }
+    setProfileSaving(true);
+    try {
+      await auth.updateProfile({ name });
+      setBookingSuccess('Name saved. You can now complete your booking.');
+    } catch (err) {
+      setBookingError(err?.message || 'Could not save your name.');
+      if (err?.status === 401) auth.logout?.();
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const handleBooking = async () => {
     if (!currentHost) return;
     if (!user || !token) {
       setAuthOpen(true);
+      return;
+    }
+    if (!String(user.name || '').trim()) {
+      setBookingError(TRAVELER_NAME_REQUIRED);
       return;
     }
     setBookingError(null);
@@ -492,12 +521,33 @@ export default function TourDetail() {
               {currentTerms.terms.version ? <label className="flex items-start gap-2"><input type="checkbox" checked={policyAccepted} onChange={event => setPolicyAccepted(event.target.checked)} />I have read and accept this cancellation policy.</label> : null}
             </div> : null}
             {!authLoading && (!user || !token) && !bookingError && <p className="mt-4 text-sm text-[#526173]">{SIGN_IN_REQUIRED}</p>}
+            {!authLoading && user && token && !String(user.name || '').trim() ? (
+              <div className="mt-4 rounded-2xl border border-[#e7c89d] bg-[#fff8eb] p-4">
+                <p className="font-semibold text-[#172033]">Add your name before booking</p>
+                <p className="mt-1 text-sm text-[#526173]">Your host will use it to identify your reservation. It is saved securely to your Wadatrip account.</p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    type="text"
+                    value={travelerName}
+                    maxLength={120}
+                    autoComplete="name"
+                    aria-label="Traveler name"
+                    onChange={(event) => setTravelerName(event.target.value)}
+                    placeholder="Your full name"
+                    className="!rounded-2xl !border-[#d7e6e3] !bg-white !text-[#172033]"
+                  />
+                  <Button type="button" variant="outline" onClick={handleSaveTravelerName} disabled={profileSaving}>
+                    {profileSaving ? 'Saving...' : 'Save name'}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             {bookingError && <p role="alert" className="mt-4 text-sm text-[#d15371]">{bookingError}</p>}
             {bookingSuccess && <p className="mt-4 text-sm text-[#167c7d]">{bookingSuccess}</p>}
             {shareMessage && <p className="mt-4 text-sm text-[#167c7d]">{shareMessage}</p>}
 
-            <Button className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={handleBooking} disabled={bookingLoading || authLoading}>
-              {authLoading ? 'Checking session...' : bookingLoading ? 'Processing...' : !user || !token ? 'Sign in to book' : getListingBookingCta(currentHost)}
+            <Button className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={handleBooking} disabled={bookingLoading || authLoading || profileSaving}>
+              {authLoading ? 'Checking session...' : bookingLoading ? 'Processing...' : !user || !token ? 'Sign in to book' : !String(user.name || '').trim() ? 'Add your name to book' : getListingBookingCta(currentHost)}
             </Button>
             <Button
               variant="outline"

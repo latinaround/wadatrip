@@ -22,7 +22,7 @@ function fixture() {
 test('server refuses a booking one millisecond after the 24-hour Lima cutoff', async t => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-09T14:30:00.001Z') });
   const f = fixture();
-  await assert.rejects(createCapacityBooking(f.prisma, { id: 'synthetic-traveler' }, f.body), /closed|cutoff/i);
+  await assert.rejects(createCapacityBooking(f.prisma, { id: 'synthetic-traveler', name: 'Synthetic Traveler' }, f.body), /closed|cutoff/i);
   assert.equal(f.created.length, 0);
 });
 

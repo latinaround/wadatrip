@@ -64,7 +64,7 @@ async function main() {
     await page.locator('#guide-secret').fill('123456');
     await page.getByRole('button', { name: 'Continue to publish tours', exact: true }).click();
     await page.waitForURL(url => url.pathname === '/operator/tours/new');
-    await page.getByRole('heading', { name: 'Create your first tour', exact: true }).first().waitFor();
+    await page.getByRole('heading', { name: 'Operator dashboard', exact: true }).first().waitFor();
     assert.ok(calls.some(c => c.path === '/auth/verify-code' && c.body.role === 'guide'));
     assert.ok(calls.some(c => c.path === '/providers/me' && c.authorization === `Bearer ${token}`));
     console.log('PASS: guide sign-in shares the authenticated session and operator API uses Bearer');

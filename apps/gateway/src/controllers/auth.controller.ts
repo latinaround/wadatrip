@@ -363,7 +363,12 @@ export class AuthController {
     const prisma = getPrisma();
     const next: any = {};
 
-    if (body?.name != null) next.name = String(body.name);
+    if (body?.name != null) {
+      const name = String(body.name).trim();
+      if (!name) throw new BadRequestException('name is required');
+      if (name.length > 120) throw new BadRequestException('name must be 120 characters or fewer');
+      next.name = name;
+    }
     if (body?.email != null) {
       next.email = String(body.email).trim().toLowerCase();
       if (!next.email) throw new BadRequestException('email is required');
