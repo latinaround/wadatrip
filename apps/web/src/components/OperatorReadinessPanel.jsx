@@ -32,6 +32,9 @@ export default function OperatorReadinessPanel({ provider, listing, availability
   const [date, setDate] = useState('');
   const [spotsTotal, setSpotsTotal] = useState('');
   const ready = useMemo(() => checks.filter(([, , predicate]) => predicate(provider, listing, payoutStatus)).length, [provider, listing, payoutStatus]);
+  const payoutReady = payoutStatus?.ready === true
+    && payoutStatus?.transfers_enabled === true
+    && payoutStatus?.payouts_enabled === true;
   const canEditAvailability = Boolean(listing?.id);
   const save = async (event) => {
     event.preventDefault();
@@ -60,10 +63,18 @@ export default function OperatorReadinessPanel({ provider, listing, availability
       <p className="mt-3 text-sm text-[#a0a0a0]">Wadatrip confirms payout readiness with Stripe. Real dates and available spots are also required before travelers can book.</p>
       {provider?.id && onConnectPayout ? (
         <div className="mt-4 rounded-xl border border-[#00D9FF]/20 bg-[#0a0e27]/60 p-4">
-          <Button type="button" disabled={payoutLoading} onClick={onConnectPayout} className="h-11 neon-cta">
-            {payoutLoading ? 'Opening Stripe…' : payoutStatus?.linked ? 'Continue payout setup' : 'Connect payout account'}
-          </Button>
-          <p className="mt-2 text-sm text-[#a0a0a0]">Stripe securely collects identity and bank details. Wadatrip never receives card or bank credentials.</p>
+          {payoutReady ? (
+            <p className="text-sm font-semibold text-[#8df3d8]">✓ Payout account ready</p>
+          ) : (
+            <Button type="button" disabled={payoutLoading} onClick={onConnectPayout} className="h-11 neon-cta">
+              {payoutLoading ? 'Opening Stripe…' : payoutStatus?.linked ? 'Continue payout setup' : 'Connect payout account'}
+            </Button>
+          )}
+          <p className="mt-2 text-sm text-[#a0a0a0]">
+            {payoutReady
+              ? 'Stripe confirmed that this account can receive payouts.'
+              : 'Stripe securely collects identity and bank details. Wadatrip never receives card or bank credentials.'}
+          </p>
           {payoutMessage ? <p className="mt-2 text-sm text-[#8df3d8]">{payoutMessage}</p> : null}
         </div>
       ) : null}
@@ -72,7 +83,7 @@ export default function OperatorReadinessPanel({ provider, listing, availability
           {onSavePolicy ? <OperatorBookingPolicyForm key={`${listing.id}:${listing.departure_time}:${listing.cancellation_policy_version}`} listing={listing} onSave={onSavePolicy} loading={loading} /> : null}
           <div className="mt-6 border-t border-white/10 pt-5">
             <h3 className="font-semibold text-white">Availability</h3>
-            <p className="mt-1 text-sm text-[#a0a0a0]">Use UTC calendar days. Capacity is checked and locked by the backend.</p>
+            <p className="mt-1 text-sm text-[#a0a0a0]">Add each real departure date and its total capacity. Wadatrip protects the remaining spots when travelers book.</p>
             <form className="mt-4 grid gap-3 sm:grid-cols-[1fr_140px_auto] sm:items-end" onSubmit={save}>
               <label className="text-sm text-[#e0e0e0]">Date<Input type="date" min={new Date().toISOString().slice(0, 10)} value={date} onChange={(e) => setDate(e.target.value)} className="mt-2 h-11 neon-input" /></label>
               <label className="text-sm text-[#e0e0e0]">Spots<Input type="number" min="1" step="1" value={spotsTotal} onChange={(e) => setSpotsTotal(e.target.value)} className="mt-2 h-11 neon-input" /></label>

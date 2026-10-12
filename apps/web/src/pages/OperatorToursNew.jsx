@@ -113,6 +113,11 @@ export default function OperatorToursNew() {
   const [providerBookings, setProviderBookings] = useState([]);
   const [providerBookingsLoading, setProviderBookingsLoading] = useState(false);
   const [providerBookingsError, setProviderBookingsError] = useState(null);
+  const [activePanel, setActivePanel] = useState(() => {
+    if (typeof window === 'undefined') return 'operations';
+    const params = new URLSearchParams(window.location.search);
+    return params.has('edit') || params.has('connect') ? 'tours' : 'operations';
+  });
 
   const accessCodeTrimmed = accessCode.trim();
   const isAuthenticatedMode = Boolean(sessionToken);
@@ -165,6 +170,7 @@ export default function OperatorToursNew() {
     const params = new URLSearchParams(window.location.search);
     const editId = params.get('edit');
     if (editId) {
+      setActivePanel('tours');
       setEditLookup(editId);
       setPendingEditId(editId);
     }
@@ -909,22 +915,57 @@ export default function OperatorToursNew() {
       <div className="page-container flex w-full flex-col gap-10">
         <header className="space-y-4 text-center">
           <div className="flex flex-col items-center gap-3">
-            <span className="page-kicker">{t('operator.kicker', 'Guide publishing')}</span>
+            <span className="page-kicker">
+              {isAuthenticatedMode ? 'Host workspace' : t('operator.kicker', 'Guide publishing')}
+            </span>
           </div>
           <h1 className="text-3xl font-semibold text-white md:text-4xl">
-            {t('operator.publish_title', 'Publish tours on Wadatrip')}
+            {isAuthenticatedMode ? 'Operator dashboard' : t('operator.publish_title', 'Publish tours on Wadatrip')}
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-[#a0a0a0]">
-            {t(
-              'operator.subtitle',
-              'Use your account-owned guide profile, then publish and manage tours from the same identity on web and mobile.'
-            )}
+            {isAuthenticatedMode
+              ? 'Manage reservations, availability, tours, and your public host profile.'
+              : t(
+                  'operator.subtitle',
+                  'Use your account-owned guide profile, then publish and manage tours from the same identity across Wadatrip.'
+                )}
           </p>
         </header>
 
-        {user && token && <TourDateRequests apiBase={apiBase} operator />}
+        {isAuthenticatedMode ? (
+          <nav
+            className="grid gap-2 rounded-2xl border border-white/10 bg-[#0a0e27]/70 p-2 sm:grid-cols-3"
+            aria-label="Operator dashboard sections"
+          >
+            {[
+              { id: 'operations', label: 'Bookings', description: 'Reservations and requests' },
+              { id: 'tours', label: 'Tours & availability', description: 'Dates, capacity and details' },
+              { id: 'profile', label: 'Host profile', description: 'Public operator information' },
+            ].map((item) => {
+              const selected = activePanel === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setActivePanel(item.id)}
+                  className={`rounded-xl px-4 py-3 text-left transition ${
+                    selected
+                      ? 'bg-[#00D9FF]/15 text-white shadow-[0_12px_30px_rgba(0,217,255,0.12)]'
+                      : 'text-[#a0a0a0] hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold">{item.label}</span>
+                  <span className="mt-1 block text-xs opacity-80">{item.description}</span>
+                </button>
+              );
+            })}
+          </nav>
+        ) : null}
 
-        {isAuthenticatedMode && ownedProviderId ? (
+        {user && token && activePanel === 'operations' ? <TourDateRequests apiBase={apiBase} operator /> : null}
+
+        {isAuthenticatedMode && ownedProviderId && activePanel === 'operations' ? (
           <section className="page-card">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1007,10 +1048,10 @@ export default function OperatorToursNew() {
         {isAuthenticatedMode ? (
           <>
 
-        <section className="page-card">
+        <section className={activePanel === 'tours' ? 'page-card' : 'hidden'}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-[#00D9FF]">{t('operator.step1_label', 'Step 1')}</p>
+              <p className="text-sm text-[#00D9FF]">Tour workspace</p>
               <h2 className="text-xl font-semibold text-white">
                 {isAuthenticatedMode
                   ? hasOwnedListings
@@ -1042,7 +1083,7 @@ export default function OperatorToursNew() {
               </div>
               {!hasOwnedListings ? (
                 <p className="mt-3 text-[#e0e0e0]">
-                  No tours yet. Go to Step 3 and fill out the form to create your first tour.
+                  No tours yet. Use the tour form below to create your first experience.
                 </p>
               ) : null}
             </div>
@@ -1063,7 +1104,7 @@ export default function OperatorToursNew() {
         </section>
 
         {isAuthenticatedMode && hasOwnedListings ? (
-          <section className="page-card">
+          <section className={activePanel === 'tours' ? 'page-card' : 'hidden'}>
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-white">Your tours</h2>
@@ -1162,7 +1203,7 @@ export default function OperatorToursNew() {
           </section>
         ) : null}
 
-        {isAuthenticatedMode ? (
+        {isAuthenticatedMode && activePanel === 'tours' ? (
           <OperatorReadinessPanel
             provider={providerStatus}
             listing={createdTour?.id ? createdTour : null}
@@ -1179,12 +1220,10 @@ export default function OperatorToursNew() {
           />
         ) : null}
 
-        <section className="page-card" id="edit-tour">
+        <section className={activePanel === 'profile' ? 'page-card' : 'hidden'} id="edit-tour">
           <div className="space-y-1">
             <p className="text-sm text-[#00D9FF]">
-              {isAuthenticatedMode && !hasOwnedListings && !editingId
-                ? 'Step 2'
-                : t('operator.step2_label', 'Step 2 (optional)')}
+              Public identity
             </p>
             <h2 className="text-xl font-semibold text-white">
               {isAuthenticatedMode ? 'Guide profile' : t('operator.operator_title', 'Operator details')}
@@ -1192,7 +1231,7 @@ export default function OperatorToursNew() {
             <p className="text-sm text-[#a0a0a0]">
               {isAuthenticatedMode
                 ? hasOwnedListings
-                  ? 'This profile belongs to your logged-in account and will be reused by the mobile app.'
+                  ? 'This public host profile belongs securely to your logged-in account.'
                   : 'Review your guide profile before publishing your first tour. Update anything that should appear publicly.'
                 : t('operator.operator_help', 'Create or validate your operator profile.')}
             </p>
@@ -1426,12 +1465,10 @@ export default function OperatorToursNew() {
           </div>
         </section>
 
-        <section className="page-card" id="tour-details">
+        <section className={activePanel === 'tours' ? 'page-card' : 'hidden'} id="tour-details">
           <div className="space-y-1">
             <p className="text-sm text-[#00D9FF]">
-              {isAuthenticatedMode && !hasOwnedListings && !editingId
-                ? 'Step 3'
-                : t('operator.step3_label', 'Step 3')}
+              Tour setup
             </p>
             <h2 className="text-xl font-semibold text-white">
               {isAuthenticatedMode && !hasOwnedListings && !editingId ? 'Create your first tour' : t('operator.tour_title', 'Tour details')}
@@ -1439,7 +1476,7 @@ export default function OperatorToursNew() {
             <p className="text-sm text-[#a0a0a0]">
               {isAuthenticatedMode
                 ? hasOwnedListings
-                  ? 'This tour will be published under your linked guide profile, just like in the mobile app.'
+                  ? 'This tour is published under your account-owned host profile.'
                   : 'Add the basics for your first experience. You can save it now and come back later to edit it.'
                 : t('operator.tour_help', 'Publish the experience you want to sell.')}
             </p>
@@ -1448,7 +1485,7 @@ export default function OperatorToursNew() {
           {isAuthenticatedMode && !providerLinkReady ? (
             <div className="mt-5 rounded-2xl border border-[#f59e0b]/40 bg-[#f59e0b]/10 p-4 text-sm text-[#f8c66b]" role="status">
               <p className="font-semibold text-white">Link your guide profile before creating a tour</p>
-              <p className="mt-1">Save the guide profile in Step 2 first. The tour will be attached to your signed-in account; provider IDs cannot be entered manually.</p>
+              <p className="mt-1">Open the Host profile tab and save your profile first. The tour will be attached to your signed-in account; provider IDs cannot be entered manually.</p>
             </div>
           ) : null}
 
