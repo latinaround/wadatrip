@@ -113,6 +113,7 @@ export default function OperatorToursNew() {
   const [providerBookings, setProviderBookings] = useState([]);
   const [providerBookingsLoading, setProviderBookingsLoading] = useState(false);
   const [providerBookingsError, setProviderBookingsError] = useState(null);
+  const [showTourEditor, setShowTourEditor] = useState(false);
   const [activePanel, setActivePanel] = useState(() => {
     if (typeof window === 'undefined') return 'operations';
     const params = new URLSearchParams(window.location.search);
@@ -702,7 +703,7 @@ export default function OperatorToursNew() {
     }
   };
 
-  const handleLoadTourById = async (listingId, { scroll = true } = {}) => {
+  const handleLoadTourById = async (listingId, { openEditor = false, scroll = false } = {}) => {
     setEditMessage(null);
     if (!listingId) {
       setEditMessage(t('operator.messages.tour_link_required', 'Enter a tour link or ID.'));
@@ -739,7 +740,12 @@ export default function OperatorToursNew() {
       });
       setIsFreeTour(Array.isArray(data?.tags) && data.tags.includes('free_tour'));
       setCoverPreview(data?.cover_image_url || '');
-      setEditMessage(t('operator.messages.tour_loaded', 'Tour loaded. Update the fields and save.'));
+      setEditMessage(
+        openEditor
+          ? t('operator.messages.tour_loaded', 'Tour loaded. Update the fields and save.')
+          : 'Tour selected. Availability and booking settings are ready.'
+      );
+      setShowTourEditor(openEditor);
       loadAvailability(listingId);
       if (typeof window !== 'undefined') {
         const url = new URL(window.location.href);
@@ -815,7 +821,7 @@ export default function OperatorToursNew() {
       if (!listingId) {
         throw new Error(t('operator.messages.tour_not_found', 'Tour not found. Check the link or ID.'));
       }
-      await handleLoadTourById(listingId);
+      await handleLoadTourById(listingId, { openEditor: true, scroll: true });
     } catch (err) {
       setEditMessage(err?.message || t('operator.messages.tour_load_error', 'Error loading tour.'));
     }
@@ -1048,7 +1054,7 @@ export default function OperatorToursNew() {
         {isAuthenticatedMode ? (
           <>
 
-        <section className={activePanel === 'tours' ? 'page-card' : 'hidden'}>
+        <section className={activePanel === 'tours' && !hasOwnedListings ? 'page-card' : 'hidden'}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-[#00D9FF]">Tour workspace</p>
@@ -1109,7 +1115,7 @@ export default function OperatorToursNew() {
               <div>
                 <h2 className="text-xl font-semibold text-white">Your tours</h2>
                 <p className="text-sm text-[#a0a0a0]">
-                  Choose one of your tours to edit it, or paste a Wadatrip tour link if you prefer.
+                  Check availability, open the public page, or edit the details of an experience.
                 </p>
               </div>
             </div>
@@ -1125,44 +1131,32 @@ export default function OperatorToursNew() {
                       {[listing.city, listing.country_code, listing.status].filter(Boolean).join(' · ')}
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
-                    onClick={() => handleLoadTourById(listing.id)}
-                    disabled={tourLoading}
-                  >
-                    {loadingTourId === listing.id
-                      ? t('operator.loading_label', 'Loading...')
-                      : editingId === listing.id
-                        ? 'Editing this tour'
-                        : 'Edit this tour'}
-                  </Button>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white"
+                      onClick={() => window.location.assign(buildPublicTourUrl(siteOrigin, listing))}
+                    >
+                      View public tour
+                    </Button>
+                    <Button
+                      type="button"
+                      className="h-12 neon-cta font-black hover:scale-105 transition-all"
+                      onClick={() => handleLoadTourById(listing.id, { openEditor: true, scroll: true })}
+                      disabled={tourLoading}
+                    >
+                      {loadingTourId === listing.id
+                        ? t('operator.loading_label', 'Loading...')
+                        : showTourEditor && editingId === listing.id
+                          ? 'Editing details'
+                          : 'Edit details'}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
             {editMessage ? <p className="mt-3 text-sm text-[#00D9FF]" role="status">{editMessage}</p> : null}
-            <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-              <div>
-                <label htmlFor="edit-tour-link" className="text-sm text-[#e0e0e0]">
-                  {t('operator.tour_link_label', 'Tour link or ID')}
-                </label>
-                <Input
-                  id="edit-tour-link"
-                  value={editLookup}
-                  onChange={(event) => setEditLookup(event.target.value)}
-                  placeholder={t('operator.tour_link_placeholder', 'https://wadatrip.com/tours/...')}
-                  className="mt-2 h-12 neon-input"
-                />
-              </div>
-              <Button
-                type="button"
-                className="h-12 w-full neon-cta font-black hover:scale-105 transition-all md:w-auto"
-                onClick={handleLoadTour}
-                disabled={tourLoading}
-              >
-                {tourLoading ? t('operator.loading_label', 'Loading...') : t('operator.load_tour', 'Load tour')}
-              </Button>
-            </div>
           </section>
         ) : !isAuthenticatedMode ? (
           <section className="page-card">
@@ -1456,7 +1450,6 @@ export default function OperatorToursNew() {
             </form>
             {providerStatus && (
               <div className="mt-4 text-sm text-[#a0a0a0]">
-                <div>ID: {providerStatus.id}</div>
                 <div>Status: {providerStatus.status || providerStatus.verification_status || 'pending'}</div>
                 {loadingOwnedProvider ? <div>Refreshing linked profile...</div> : null}
               </div>
@@ -1465,21 +1458,26 @@ export default function OperatorToursNew() {
           </div>
         </section>
 
-        <section className={activePanel === 'tours' ? 'page-card' : 'hidden'} id="tour-details">
-          <div className="space-y-1">
-            <p className="text-sm text-[#00D9FF]">
-              Tour setup
-            </p>
-            <h2 className="text-xl font-semibold text-white">
-              {isAuthenticatedMode && !hasOwnedListings && !editingId ? 'Create your first tour' : t('operator.tour_title', 'Tour details')}
-            </h2>
-            <p className="text-sm text-[#a0a0a0]">
-              {isAuthenticatedMode
-                ? hasOwnedListings
-                  ? 'This tour is published under your account-owned host profile.'
-                  : 'Add the basics for your first experience. You can save it now and come back later to edit it.'
-                : t('operator.tour_help', 'Publish the experience you want to sell.')}
-            </p>
+        <section className={activePanel === 'tours' && (showTourEditor || !hasOwnedListings) ? 'page-card' : 'hidden'} id="tour-details">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-[#00D9FF]">Tour setup</p>
+              <h2 className="text-xl font-semibold text-white">
+                {isAuthenticatedMode && !hasOwnedListings && !editingId ? 'Create your first tour' : t('operator.tour_title', 'Tour details')}
+              </h2>
+              <p className="text-sm text-[#a0a0a0]">
+                {isAuthenticatedMode
+                  ? hasOwnedListings
+                    ? 'Update the information travelers see on the public tour page.'
+                    : 'Add the basics for your first experience. You can save it now and come back later to edit it.'
+                  : t('operator.tour_help', 'Publish the experience you want to sell.')}
+              </p>
+            </div>
+            {hasOwnedListings && showTourEditor ? (
+              <Button type="button" variant="outline" onClick={() => setShowTourEditor(false)}>
+                Close editor
+              </Button>
+            ) : null}
           </div>
 
           {isAuthenticatedMode && !providerLinkReady ? (
@@ -1489,7 +1487,7 @@ export default function OperatorToursNew() {
             </div>
           ) : null}
 
-          {(!isAuthenticatedMode || hasOwnedListings) ? (
+          {!isAuthenticatedMode ? (
             <>
               <form className="mt-6 grid gap-4 md:grid-cols-[2fr_1fr]" onSubmit={handleLoadTour}>
                 <div>
@@ -1519,31 +1517,6 @@ export default function OperatorToursNew() {
           ) : null}
 
           <form className="mt-6 grid gap-5" onSubmit={editingId ? handleUpdateTour : handleCreateTour}>
-            <div>
-              <label htmlFor="tour-provider-id" className="text-sm text-[#e0e0e0]">
-                {isAuthenticatedMode ? 'Linked provider ID' : t('operator.tour_provider_id_label', 'Provider ID')}
-              </label>
-              <Input
-                id="tour-provider-id"
-                value={tourForm.provider_id || ownedProviderId}
-                onChange={(event) => handleTourChange('provider_id', event.target.value)}
-                placeholder={isAuthenticatedMode ? 'Saved automatically from your account' : t('operator.provider_id_placeholder', 'provider_id')}
-                className="mt-2 h-12 neon-input"
-                readOnly={Boolean(editingId) || isAuthenticatedMode}
-              />
-              {editingId && (
-                <p className="mt-2 text-xs text-[#a0a0a0]">
-                  {t('operator.provider_id_locked', 'Provider ID is locked while editing.')}
-                </p>
-              )}
-              {!editingId && isAuthenticatedMode ? (
-                <p className="mt-2 text-xs text-[#a0a0a0]">
-                  {ownedProviderId
-                    ? `This tour will use your account-owned provider profile (${ownedProviderId}).`
-                    : 'Save your guide profile first so tours belong to your account.'}
-                </p>
-              ) : null}
-            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <p className="text-sm text-[#e0e0e0]">Tour type</p>
