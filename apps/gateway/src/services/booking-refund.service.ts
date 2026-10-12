@@ -1,5 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import { withPaymentBooking, financialAudit, assertPaymentOwnership } from '@wadatrip/common/payment-lifecycle';
+import { withPaymentBooking, financialAudit, assertPaymentOwnership, enqueueBookingNotifications } from '@wadatrip/common/payment-lifecycle';
 import { CANCELLATION_POLICY_VERSION } from '@wadatrip/common/booking-policy';
 import { refreshCapacity } from '@wadatrip/common/booking-capacity';
 import { paymentObject } from './booking-payment.service';
@@ -35,6 +35,9 @@ export async function recordVerifiedRefund(prisma: any, bookingId: string, refun
     const result = await tx.bookings.update({ where: { id: bookingId }, data: {
       status: succeeded ? 'cancelled' : 'reconciliation_required', payment_status: succeeded ? 'refunded' : 'paid', inventory_state: 'released',
     } });
+    if (succeeded && booking.status !== 'cancelled') {
+      await enqueueBookingNotifications(tx, bookingId, 'cancelled');
+    }
     await refreshCapacity(tx, booking);
     financialAudit({ operation: 'refund_observed', booking_id: bookingId, payment_record_id: payment.id,
       processor: 'stripe', refund_id: refund.id, idempotency_key: keyFor(payment), result: status, inventory_action: 'RELEASE' });

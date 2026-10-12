@@ -9,6 +9,7 @@ import { assertPaymentOwnership } from './payment-association';
 import { financialAudit } from './financial-audit';
 import { requirePaymentBeforeCutoff } from './booking-policy';
 import { enqueueBookingNotifications } from './booking-notifications';
+export { enqueueBookingNotifications };
 export { financialAudit } from './financial-audit';
 export { assertPaymentOwnership } from './payment-association';
 export { receivePaymentEvent, failPaymentEvent } from './payment-events';
