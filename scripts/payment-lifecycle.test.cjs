@@ -292,7 +292,7 @@ test('BLOCKER P1: legacy paid cannot regress on an old failed observation', asyn
 
 function fixture({ capacity = 1, free = false } = {}) {
   const listing = { id: 'synthetic-listing', provider_id: 'synthetic-provider', price_from: free ? '0' : '120', currency: 'USD', status: 'published', tags: [] };
-  let state = { bookings: [], payments: [], events: [], slot: { id: 'slot', date: new Date(tomorrow), spots_total: capacity, spots_available: capacity } };
+  let state = { bookings: [], payments: [], events: [], notifications: [], slot: { id: 'slot', date: new Date(tomorrow), spots_total: capacity, spots_available: capacity } };
   let lock = Promise.resolve(), counter = 0;
   function table(key) {
     const find = where => state[key].find(r => Object.entries(where).every(([k, v]) => v === null ? r[k] == null : r[k] === v));
@@ -327,6 +327,16 @@ function fixture({ capacity = 1, free = false } = {}) {
       .reduce((n, b) => n + b.num_people, 0) } }) },
     listings: { findUnique: async () => listing },
     paymentRecord: table('payments'), paymentEvent: table('events'),
+    booking_notifications: {
+      createMany: async ({ data }) => {
+        let count = 0;
+        for (const item of data) {
+          if (state.notifications.some(row => row.booking_id === item.booking_id && row.kind === item.kind && row.audience === item.audience)) continue;
+          state.notifications.push({ ...item }); count++;
+        }
+        return { count };
+      },
+    },
     listing_availability: {
       findMany: async () => [state.slot],
       update: async ({ data }) => { Object.assign(state.slot, data); return { ...state.slot }; },
@@ -443,6 +453,7 @@ test('expired checkout without live intent releases inventory; late webhook cann
 test('free tour confirms with inventory and never starts Stripe', async () => {
   const f = fixture({ free: true }), b = await f.create();
   assert.equal(b.status, 'confirmed'); assert.equal(b.amount_cents, 0);
+  assert.equal(f.state().notifications.length, 2);
   await assert.rejects(f.prepare(b.id), e => e.getStatus?.() === 400);
   await assert.rejects(f.create(), conflict); assert.equal(f.creates(), 0);
 });
@@ -452,6 +463,7 @@ test('succeeded with valid capacity confirms atomically with ledger', async () =
   const result = await applyPaymentObservation(f.prisma, 'paid', 'succeeded', f.observe(b));
   assert.equal(result.status, 'confirmed'); assert.equal(result.payment_status, 'paid');
   assert.equal(f.state().payments[0].status, 'succeeded'); assert.ok(f.state().events[0].processed_at);
+  assert.deepEqual(f.state().notifications.map(row => `${row.kind}:${row.audience}`).sort(), ['confirmed:operator', 'confirmed:traveler']);
 });
 
 test('succeeded without capacity records refund_required without growing capacity', async () => {

@@ -8,6 +8,7 @@ import { receivePaymentEvent, failPaymentEvent } from './payment-events';
 import { assertPaymentOwnership } from './payment-association';
 import { financialAudit } from './financial-audit';
 import { requirePaymentBeforeCutoff } from './booking-policy';
+import { enqueueBookingNotifications } from './booking-notifications';
 export { financialAudit } from './financial-audit';
 export { assertPaymentOwnership } from './payment-association';
 export { receivePaymentEvent, failPaymentEvent } from './payment-events';
@@ -174,6 +175,9 @@ export async function applyPaymentObservation(prisma: any, eventId: string, type
       ...(!identityMismatch && o.intentId ? { payment_intent_id: o.intentId } : {}),
       ...(!identityMismatch && o.sessionId ? { checkout_session_id: o.sessionId } : {}),
     } });
+    if (transition.notification && (transition.status === 'confirmed' || transition.status === 'cancelled')) {
+      await enqueueBookingNotifications(tx, booking.id, transition.status, eventId);
+    }
     await refreshCapacity(tx, booking);
     await tx.paymentEvent.update({ where: { id: eventId }, data: { processed_at: new Date(), status: 'processed', error_category: null,
       payment_record_id: payment.id, payload: { ...o, transition: audit } } });

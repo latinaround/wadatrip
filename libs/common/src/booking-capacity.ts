@@ -4,6 +4,7 @@ import { financialState, hasFinancialRisk } from './financial-state';
 import { bookingTransition, inventoryState } from './booking-transition';
 import { financialAudit } from './financial-audit';
 import { acceptedBookingTerms } from './booking-policy';
+import { enqueueBookingNotifications } from './booking-notifications';
 
 const CONSUMING = ['pending', 'confirmed', 'completed'];
 const RELEASED = ['cancelled', 'rejected'];
@@ -94,6 +95,9 @@ export async function createCapacityBooking(prisma: any, actor: { id: string }, 
       inventory_state: 'held',
       ...(terms ? { booking_terms: terms } : {}),
     } });
+    if (price.amount_cents === 0) {
+      await enqueueBookingNotifications(tx, created.id, 'confirmed');
+    }
     await tx.listing_availability.update({ where: { id: allocation.slot.id }, data: { spots_available: allocation.remaining } });
     return { created, listing };
   }, { isolationLevel: 'ReadCommitted' });
@@ -143,6 +147,9 @@ export async function updateCapacityBooking(prisma: any, id: string, changes: { 
     }
     const updated = await tx.bookings.update({ where: { id }, data: { ...changes,
       inventory_state: RELEASED.includes(nextStatus) ? 'released' : 'held' } });
+    if (nextStatus === 'cancelled' && booking.status !== 'cancelled') {
+      await enqueueBookingNotifications(tx, booking.id, 'cancelled');
+    }
     await refreshCapacity(tx, booking);
     return updated;
   }, { isolationLevel: 'ReadCommitted' });

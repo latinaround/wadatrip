@@ -19,6 +19,7 @@ import { TourRequestNotificationsService } from './services/tour-request-notific
 import { AdminController } from './controllers/admin.controller';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AdminAuditInterceptor } from './services/admin-audit.interceptor';
+import { BookingNotificationsService } from './services/booking-notifications.service';
 
 @Module({
   imports: [
@@ -43,7 +44,7 @@ import { AdminAuditInterceptor } from './services/admin-audit.interceptor';
     TourDateRequestsController,
     AdminController,
   ],
-  providers: [EventsGateway, BookingAutomationService, TourRequestNotificationsService,
+  providers: [EventsGateway, BookingAutomationService, TourRequestNotificationsService, BookingNotificationsService,
     { provide: APP_INTERCEPTOR, useClass: AdminAuditInterceptor }],
 })
 export class AppModule {}

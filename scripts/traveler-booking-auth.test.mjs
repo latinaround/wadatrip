@@ -130,11 +130,10 @@ test('changing session before checkout returns prevents handing its URL to anoth
   assert.equal(f.calls.length, 2);
 });
 
-test('free tour notification uses the authenticated DB name, never client identity', async t => {
+test('free tour creates durable notifications from authenticated booking identity without synchronous email', async t => {
   const require = createRequire(import.meta.url);
   const overrides = {
     NODE_ENV: 'test', FF_PROVIDER_HUB: 'false', JWT_SECRET: 'synthetic-free-tour-test-key',
-    SENDGRID_API_KEY: 'synthetic-mail-key', EMAIL_FROM: 'sender@example.test',
     ADMIN_EMAILS: '', ADMIN_USER_IDS: '',
   };
   const previous = Object.fromEntries(Object.keys(overrides).map(key => [key, process.env[key]]));
@@ -145,25 +144,19 @@ test('free tour notification uses the authenticated DB name, never client identi
     }
   });
   const traveler = { id: 'traveler-a', name: 'Synthetic Traveler', email: 'traveler@example.test', status: 'active', role: 'traveler' };
-  const messages = [];
+  let bookingCounter = 0;
   const prisma = {
     users: { findUnique: async ({ where }) => where.id === traveler.id ? traveler : null },
     listings: { findUnique: async () => ({ id: 'free-tour', provider_id: 'provider-a', title: 'Synthetic free tour', tags: ['free_tour'], city: 'Test City', price_from: null, currency: 'USD', status: 'published' }) },
     providers: { findUnique: async () => ({ id: 'provider-a', email: 'provider@example.test' }) },
-    bookings: { create: async ({ data }) => ({ id: 'free-booking', ...data }) },
+    bookings: { create: async ({ data }) => ({ id: `free-booking-${++bookingCounter}`, ...data }) },
   };
   const originalLoad = Module._load;
-  require('./helpers/capacity-fixture.cjs').addCapacityFixture(prisma);
+  const { bookingNotifications } = require('./helpers/capacity-fixture.cjs').addCapacityFixture(prisma);
   t.mock.method(Module, '_load', function (request, ...args) {
     if (request === '@wadatrip/db') return { getPrisma: () => prisma };
     if (request === '@prisma/client') throw new Error('Real database access forbidden in this test');
     return originalLoad.call(this, request, ...args);
-  });
-  t.mock.method(globalThis, 'fetch', async (url, init) => {
-    // Capture the existing mail adapter call; never delegate to a real fetch.
-    assert.equal(url, 'https://api.sendgrid.com/v3/mail/send');
-    messages.push(JSON.parse(init.body));
-    return new Response(null, { status: 202 });
   });
   const modulePath = require.resolve('../apps/gateway/dist/apps/gateway/src/controllers/bookings.controller.js');
   const cached = require.cache[modulePath];
@@ -174,10 +167,10 @@ test('free tour notification uses the authenticated DB name, never client identi
   const token = jwt.sign({ sub: traveler.id, name: 'Untrusted claim name' }, overrides.JWT_SECRET, { expiresIn: '5m' });
   const controller = new BookingsController();
 
-  for (const [name, clientIdentity, expectedName] of [
-    ['Synthetic Traveler', {}, 'Synthetic Traveler'],
-    ['Synthetic Traveler', { user_name: 'Forged Name', user_id: 'other-user', user_email: 'forged@example.test', role: 'admin' }, 'Synthetic Traveler'],
-    [null, {}, 'Traveler'],
+  for (const [name, clientIdentity] of [
+    ['Synthetic Traveler', {}],
+    ['Synthetic Traveler', { user_name: 'Forged Name', user_id: 'other-user', user_email: 'forged@example.test', role: 'admin' }],
+    [null, {}],
   ]) {
     traveler.name = name;
     const result = await controller.create({ headers: { authorization: `Bearer ${token}` } }, {
@@ -187,11 +180,10 @@ test('free tour notification uses the authenticated DB name, never client identi
     assert.equal(result.status, 'confirmed');
     assert.equal(result.payment_status, 'paid');
     assert.equal(result.amount_cents, 0);
-    const message = messages.at(-1);
-    assert.equal(message.personalizations[0].to[0].email, 'provider@example.test');
-    assert.ok(message.content[0].value.includes(`Name: ${expectedName}\n`));
-    assert.ok(message.content[0].value.includes('Email: traveler@example.test\n'));
-    assert.ok(!/Forged Name|forged@example|Untrusted claim/.test(message.content[0].value));
+    const outbox = bookingNotifications.filter(row => row.booking_id === result.id);
+    assert.deepEqual(outbox.map(row => row.audience).sort(), ['operator', 'traveler']);
+    assert.ok(outbox.every(row => row.kind === 'confirmed'));
+    assert.ok(!/Forged Name|forged@example|Untrusted claim/.test(JSON.stringify(outbox)));
   }
-  assert.equal(messages.length, 3);
+  assert.equal(bookingNotifications.length, 6);
 });

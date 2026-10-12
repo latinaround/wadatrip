@@ -426,11 +426,35 @@ model bookings {
   user     users     @relation(fields: [user_id], references: [id])
   trip     trips?    @relation(fields: [trip_id], references: [id])
   payment  PaymentRecord?
+  notifications booking_notifications[]
 
   @@index([provider_id, status, date], name: "idx_bookings_provider_status_date")
   @@index([user_id, status], name: "idx_bookings_user_status")
   @@index([trip_id], name: "idx_bookings_trip")
   @@index([listing_id, date], name: "idx_bookings_listing_date")
+}
+
+// Durable booking emails are committed with the business transition and sent later.
+model booking_notifications {
+  id              String   @id @default(cuid())
+  booking_id      String
+  kind            String
+  audience        String
+  source_event_id String?
+  status          String   @default("pending")
+  attempts        Int      @default(0)
+  next_attempt_at DateTime @default(now())
+  lease_until     DateTime?
+  claim_id        String?
+  last_error      String?
+  sent_at         DateTime?
+  created_at      DateTime @default(now())
+
+  booking bookings @relation(fields: [booking_id], references: [id], onDelete: Restrict)
+
+  @@unique([booking_id, kind, audience])
+  @@index([status, next_attempt_at])
+  @@index([booking_id, created_at])
 }
 
 model destination_covers {

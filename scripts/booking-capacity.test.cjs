@@ -10,6 +10,7 @@ const rejected = error => [400, 409].includes(error.getStatus?.());
 function fixture({ total = 3, tags = [], price = '120.00' } = {}) {
   const listing = { id: 'listing', provider_id: 'synthetic-provider', status: 'published', price_from: price, currency: 'USD', tags };
   const rows = [];
+  const notifications = [];
   const slots = [{ id: 'slot', listing_id: listing.id, date: new Date(tomorrow), spots_total: total, spots_available: total }];
   let lock = Promise.resolve(), nextId = 0, transactions = 0;
   const prisma = { $transaction: async (fn, options) => {
@@ -25,7 +26,7 @@ function fixture({ total = 3, tags = [], price = '120.00' } = {}) {
           lock = new Promise(resolve => { release = resolve; });
           await previous;
           locked = true;
-          snapshot = { rows: structuredClone(rows), slots: structuredClone(slots) };
+          snapshot = { rows: structuredClone(rows), slots: structuredClone(slots), notifications: structuredClone(notifications) };
           return args[0] === listing.id ? [{ id: listing.id }] : [];
         }
         assert.ok(locked, 'Listing must be locked before checking availability');
@@ -49,16 +50,22 @@ function fixture({ total = 3, tags = [], price = '120.00' } = {}) {
         findMany: async ({ where }) => slots.filter(s => s.listing_id === where.listing_id && s.date >= where.date.gte && s.date < where.date.lt),
         update: async ({ where, data }) => { assert.ok(locked); const s = slots.find(s => s.id === where.id); Object.assign(s, data); return s; },
       },
+      booking_notifications: {
+        createMany: async ({ data }) => {
+          for (const item of data) if (!notifications.some(row => row.booking_id === item.booking_id && row.kind === item.kind && row.audience === item.audience)) notifications.push(item);
+          return { count: data.length };
+        },
+      },
       trips: { findUnique: async () => null },
     };
     try { return await fn(tx); }
     catch (err) {
-      if (snapshot) { rows.splice(0, rows.length, ...snapshot.rows); slots.splice(0, slots.length, ...snapshot.slots); }
+      if (snapshot) { rows.splice(0, rows.length, ...snapshot.rows); slots.splice(0, slots.length, ...snapshot.slots); notifications.splice(0, notifications.length, ...snapshot.notifications); }
       throw err;
     } finally { if (release) release(); }
   } };
   const create = (extra = {}) => createCapacityBooking(prisma, actor, { listing_id: 'listing', date: tomorrow, num_people: 1, ...extra });
-  return { prisma, listing, rows, slots, create, transactions: () => transactions,
+  return { prisma, listing, rows, slots, notifications, create, transactions: () => transactions,
     existing: (status, people, extra = {}) => rows.push({ id: `existing-${rows.length}`, listing_id: 'listing', date: new Date(tomorrow), num_people: people, status, ...extra }) };
 }
 
@@ -110,6 +117,7 @@ test('free tour capacity uses the same transaction and limits', async () => {
   const f = fixture({ total: 2, tags: ['free_tour'], price: null });
   const { created } = await f.create({ num_people: 2 });
   assert.equal(created.amount_cents, 0); assert.equal(created.status, 'confirmed');
+  assert.deepEqual(f.notifications.map(row => row.audience).sort(), ['operator', 'traveler']);
   await assert.rejects(f.create(), rejected);
 });
 test('client capacity/availability/status payload cannot supply additional seats', async () => {

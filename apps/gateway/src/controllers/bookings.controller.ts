@@ -6,11 +6,9 @@ import { bookingSelect } from '@wadatrip/common/public-data';
 import { createCapacityBooking, updateCapacityBooking } from '@wadatrip/common/booking-capacity';
 import { reconcileBookingPayment } from '../services/booking-payment.service';
 import { cancelPolicyBooking } from '@wadatrip/common/booking-cancellation';
-import { sendTransactionalEmail } from '../services/email.service';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
-const EMAIL_FROM = process.env.EMAIL_FROM || '';
 
 function getStripeClient() {
   const key = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET;
@@ -52,10 +50,6 @@ async function enrichBookingLinks(booking: any) {
   } catch {}
 
   return enriched;
-}
-
-async function notifyProviderByEmail(opts: { to: string; subject: string; text: string }) {
-  return sendTransactionalEmail({ ...opts, from: EMAIL_FROM, logScope: 'bookings.notify' });
 }
 
 @Controller()
@@ -134,21 +128,7 @@ export class BookingsController {
     }
 
     const prisma = getPrisma();
-    const { created, listing } = await createCapacityBooking(prisma, actor, body);
-    const { provider_id, date, num_people } = created;
-    const isFreeTour = created.amount_cents === 0;
-
-    if (isFreeTour) {
-      const provider = await prisma.providers.findUnique({ where: { id: provider_id } });
-      if (provider?.email) {
-        await notifyProviderByEmail({
-          to: provider.email,
-          subject: 'New free tour registration',
-          text: `New registration for ${listing.title}\n\nName: ${actor.name || 'Traveler'}\nEmail: ${actor.email}\nDate: ${date.toISOString()}\nPeople: ${num_people}\n\nMeeting point: ${listing.city || ''}`,
-        });
-      }
-    }
-
+    const { created } = await createCapacityBooking(prisma, actor, body);
     return created;
   }
   @Post('bookings/simple')

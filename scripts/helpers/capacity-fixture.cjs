@@ -2,6 +2,7 @@
 exports.addCapacityFixture = function(prisma) {
   const recorded = [];
   const payments = new Map();
+  const bookingNotifications = [];
   const originalCreate = prisma.bookings.create;
   prisma.bookings.create = async args => {
     const row = await originalCreate(args);
@@ -15,6 +16,16 @@ exports.addCapacityFixture = function(prisma) {
     findUnique: async ({ where }) => where.booking_id ? payments.get(where.booking_id) || null : [...payments.values()].find(p => p.id === where.id) || null,
     create: async ({ data }) => { const p = { created_at: new Date(), ...data }; payments.set(p.booking_id, p); return p; },
     update: async ({ where, data }) => { const p = [...payments.values()].find(p => p.id === where.id); Object.assign(p, data); return p; },
+  };
+  prisma.booking_notifications = {
+    createMany: async ({ data }) => {
+      let count = 0;
+      for (const item of data) {
+        if (bookingNotifications.some(row => row.booking_id === item.booking_id && row.kind === item.kind && row.audience === item.audience)) continue;
+        bookingNotifications.push({ ...item }); count++;
+      }
+      return { count };
+    },
   };
   const slot = id => ({ id: `synthetic-slot-${id}`, date: new Date('2026-12-01'), spots_total: 100, spots_available: 100 });
   prisma.listing_availability = {
@@ -37,4 +48,5 @@ exports.addCapacityFixture = function(prisma) {
     return listing ? [{ id: listing.id }] : [];
   };
   prisma.$transaction = async fn => fn(prisma);
+  return { bookingNotifications };
 };

@@ -5,6 +5,7 @@ import { cancellationDecision } from './booking-policy';
 import { hasFinancialRisk } from './financial-state';
 import { refreshCapacity } from './booking-capacity';
 import { financialAudit } from './financial-audit';
+import { enqueueBookingNotifications } from './booking-notifications';
 
 export async function cancelPolicyBooking(prisma: any, id: string, actor: any) {
   const result = await withPaymentBooking(prisma, id, async (tx, booking) => {
@@ -24,6 +25,9 @@ export async function cancelPolicyBooking(prisma: any, id: string, actor: any) {
     const updated = await tx.bookings.update({ where: { id }, data: { ...decision, status: transition.status,
       ...(payment ? { payment_status: transition.financial === 'succeeded' ? 'paid' : transition.financial === 'pending' ? 'unpaid' : transition.financial } : {}),
       inventory_state: transition.inventory === 'RELEASE' ? 'released' : inventoryState(booking) } });
+    if (transition.status === 'cancelled' && booking.status !== 'cancelled') {
+      await enqueueBookingNotifications(tx, booking.id, 'cancelled');
+    }
     await refreshCapacity(tx, booking);
     return updated;
   });
