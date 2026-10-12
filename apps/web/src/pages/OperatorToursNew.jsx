@@ -75,6 +75,40 @@ const normalizeNullable = (value) => {
   return text || '';
 };
 
+const getBookingSortTime = (booking) => {
+  const raw = booking?.booking_terms?.departure_at || booking?.date;
+  const timestamp = Date.parse(String(raw || ''));
+  return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
+};
+
+function ProviderBookingCard({ booking }) {
+  const departure = formatBookingDeparture({
+    date: booking.date,
+    departureAt: booking.booking_terms?.departure_at,
+    timezone: booking.booking_terms?.timezone,
+  });
+  const total = Number(booking.total_price);
+  const totalLabel = Number.isFinite(total)
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(total)
+    : '—';
+
+  return (
+    <div className="grid gap-2 rounded-2xl border border-[#2d3548]/70 bg-[#0a0e27]/60 p-4 text-sm text-[#cad3df] md:grid-cols-[1.5fr_1.2fr_0.7fr_0.8fr_0.8fr] md:items-center">
+      <div>
+        <p className="font-semibold text-white">{booking.listing?.title || 'Tour booking'}</p>
+        <p className="text-xs text-[#a0a0a0]">{booking.user?.name || booking.user?.email || 'Traveler'}</p>
+      </div>
+      <p>{departure}</p>
+      <p>{booking.num_people || 1} traveler{Number(booking.num_people || 1) === 1 ? '' : 's'}</p>
+      <p>{totalLabel}</p>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="rounded-full border border-[#00D9FF]/30 px-2 py-1">{booking.status || 'pending'}</span>
+        <span className="rounded-full border border-[#00D9FF]/30 px-2 py-1">{booking.payment_status || 'unpaid'}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function OperatorToursNew() {
   const { t } = useTranslation();
   const { user, token, logout } = useAuth();
@@ -127,6 +161,24 @@ export default function OperatorToursNew() {
   const providerApproved = ['approved', 'verified'].includes(providerApprovalStatus);
   const providerLinkReady = Boolean(ownedProviderId);
   const hasOwnedListings = ownedListings.length > 0;
+  const { upcomingProviderBookings, historicalProviderBookings } = useMemo(() => {
+    const now = Date.now();
+    const inactiveStatuses = new Set(['cancelled', 'canceled', 'rejected', 'completed']);
+    const upcoming = [];
+    const historical = [];
+
+    providerBookings.forEach((booking) => {
+      const status = String(booking?.status || '').toLowerCase();
+      const destination = inactiveStatuses.has(status) || getBookingSortTime(booking) < now
+        ? historical
+        : upcoming;
+      destination.push(booking);
+    });
+
+    upcoming.sort((a, b) => getBookingSortTime(a) - getBookingSortTime(b));
+    historical.sort((a, b) => getBookingSortTime(b) - getBookingSortTime(a));
+    return { upcomingProviderBookings: upcoming, historicalProviderBookings: historical };
+  }, [providerBookings]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -976,8 +1028,8 @@ export default function OperatorToursNew() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-[#00D9FF]">Operations</p>
-                <h2 className="text-xl font-semibold text-white">Incoming bookings</h2>
-                <p className="text-sm text-[#a0a0a0]">Confirmed and pending reservations for tours owned by this operator account.</p>
+                <h2 className="text-xl font-semibold text-white">Upcoming bookings</h2>
+                <p className="text-sm text-[#a0a0a0]">Future confirmed and pending reservations for tours owned by this operator account.</p>
               </div>
               <Button type="button" variant="outline" onClick={loadProviderBookings} disabled={providerBookingsLoading}>
                 {providerBookingsLoading ? 'Refreshing...' : 'Refresh bookings'}
@@ -990,38 +1042,31 @@ export default function OperatorToursNew() {
               </p>
             ) : null}
 
-            {!providerBookingsLoading && providerBookings.length === 0 ? (
-              <p className="mt-5 text-sm text-[#a0a0a0]">No incoming bookings yet.</p>
+            {!providerBookingsLoading && upcomingProviderBookings.length === 0 ? (
+              <p className="mt-5 text-sm text-[#a0a0a0]">No upcoming bookings yet.</p>
             ) : (
               <div className="mt-5 grid gap-3">
-                {providerBookings.map((booking) => {
-                  const departure = formatBookingDeparture({
-                    date: booking.date,
-                    departureAt: booking.booking_terms?.departure_at,
-                    timezone: booking.booking_terms?.timezone,
-                  });
-                  const total = Number(booking.total_price);
-                  const totalLabel = Number.isFinite(total)
-                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency || 'USD' }).format(total)
-                    : '—';
-                  return (
-                    <div key={booking.id} className="grid gap-2 rounded-2xl border border-[#2d3548]/70 bg-[#0a0e27]/60 p-4 text-sm text-[#cad3df] md:grid-cols-[1.5fr_1.2fr_0.7fr_0.8fr_0.8fr] md:items-center">
-                      <div>
-                        <p className="font-semibold text-white">{booking.listing?.title || 'Tour booking'}</p>
-                        <p className="text-xs text-[#a0a0a0]">{booking.user?.name || booking.user?.email || 'Traveler'}</p>
-                      </div>
-                      <p>{departure}</p>
-                      <p>{booking.num_people || 1} traveler{Number(booking.num_people || 1) === 1 ? '' : 's'}</p>
-                      <p>{totalLabel}</p>
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <span className="rounded-full border border-[#00D9FF]/30 px-2 py-1">{booking.status || 'pending'}</span>
-                        <span className="rounded-full border border-[#00D9FF]/30 px-2 py-1">{booking.payment_status || 'unpaid'}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                {upcomingProviderBookings.map((booking) => (
+                  <ProviderBookingCard key={booking.id} booking={booking} />
+                ))}
               </div>
             )}
+
+            {historicalProviderBookings.length ? (
+              <details className="mt-6 rounded-2xl border border-white/10 bg-[#050816]/45 p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-[#cad3df]">
+                  Past and inactive bookings ({historicalProviderBookings.length})
+                </summary>
+                <p className="mt-2 text-xs text-[#a0a0a0]">
+                  These records remain available for audit and do not appear in the active operations list.
+                </p>
+                <div className="mt-4 grid gap-3">
+                  {historicalProviderBookings.map((booking) => (
+                    <ProviderBookingCard key={booking.id} booking={booking} />
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </section>
         ) : null}
 
