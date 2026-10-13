@@ -1,8 +1,9 @@
 import { financialAudit } from './financial-audit';
+import { assertPaymentMode, PaymentMode } from './payment-mode';
 // Only normalized, explicitly selected technical/financial fields belong in this inbox.
-export async function receivePaymentEvent(prisma: any, id: string, type: string, payload: any) {
+export async function receivePaymentEvent(prisma: any, id: string, type: string, payload: any, mode?: PaymentMode) {
   try {
-    await prisma.paymentEvent.upsert({ where: { id }, create: { id, type, payload, status: 'received' }, update: {} });
+    await prisma.paymentEvent.upsert({ where: { id }, create: { id, type, payload, status: 'received', ...(mode ? { processor_mode: mode } : {}) }, update: {} });
   } catch (error: any) {
     // Receipt runs outside the financial transaction. A concurrent first delivery
     // can win this insert; reload its durable row, never overwrite its payload/state.
@@ -12,12 +13,13 @@ export async function receivePaymentEvent(prisma: any, id: string, type: string,
       || error.meta.target[0] !== 'id') throw error;
   }
   const current = await prisma.paymentEvent.findUnique({ where: { id } });
+  if (mode) assertPaymentMode(current, mode);
   if (current.processed_at) return false;
   const attempt = await prisma.paymentEvent.updateMany({ where: { id, processed_at: null }, data: {
     status: 'processing', attempts: { increment: 1 }, last_attempt_at: new Date(), error_category: null,
   } });
   if (attempt.count === 0) return false;
-  financialAudit({ event_id: id, operation: type, processor: 'stripe', result: 'processing' });
+  financialAudit({ event_id: id, operation: type, processor: 'stripe', processor_mode: mode, result: 'processing' });
   return true;
 }
 

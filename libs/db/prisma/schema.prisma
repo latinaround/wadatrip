@@ -226,6 +226,8 @@ model providers {
   approved_by       String?
   created_at        DateTime  @default(now())
   stripe_account_id String?
+  stripe_test_account_id String? @unique
+  stripe_live_account_id String? @unique
 
   // Identity verification fields
   verification_status String?  @default("pending")
@@ -515,6 +517,7 @@ model PaymentEvent {
   processed_at DateTime?
   created_at   DateTime  @default(now())
   status       String    @default("received")
+  processor_mode String?
   attempts     Int       @default(0)
   last_attempt_at DateTime?
   error_category String?
@@ -536,6 +539,7 @@ model PaymentRecord {
   stripe_payment_intent_id   String?  @unique
   stripe_checkout_session_id String? @unique
   processor                  String   @default("stripe")
+  processor_mode             String?
   flow                       String?
   request_payload            Json?
   resolution                 String?
@@ -557,6 +561,7 @@ model PaymentRecord {
 
   @@index([resolution, updated_at])
   @@index([refund_status, refund_next_attempt_at])
+  @@index([processor_mode, refund_status, refund_next_attempt_at], map: "idx_payment_mode_refund")
 }
 
 model OperatorWallet {

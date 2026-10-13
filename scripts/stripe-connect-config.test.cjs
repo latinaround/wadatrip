@@ -71,7 +71,7 @@ test('a payout-only account is ready only when transfers and payouts are active'
 test('booking payment routes require a ready destination and contain no platform-charge fallback', () => {
   const controller = fs.readFileSync(path.resolve(__dirname, '../apps/gateway/src/controllers/payments.controller.ts'), 'utf8');
   assert.match(controller, /requireReadyPayoutAccount\(stripe, booking\)/);
-  assert.match(controller, /idempotencyKey: `wadatrip-connect-account:\$\{providerId\}`/);
+  assert.match(controller, /idempotencyKey: `wadatrip-connect-account:\$\{providerId\}:\$\{mode\}`/);
   assert.match(controller, /capabilities: stripeConnectCapabilities\(\)/);
   assert.match(controller, /tos_acceptance: stripeConnectServiceAgreement\(\)/);
   assert.match(controller, /const accountUpdate = stripeConnectAccountUpdate\(existing\)/);

@@ -13,6 +13,8 @@ const { createCapacityBooking, updateCapacityBooking } = require('@wadatrip/comm
 const { preparePayment, applyPaymentObservation } = require('@wadatrip/common/payment-lifecycle');
 const { paymentObject, reconcileBookingPayment, handleStripeEvent } = require('../apps/gateway/dist/apps/gateway/src/services/booking-payment.service.js');
 const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+process.env.STRIPE_SECRET_KEY = 'sk_test_synthetic_lifecycle_fixture';
+delete process.env.STRIPE_SECRET;
 const conflict = e => e.getStatus?.() === 409;
 
 test('BLOCKER preparation: blank historical reference never authorizes a new charge', async () => {
@@ -255,7 +257,7 @@ test('BLOCKER P2: external lookup failure leaves a durable retryable event', asy
   const object = await paymentObject(f.prisma, f.stripe, p);
   const retrieve = f.stripe.paymentIntents.retrieve;
   f.stripe.paymentIntents.retrieve = async () => { throw new Error('Synthetic external outage'); };
-  const event = { id: 'retryable-event', type: 'payment_intent.succeeded', data: { object: { id: object.id } } };
+  const event = { id: 'retryable-event', livemode: false, type: 'payment_intent.succeeded', data: { object: { id: object.id } } };
   await assert.rejects(handleStripeEvent(f.prisma, f.stripe, event));
   assert.equal(f.state().events[0]?.status, 'failed');
   f.stripe.paymentIntents.retrieve = retrieve;
@@ -365,7 +367,7 @@ function fixture({ capacity = 1, free = false } = {}) {
       create: async (request, { idempotencyKey }) => {
         if (!keys.has(idempotencyKey)) {
           creates++;
-          const obj = { id: `${flow}-${creates}`, metadata: request.metadata,
+          const obj = { id: `${flow}-${creates}`, metadata: request.metadata, livemode: false,
             status: flow === 'checkout' ? 'open' : 'requires_payment_method',
             payment_status: 'unpaid', amount_total: 12000, amount: 12000, currency: 'usd',
             url: 'http://127.0.0.1/checkout', client_secret: 'synthetic-not-a-real-secret' };
@@ -373,17 +375,44 @@ function fixture({ capacity = 1, free = false } = {}) {
         }
         return structuredClone(keys.get(idempotencyKey));
       },
-      retrieve: async id => { assert.ok(objects.has(id)); return structuredClone(objects.get(id)); },
+      retrieve: async id => {
+        assert.ok(objects.has(id));
+        const object = structuredClone(objects.get(id));
+        object.livemode ??= false;
+        if (typeof object.payment_intent === 'object' && object.payment_intent) object.payment_intent.livemode ??= false;
+        return object;
+      },
       expire: async id => { const obj = objects.get(id); if (obj.status !== 'open') throw new Error('Not open'); obj.status = 'expired'; return { ...obj }; },
       cancel: async id => { const obj = objects.get(id); if (obj.status === 'succeeded') throw new Error('Already paid'); obj.status = 'canceled'; return { ...obj }; },
     };
   }
   const stripe = { checkout: { sessions: processor('checkout') }, paymentIntents: processor('intent'), charges: { retrieve: async () => { throw new Error('Unexpected charge lookup'); } } };
   const create = async () => (await createCapacityBooking(prisma, { id: 'synthetic-traveler', name: 'Synthetic Traveler' }, { listing_id: listing.id, date: tomorrow, num_people: 1 })).created;
-  const prepare = (id, flow = 'checkout') => preparePayment(prisma, id, flow, (b, paymentId) => ({ metadata: { booking_id: b.id, payment_record_id: paymentId }, amount: b.amount_cents, currency: b.currency }));
+  const prepare = (id, flow = 'checkout') => preparePayment(prisma, id, flow, (b, paymentId) => ({ metadata: { booking_id: b.id, payment_record_id: paymentId }, amount: b.amount_cents, currency: b.currency }), 'test');
   const observe = (b, outcome = 'succeeded', extra = {}) => ({ bookingId: b.id, outcome, amount: 12000, currency: 'usd', ...extra });
   return { prisma, stripe, create, prepare, observe, state: () => state, objects, creates: () => creates };
 }
+
+test('checkout lookup rejects a nested PaymentIntent from the wrong processor mode', async () => {
+  const f = fixture(), b = await f.create(), p = await f.prepare(b.id);
+  const session = await paymentObject(f.prisma, f.stripe, p);
+  f.objects.get(session.id).payment_intent = { id: 'pi_synthetic_wrong_mode', livemode: true };
+  await assert.rejects(paymentObject(f.prisma, f.stripe, f.state().payments[0]), /mode/);
+});
+
+test('prepared ledger persists its mode and fee for both processor request shapes', async () => {
+  for (const flow of ['checkout', 'intent']) {
+    const f = fixture(), b = await f.create();
+    const payment = await preparePayment(f.prisma, b.id, flow, (booking, id) => ({
+      metadata: { booking_id: booking.id, payment_record_id: id },
+      ...(flow === 'checkout' ? { payment_intent_data: { application_fee_amount: 1800 } } : { application_fee_amount: 1800 }),
+    }), 'test');
+    assert.equal(payment.processor_mode, 'test');
+    assert.equal(payment.commission_cents, 1800); assert.equal(payment.amount_net_cents, 10200);
+    await assert.rejects(preparePayment(f.prisma, b.id, flow, () => ({}), 'live'), /mode/);
+    assert.equal(f.state().payments.length, 1);
+  }
+});
 
 test('cancellation during payment_pending retains seats until session expiration is verified', async () => {
   const f = fixture(), b = await f.create(), p = await f.prepare(b.id);
@@ -504,10 +533,10 @@ test('creation cannot be retried beyond processor idempotency retention', async 
 test('payment_failed webhook reads current processor state; retryable decline retains inventory', async () => {
   const f = fixture(), b = await f.create(), p = await f.prepare(b.id, 'intent');
   const obj = await paymentObject(f.prisma, f.stripe, p);
-  await handleStripeEvent(f.prisma, f.stripe, { id: 'decline', type: 'payment_intent.payment_failed', data: { object: { id: obj.id } } });
+  await handleStripeEvent(f.prisma, f.stripe, { id: 'decline', livemode: false, type: 'payment_intent.payment_failed', data: { object: { id: obj.id } } });
   assert.equal(f.state().bookings[0].status, 'payment_pending'); assert.equal(f.state().slot.spots_available, 0);
   Object.assign(f.objects.get(obj.id), { status: 'succeeded', amount_received: 12000 });
-  await handleStripeEvent(f.prisma, f.stripe, { id: 'old-decline', type: 'payment_intent.payment_failed', data: { object: { id: obj.id } } });
+  await handleStripeEvent(f.prisma, f.stripe, { id: 'old-decline', livemode: false, type: 'payment_intent.payment_failed', data: { object: { id: obj.id } } });
   assert.equal(f.state().bookings[0].status, 'confirmed');
 });
 

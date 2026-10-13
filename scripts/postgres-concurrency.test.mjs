@@ -33,7 +33,7 @@ const create = (db, id, people = 1) => createCapacityBooking(db, { id: 'p05-user
 const parameters = (booking, id) => ({ metadata: { booking_id: booking.id, payment_record_id: id }, amount: booking.amount_cents, currency: booking.currency });
 async function reserved(capacity = 1, price = 120) {
   const id = await listing(capacity, price), { created: booking } = await create(gateway, id);
-  const payment = price ? await preparePayment(gateway, booking.id, 'checkout', parameters) : null;
+  const payment = price ? await preparePayment(gateway, booking.id, 'checkout', parameters, 'test') : null;
   return { id, booking, payment };
 }
 const observation = (b, p, outcome = 'succeeded') => ({ bookingId: b.id, paymentId: p.id,
@@ -112,10 +112,10 @@ test('Gateway + Provider Hub use the same real lock protocol for create versus c
 
 test('two checkout preparations persist one immutable ledger and idempotency identity', async () => {
   const id=await listing(), {created:b}=await create(gateway,id);
-  const results=await contended(id,[()=>preparePayment(gateway,b.id,'checkout',parameters),()=>preparePayment(hub,b.id,'checkout',parameters)]);
+  const results=await contended(id,[()=>preparePayment(gateway,b.id,'checkout',parameters,'test'),()=>preparePayment(hub,b.id,'checkout',parameters,'test')]);
   assert.equal(results[0].status,'fulfilled'); assert.equal(results[1].status,'fulfilled');
   assert.equal(results[0].value.id,results[1].value.id); assert.equal(await gateway.paymentRecord.count({where:{booking_id:b.id}}),1);
-  await assert.rejects(preparePayment(hub,b.id,'intent',parameters));
+  await assert.rejects(preparePayment(hub,b.id,'intent',parameters,'test'));
 });
 
 test('concurrent duplicate webhook: durable event and one final financial state', async () => {

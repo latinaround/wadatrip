@@ -3,6 +3,7 @@ import { getPrisma } from '@wadatrip/db';
 import { financialAudit } from '@wadatrip/common/payment-lifecycle';
 import { reconcileBookingPayment } from './booking-payment.service';
 import { runAutomaticRefund } from './booking-refund.service';
+import { stripePaymentMode } from './payment-config.service';
 
 @Injectable()
 export class BookingAutomationService implements OnModuleInit, OnModuleDestroy {
@@ -11,6 +12,7 @@ export class BookingAutomationService implements OnModuleInit, OnModuleDestroy {
   private stopped = false;
   onModuleInit() {
     if (process.env.ENABLE_PAYMENT_AUTOMATION !== 'true') return;
+    stripePaymentMode();
     const key = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET;
     if (!key) throw new Error('Payment automation requires a configured processor');
     const stripe = new (require('stripe'))(key, { apiVersion: '2024-06-20', timeout: 20000, maxNetworkRetries: 1 });
@@ -28,7 +30,9 @@ export class BookingAutomationService implements OnModuleInit, OnModuleDestroy {
 
 export async function processAutomationBatch(prisma: any, stripe: any) {
   const now = new Date();
+  const mode = stripePaymentMode();
   const rows = await prisma.paymentRecord.findMany({ where: {
+    processor_mode: mode,
     booking: { cancellation_requested_at: { not: null } },
     AND: [
       { OR: [{ status: 'pending', resolution: null }, { resolution: 'refund_required', refund_status: null }, { refund_status: { in: ['requested', 'processing', 'pending'] } }] },

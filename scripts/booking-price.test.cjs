@@ -8,7 +8,7 @@ require('reflect-metadata');
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'synthetic-price-test-secret';
 process.env.INTERNAL_SERVICE_TOKEN = 'synthetic-internal-price-test';
-process.env.STRIPE_SECRET_KEY = 'synthetic-stripe-mock-key';
+process.env.STRIPE_SECRET_KEY = 'sk_test_synthetic_price_fixture';
 process.env.FF_PROVIDER_HUB = 'false';
 process.env.ADMIN_EMAILS = '';
 process.env.ADMIN_USER_IDS = '';
@@ -31,7 +31,7 @@ const prisma = {
 };
 class FakeStripe {
   constructor(key) {
-    assert.equal(key, 'synthetic-stripe-mock-key');
+    assert.equal(key, 'sk_test_synthetic_price_fixture');
     this.accounts = { retrieve: async id => {
       assert.equal(id, provider.stripe_account_id);
       return {
@@ -46,11 +46,11 @@ class FakeStripe {
     } };
     this.checkout = { sessions: { create: async data => {
       stripeCalls.push({ type: 'checkout', data });
-      return { id: 'synthetic-session', metadata: data.metadata, url: 'http://127.0.0.1/synthetic-checkout' };
+      return { id: 'synthetic-session', livemode: false, metadata: data.metadata, url: 'http://127.0.0.1/synthetic-checkout' };
     } } };
     this.paymentIntents = { create: async data => {
       stripeCalls.push({ type: 'intent', data });
-      return { id: 'synthetic-intent', metadata: data.metadata, client_secret: 'synthetic-client-secret' };
+      return { id: 'synthetic-intent', livemode: false, metadata: data.metadata, client_secret: 'synthetic-client-secret' };
     } };
   }
 }
@@ -159,19 +159,18 @@ for (const [name, service] of [['gateway', gateway], ['hub', hub], ['gateway -> 
   });
 }
 
-test('checkout and PaymentIntent use stored amount/currency despite malicious browser inputs', async () => {
+test('hosted checkout uses stored amount/currency and direct PaymentIntent stays disabled', async () => {
   const b = await gateway.create(req, input({ num_people: 2 }));
   await payments.checkout(b.id, { ...req, body: { amount: 1, currency: 'EUR' }, query: { amount: 1 } });
   // Each booking has exactly one payment flow; exercise the second endpoint on a separate booking.
   const intentBooking = await gateway.create(req, input({ num_people: 2 }));
-  await payments.createIntent({ booking_id: intentBooking.id, amount: 1, currency: 'EUR', price: 1 }, req);
+  await assert.rejects(payments.createIntent({ booking_id: intentBooking.id, amount: 1, currency: 'EUR', price: 1 }, req), error => error.getStatus?.() === 503);
   const checkout = stripeCalls[0].data.line_items[0];
   assert.equal(checkout.quantity, 1);
   assert.equal(checkout.price_data.unit_amount, b.amount_cents);
   assert.equal(checkout.price_data.unit_amount, 24000);
   assert.equal(checkout.price_data.currency, b.currency);
-  assert.equal(stripeCalls[1].data.amount, b.amount_cents);
-  assert.equal(stripeCalls[1].data.currency, 'usd');
+  assert.equal(stripeCalls.length, 1);
 });
 test('legacy browser-priced bookings, inconsistent totals and changed listing prices cannot be charged', async () => {
   const b = await gateway.create(req, input());
@@ -183,7 +182,7 @@ test('legacy browser-priced bookings, inconsistent totals and changed listing pr
   ]) {
     Object.assign(b, values);
     await assert.rejects(payments.checkout(b.id, req), badRequest);
-    await assert.rejects(payments.createIntent({ booking_id: b.id, amount: 12000 }, req), badRequest);
+    await assert.rejects(payments.createIntent({ booking_id: b.id, amount: 12000 }, req), error => error.getStatus?.() === 503);
   }
   Object.assign(b, { total_price: '120.00', amount_cents: 12000, currency: 'usd' });
   listing.price_from = '130';
@@ -195,7 +194,7 @@ test('zero totals never reach Stripe, and sub-minimum totals are not silently in
     listing.price_from = price;
     const b = await gateway.create(req, input());
     await assert.rejects(payments.checkout(b.id, req), badRequest);
-    await assert.rejects(payments.createIntent({ booking_id: b.id, amount: 9999 }, req), badRequest);
+    await assert.rejects(payments.createIntent({ booking_id: b.id, amount: 9999 }, req), error => error.getStatus?.() === 503);
     assert.equal(b.total_price, `${price === '0' ? '0.00' : price}`);
   }
   assert.equal(stripeCalls.length, 0);

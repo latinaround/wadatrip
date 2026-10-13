@@ -6,6 +6,8 @@ import { bookingSelect } from '@wadatrip/common/public-data';
 import { createCapacityBooking, updateCapacityBooking } from '@wadatrip/common/booking-capacity';
 import { reconcileBookingPayment } from '../services/booking-payment.service';
 import { cancelPolicyBooking } from '@wadatrip/common/booking-cancellation';
+import { assertPaymentMode } from '@wadatrip/common/payment-lifecycle';
+import { assertStripeObjectMode, stripePaymentMode } from '../services/payment-config.service';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
@@ -14,6 +16,7 @@ function getStripeClient() {
   const key = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET;
   if (!key) return null;
   try {
+    stripePaymentMode();
     return new (require('stripe'))(key, { apiVersion: '2024-06-20' });
   } catch {
     return null;
@@ -24,12 +27,17 @@ async function enrichBookingLinks(booking: any) {
   if (!booking) return booking;
   const stripe = getStripeClient();
   if (!stripe) return booking;
+  try {
+    const payment = await getPrisma().paymentRecord.findUnique({ where: { booking_id: booking.id } });
+    assertPaymentMode(payment, stripePaymentMode());
+  } catch { return booking; }
 
   const enriched = { ...booking };
 
   try {
     if (booking?.checkout_session_id) {
       const session = await stripe.checkout.sessions.retrieve(String(booking.checkout_session_id));
+      assertStripeObjectMode(session);
       if (session?.url) enriched.checkout_url = session.url;
       if (!enriched.payment_intent_id && session?.payment_intent) {
         enriched.payment_intent_id = String(session.payment_intent);
@@ -43,6 +51,7 @@ async function enrichBookingLinks(booking: any) {
       const intent = await stripe.paymentIntents.retrieve(String(paymentIntentId), {
         expand: ['latest_charge'],
       });
+      assertStripeObjectMode(intent);
       const latestCharge = typeof intent?.latest_charge === 'object' ? intent.latest_charge : null;
       if (latestCharge?.receipt_url) enriched.receipt_url = latestCharge.receipt_url;
       enriched.payment_intent_id = intent?.id || enriched.payment_intent_id;

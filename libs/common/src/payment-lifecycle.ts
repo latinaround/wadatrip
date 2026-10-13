@@ -9,12 +9,15 @@ import { assertPaymentOwnership } from './payment-association';
 import { financialAudit } from './financial-audit';
 import { requirePaymentBeforeCutoff } from './booking-policy';
 import { enqueueBookingNotifications } from './booking-notifications';
+import { assertPaymentMode, PaymentMode } from './payment-mode';
 export { enqueueBookingNotifications };
 export { financialAudit } from './financial-audit';
 export { assertPaymentOwnership } from './payment-association';
 export { receivePaymentEvent, failPaymentEvent } from './payment-events';
+export { assertPaymentMode, PaymentMode } from './payment-mode';
 
 export type PaymentObservation = {
+  processor_mode?: PaymentMode;
   bookingId: string; paymentId?: string; intentId?: string; sessionId?: string;
   outcome: 'pending' | 'succeeded' | 'failed' | 'refunded' | 'partial_refund';
   amount: number; currency: string;
@@ -34,13 +37,15 @@ export async function withPaymentBooking(prisma: any, id: string, fn: (tx: any, 
 
 // One immutable external operation per booking. No browser-supplied financial parameters.
 export async function preparePayment(prisma: any, id: string, flow: 'checkout' | 'intent',
-  parameters: (booking: any, paymentId: string) => any) {
+  parameters: (booking: any, paymentId: string) => any, mode: PaymentMode) {
+  if (!['test', 'live'].includes(mode)) throw new BadRequestException('Explicit payment mode is required');
   const result = await withPaymentBooking(prisma, id, async (tx, booking, listing) => {
     requirePaymentBeforeCutoff(booking);
     const price = validateBookingPrice(booking);
     if (price.amount < 50) throw new BadRequestException('Free or below-minimum bookings do not require supported payment');
     const existing = await tx.paymentRecord.findUnique({ where: { booking_id: id } });
     if (existing) {
+      assertPaymentMode(existing, mode);
       if (existing.flow !== flow || existing.status !== 'pending' || existing.resolution || booking.status !== 'payment_pending') {
         throw new ConflictException('This booking already has a payment flow; reconcile its status');
       }
@@ -53,17 +58,17 @@ export async function preparePayment(prisma: any, id: string, flow: 'checkout' |
     await available(tx, listing, booking.date, booking.num_people, id);
     const paymentId = randomUUID();
     const request = parameters(booking, paymentId);
-    const fee = request.payment_intent_data?.application_fee_amount || 0;
+    const fee = (flow === 'checkout' ? request.payment_intent_data?.application_fee_amount : request.application_fee_amount) || 0;
     const payment = await tx.paymentRecord.create({ data: {
       id: paymentId, booking_id: id, provider_id: booking.provider_id,
       amount_gross_cents: price.amount, commission_cents: fee,
       amount_net_cents: price.amount - fee, currency: price.currency,
-      processor: 'stripe', flow, request_payload: request, status: 'pending',
+      processor: 'stripe', processor_mode: mode, flow, request_payload: request, status: 'pending',
     } });
     await tx.bookings.update({ where: { id }, data: { status: 'payment_pending', payment_status: 'unpaid' } });
     return payment;
   });
-  financialAudit({ operation: 'payment_prepared', booking_id: id, payment_record_id: result.id, processor: result.processor,
+  financialAudit({ operation: 'payment_prepared', booking_id: id, payment_record_id: result.id, processor: result.processor, processor_mode: result.processor_mode,
     idempotency_key: `wadatrip:payment:${result.id}:${result.flow}:v1`, new_booking_state: 'payment_pending',
     new_payment_state: result.status, inventory_action: 'KEEP', expected_amount_cents: result.amount_gross_cents,
     expected_currency: result.currency, result: 'committed' });
@@ -100,7 +105,7 @@ export async function markPaymentUncertain(prisma: any, bookingId: string) {
 
 // Called only with verified processor observations. Domain state is decided here, not by Stripe.
 export async function applyPaymentObservation(prisma: any, eventId: string, type: string, observation: PaymentObservation, received = false) {
-  if (!received && !await receivePaymentEvent(prisma, eventId, type, observation)) return null;
+  if (!received && !await receivePaymentEvent(prisma, eventId, type, observation, observation.processor_mode)) return null;
   let audit: Record<string, unknown> | undefined;
   try { const result = await withPaymentBooking(prisma, observation.bookingId, async (tx, booking, listing) => {
     if ((await tx.paymentEvent.findUnique({ where: { id: eventId } }))?.processed_at) return booking;
@@ -111,6 +116,7 @@ export async function applyPaymentObservation(prisma: any, eventId: string, type
     await assertPaymentOwnership(tx, booking.id, o);
     await tx.paymentEvent.update({ where: { id: eventId }, data: { payload: o, booking_id: booking.id } });
     let payment = await tx.paymentRecord.findUnique({ where: { booking_id: booking.id } });
+    if (o.processor_mode) assertPaymentMode(payment, o.processor_mode);
     if (!payment) {
       // Legacy event: record the real financial result, but never create a new external payment.
       payment = await tx.paymentRecord.create({ data: {
@@ -159,7 +165,7 @@ export async function applyPaymentObservation(prisma: any, eventId: string, type
     // A mismatched amount on the canonical transaction still records real money.
     if (mismatch && !identityMismatch && money) transition.financial = o.outcome === 'refunded' || financialState(payment.status) === 'refunded' ? 'refunded' : 'succeeded';
     const paymentStatus = transition.financial === 'succeeded' ? 'paid' : transition.financial === 'pending' ? 'unpaid' : transition.financial;
-    audit = { operation: type, event_id: eventId, booking_id: booking.id, payment_record_id: payment.id, processor: payment.processor,
+    audit = { operation: type, event_id: eventId, booking_id: booking.id, payment_record_id: payment.id, processor: payment.processor, processor_mode: payment.processor_mode,
       idempotency_key: payment.flow ? `wadatrip:payment:${payment.id}:${payment.flow}:v1` : undefined,
       payment_intent_id: o.intentId, checkout_session_id: o.sessionId,
       previous_booking_state: booking.status, new_booking_state: transition.status,

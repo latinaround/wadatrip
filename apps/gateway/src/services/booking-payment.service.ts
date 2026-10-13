@@ -2,6 +2,8 @@ import { ConflictException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { syncAutomaticRefund } from './booking-refund.service';
 import { applyPaymentObservation, attachPaymentObject, markPaymentUncertain, PaymentObservation, receivePaymentEvent, failPaymentEvent, assertPaymentOwnership, financialAudit } from '@wadatrip/common/payment-lifecycle';
+import { assertPaymentMode } from '@wadatrip/common/payment-lifecycle';
+import { assertStripeObjectMode, stripePaymentMode } from './payment-config.service';
 
 const externalId = (value: any): string | undefined => typeof value === 'string' ? value : value?.id;
 
@@ -30,10 +32,14 @@ function verifyExternalAssociation(booking: any, payment: any, flow: string, obj
 // Replaying creation uses identical persisted parameters and the same key. Never replay
 // beyond Stripe's minimum idempotency retention: uncertainty then requires manual review.
 export async function paymentObject(prisma: any, stripe: any, payment: any) {
+  const mode = stripePaymentMode();
+  assertPaymentMode(payment, mode);
   const verify = async (object: any) => {
+    assertStripeObjectMode(object, mode);
     if (payment.flow === 'checkout' && typeof object.payment_intent === 'string') {
       object.payment_intent = await stripe.paymentIntents.retrieve(object.payment_intent, { expand: ['latest_charge'] });
     }
+    if (object.payment_intent && typeof object.payment_intent === 'object') assertStripeObjectMode(object.payment_intent, mode);
     const booking = await prisma.bookings.findUnique({ where: { id: payment.booking_id } });
     const current = await prisma.paymentRecord.findUnique({ where: { booking_id: payment.booking_id } });
     verifyExternalAssociation(booking, current, payment.flow, object);
@@ -53,7 +59,7 @@ export async function paymentObject(prisma: any, stripe: any, payment: any) {
     throw new ConflictException('Payment creation outcome requires manual reconciliation; seats remain reserved');
   }
   const options = { idempotencyKey: `wadatrip:payment:${payment.id}:${payment.flow}:v1` };
-  const audit = { booking_id: payment.booking_id, payment_record_id: payment.id, processor: 'stripe',
+  const audit = { booking_id: payment.booking_id, payment_record_id: payment.id, processor: 'stripe', processor_mode: mode,
     idempotency_key: options.idempotencyKey, operation: 'processor_create', expected_amount_cents: payment.amount_gross_cents, expected_currency: payment.currency };
   financialAudit({ ...audit, result: 'requested' });
   let object: any;
@@ -68,6 +74,8 @@ export async function paymentObject(prisma: any, stripe: any, payment: any) {
   if (object.metadata?.booking_id !== payment.booking_id || object.metadata?.payment_record_id !== payment.id) {
     throw new ConflictException('Created payment does not match its persisted request');
   }
+  assertStripeObjectMode(object, mode);
+  if (object.payment_intent && typeof object.payment_intent === 'object') assertStripeObjectMode(object.payment_intent, mode);
   await attachPaymentObject(prisma, payment, payment.flow === 'checkout'
     ? { sessionId: object.id, intentId: externalId(object.payment_intent) } : { intentId: object.id });
   financialAudit({ ...audit, result: 'attached', ...(payment.flow === 'checkout' ? { checkout_session_id: object.id } : { payment_intent_id: object.id }) });
@@ -75,8 +83,11 @@ export async function paymentObject(prisma: any, stripe: any, payment: any) {
 }
 
 export async function observeStripeObject(stripe: any, flow: 'checkout' | 'intent', object: any): Promise<PaymentObservation> {
+  const mode = stripePaymentMode();
+  assertStripeObjectMode(object, mode);
   let intent = flow === 'intent' ? object : object.payment_intent;
   if (typeof intent === 'string') intent = await stripe.paymentIntents.retrieve(intent, { expand: ['latest_charge'] });
+  if (intent) assertStripeObjectMode(intent, mode);
   let charge = intent?.latest_charge;
   if (typeof charge === 'string') charge = await stripe.charges.retrieve(charge);
   const metadata = intent?.metadata || object.metadata || {};
@@ -90,6 +101,7 @@ export async function observeStripeObject(stripe: any, flow: 'checkout' | 'inten
   if (outcome === 'pending' && (intent?.status === 'canceled'
     || (flow === 'checkout' && object.status === 'expired' && (!intent || intent.status === 'canceled')))) outcome = 'failed';
   return {
+    processor_mode: mode,
     bookingId: String(bookingId), paymentId: metadata.payment_record_id || object.metadata?.payment_record_id,
     ...(intent?.id ? { intentId: intent.id } : {}), ...(flow === 'checkout' ? { sessionId: object.id } : {}),
     outcome, amount: outcome === 'succeeded' || outcome === 'refunded' || outcome === 'partial_refund'
@@ -109,6 +121,7 @@ export async function reconcileBookingPayment(prisma: any, stripe: any, bookingI
   const sessionId = payment?.stripe_checkout_session_id || booking.checkout_session_id;
   const intentId = payment?.stripe_payment_intent_id || booking.payment_intent_id;
   if (!payment && !sessionId && !intentId) return booking;
+  assertPaymentMode(payment, stripePaymentMode());
   if (!payment?.flow && !sessionId && !intentId) throw new ConflictException('Historical payment has no recoverable external reference');
   const flow = payment?.flow || (sessionId ? 'checkout' : 'intent');
   let object = payment?.flow ? await paymentObject(prisma, stripe, payment)
@@ -119,6 +132,8 @@ export async function reconcileBookingPayment(prisma: any, stripe: any, bookingI
     object.payment_intent = await stripe.paymentIntents.retrieve(object.payment_intent, { expand: ['latest_charge'] });
   }
   booking = await prisma.bookings.findUnique({ where: { id: bookingId } });
+  assertStripeObjectMode(object);
+  if (typeof object.payment_intent === 'object' && object.payment_intent) assertStripeObjectMode(object.payment_intent);
   verifyExternalAssociation(booking, await prisma.paymentRecord.findUnique({ where: { booking_id: bookingId } }), flow, object);
   await assertPaymentOwnership(prisma, bookingId, flow === 'checkout'
     ? { sessionId: object.id, intentId: externalId(object.payment_intent) } : { intentId: object.id });
@@ -143,8 +158,10 @@ export async function reconcileBookingPayment(prisma: any, stripe: any, bookingI
 }
 
 export async function handleStripeEvent(prisma: any, stripe: any, event: any) {
+  const mode = stripePaymentMode();
+  assertStripeObjectMode(event, mode);
   if (!event?.id) throw new ConflictException('Missing payment event ID');
-  if (!await receivePaymentEvent(prisma, event.id, event.type, { external_id: String(event.data?.object?.id || '') })) return { ok: true };
+  if (!await receivePaymentEvent(prisma, event.id, event.type, { external_id: String(event.data?.object?.id || '') }, mode)) return { ok: true };
   try {
   const data = event.data?.object;
   let flow: 'checkout' | 'intent', object: any;
@@ -167,6 +184,7 @@ export async function handleStripeEvent(prisma: any, stripe: any, event: any) {
     return { ok: true, ignored: true };
   }
   const observation = await observeStripeObject(stripe, flow, object);
+  assertPaymentMode(await prisma.paymentRecord.findUnique({ where: { booking_id: observation.bookingId } }), mode);
   await syncAutomaticRefund(prisma, stripe, observation.bookingId);
   await applyPaymentObservation(prisma, event.id, event.type, observation, true);
   return { ok: true };

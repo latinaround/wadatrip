@@ -8,14 +8,16 @@ import {
   UnauthorizedException,
   ConflictException,
   Req,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
 import { requireActor, requireProviderAccess, requireBookingAccess } from '@wadatrip/common/security';
 import { validateBookingPrice } from '@wadatrip/common/booking-price';
-import { preparePayment } from '@wadatrip/common/payment-lifecycle';
+import { preparePayment, assertPaymentMode } from '@wadatrip/common/payment-lifecycle';
 import { paymentObject, reconcileBookingPayment } from '../services/booking-payment.service';
 import { stripeConnectAccountUpdate, stripeConnectCapabilities, stripeConnectServiceAgreement, stripeConnectStatus, stripeConnectUrls } from '../services/stripe-connect.service';
+import { requireNewPaymentAccess, stripePaymentMode, payoutAccountForMode, marketplaceFee } from '../services/payment-config.service';
 
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
 
@@ -28,19 +30,16 @@ function bookingPaymentAmount(booking: any) {
 }
 
 function marketplaceFeeAmount(amountCents: number) {
-  const feePct = Number(process.env.WADATRIP_FEE_PCT || 15);
-  if (!Number.isFinite(feePct) || feePct < 0 || feePct > 100) {
-    throw new BadRequestException('Invalid payment fee configuration');
-  }
-  return Math.floor(amountCents * feePct / 100);
+  return marketplaceFee(amountCents);
 }
 
 async function requireReadyPayoutAccount(stripe: any, booking: any) {
-  const accountId = String(booking?.provider?.stripe_account_id || '').trim();
+  const mode = stripePaymentMode();
+  const accountId = String(payoutAccountForMode(booking?.provider, mode) || '').trim();
   if (!accountId) throw new ConflictException('Operator payout setup is incomplete');
   const account = await stripe.accounts.retrieve(accountId);
   const associatedProvider = String(account?.metadata?.wadatrip_provider_id || '');
-  if (associatedProvider && associatedProvider !== booking.provider_id) {
+  if ((mode === 'live' && associatedProvider !== booking.provider_id) || (associatedProvider && associatedProvider !== booking.provider_id)) {
     throw new ConflictException('Payout account association mismatch');
   }
   if (!stripeConnectStatus(account).ready) {
@@ -93,6 +92,7 @@ function normalizeCountryCode(raw: any): string {
 
 // Minimal Stripe wrapper (throws when Stripe is misconfigured)
 function requireStripe() {
+  stripePaymentMode();
   const key = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET;
   if (!key) {
     throw new BadRequestException('Stripe secret key is not configured');
@@ -133,10 +133,12 @@ export class PaymentsController {
   @Get('connect/:providerId/status')
   async connectStatus(@Param('providerId') providerId: string, @Req() req: any) {
     const { provider } = await requireProviderAccess(req, getPrisma(), providerId);
-    if (!provider.stripe_account_id) return stripeConnectStatus(null);
-    const account = await requireStripe().accounts.retrieve(provider.stripe_account_id);
+    const mode = stripePaymentMode();
+    const accountId = payoutAccountForMode(provider, mode);
+    if (!accountId) return stripeConnectStatus(null);
+    const account = await requireStripe().accounts.retrieve(accountId);
     const associatedProvider = String(account?.metadata?.wadatrip_provider_id || '');
-    if (associatedProvider && associatedProvider !== providerId) {
+    if ((mode === 'live' && associatedProvider !== providerId) || (associatedProvider && associatedProvider !== providerId)) {
       throw new ConflictException('Payout account association mismatch');
     }
     return stripeConnectStatus(account);
@@ -145,6 +147,7 @@ export class PaymentsController {
   @Post('connect/:providerId/link')
   async connectLink(@Param('providerId') providerId: string, @Req() req: any) {
     const { provider } = await requireProviderAccess(req, getPrisma(), providerId);
+    const mode = requireNewPaymentAccess(providerId);
     const providerStatus = String(provider.status || provider.verification_status || '').toLowerCase();
     if (!['approved', 'verified'].includes(providerStatus)) {
       throw new BadRequestException('Provider must be approved before payout setup');
@@ -153,7 +156,7 @@ export class PaymentsController {
     const stripe = requireStripe();
     const prisma = getPrisma() as any;
 
-    let accountId = provider.stripe_account_id;
+    let accountId = payoutAccountForMode(provider, mode);
     if (!accountId) {
       const stripeCountry = normalizeCountryCode(provider.country_code);
       const acct = await stripe.accounts.create({
@@ -163,17 +166,17 @@ export class PaymentsController {
         capabilities: stripeConnectCapabilities(),
         tos_acceptance: stripeConnectServiceAgreement(),
         metadata: { wadatrip_provider_id: providerId },
-      }, { idempotencyKey: `wadatrip-connect-account:${providerId}` });
+      }, { idempotencyKey: `wadatrip-connect-account:${providerId}:${mode}` });
       accountId = acct.id;
 
       await prisma.providers.update({
         where: { id: providerId },
-        data: { stripe_account_id: accountId },
+        data: mode === 'live' ? { stripe_live_account_id: accountId } : { stripe_test_account_id: accountId },
       });
     } else {
       const existing = await stripe.accounts.retrieve(accountId);
       const associatedProvider = String(existing?.metadata?.wadatrip_provider_id || '');
-      if (existing?.deleted || (associatedProvider && associatedProvider !== providerId)) {
+      if (existing?.deleted || (mode === 'live' && associatedProvider !== providerId) || (associatedProvider && associatedProvider !== providerId)) {
         throw new ConflictException('Payout account association mismatch');
       }
       const accountUpdate = stripeConnectAccountUpdate(existing);
@@ -198,29 +201,18 @@ export class PaymentsController {
   async createIntent(@Body() body: any, @Req() req: any) {
     if (!body?.booking_id) throw new BadRequestException('booking_id is required');
     const prisma = getPrisma() as any;
-    const { booking } = await requireBookingAccess(req, prisma, String(body.booking_id), 'pay');
-    bookingPaymentAmount(booking);
-    const stripe = requireStripe();
-    const payoutAccountId = await requireReadyPayoutAccount(stripe, booking);
-    const payment = await preparePayment(prisma, booking.id, 'intent', (current, paymentId) => ({
-      amount: current.amount_cents, currency: current.currency,
-      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
-      application_fee_amount: marketplaceFeeAmount(current.amount_cents),
-      transfer_data: { destination: payoutAccountId },
-      metadata: { booking_id: current.id, payment_record_id: paymentId },
-    }));
-    const intent = await paymentObject(prisma, stripe, payment);
-    const current = await prisma.bookings.findUnique({ where: { id: booking.id } });
-    if (current.status !== 'payment_pending') throw new ConflictException('Payment is no longer awaiting checkout');
-    if (!intent?.client_secret) throw new BadRequestException('Stripe did not return a clientSecret');
-    return { clientSecret: intent.client_secret, payment_intent_id: intent.id };
+    await requireBookingAccess(req, prisma, String(body.booking_id), 'pay');
+    throw new ServiceUnavailableException('Use the hosted booking checkout');
   }
 
   @Post('bookings/:id/checkout')
   async checkout(@Param('id') bookingId: string, @Req() req: any) {
     const prisma = getPrisma() as any;
     const { booking } = await requireBookingAccess(req, prisma, bookingId, 'pay');
+    const mode = requireNewPaymentAccess(booking.provider_id);
     bookingPaymentAmount(booking);
+    const existingPayment = await prisma.paymentRecord.findUnique({ where: { booking_id: bookingId } });
+    if (existingPayment) assertPaymentMode(existingPayment, mode);
     const stripe = requireStripe();
     const payoutAccountId = await requireReadyPayoutAccount(stripe, booking);
     const payment = await preparePayment(prisma, bookingId, 'checkout', (current, paymentId) => {
@@ -243,7 +235,7 @@ export class PaymentsController {
           transfer_data: { destination: payoutAccountId }, metadata,
         },
       };
-    });
+    }, mode);
     const session = await paymentObject(prisma, stripe, payment);
     const current = await prisma.bookings.findUnique({ where: { id: bookingId } });
     if (current.status !== 'payment_pending') throw new ConflictException('Payment is no longer awaiting checkout');
@@ -262,68 +254,6 @@ export class PaymentsController {
   @Post('itineraries/:id/checkout')
   async checkoutItinerary(@Param('id') itineraryId: string, @Req() req: any) {
     await requireActor(req, getPrisma());
-    const stripe = requireStripe();
-    const prisma = getPrisma() as any;
-    const itinerary = await prisma.itineraries.findUnique({ where: { id: itineraryId } });
-    if (!itinerary) {
-      throw new BadRequestException('Itinerary not found');
-    }
-
-    if (String(itinerary.status).toLowerCase() !== 'published') {
-      throw new BadRequestException('Itinerary is not published');
-    }
-
-    const operatorStripe = itinerary.operator_stripe_account_id;
-    if (!operatorStripe) {
-      throw new BadRequestException('Operator has no connected Stripe account');
-    }
-
-    const price = Number(itinerary.price);
-    if (!Number.isFinite(price) || price <= 0) {
-      throw new BadRequestException('Invalid itinerary price');
-    }
-
-    const currency = String(itinerary.currency || 'USD').toLowerCase();
-    if (currency !== 'usd') {
-      throw new BadRequestException('Only USD is supported');
-    }
-
-    const amountCents = Math.max(50, Math.round(price * 100));
-    const feePct = Number(process.env.WADATRIP_FEE_PCT || 15);
-    const feeCents = Math.floor((amountCents * feePct) / 100);
-
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      success_url:
-        process.env.CHECKOUT_SUCCESS_URL ||
-        `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/success`,
-      cancel_url:
-        process.env.CHECKOUT_CANCEL_URL ||
-        `${process.env.GATEWAY_URL || 'http://localhost:3015'}/checkout/cancel`,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: 'usd',
-            unit_amount: amountCents,
-            product_data: {
-              name: itinerary.title || 'Wadatrip itinerary',
-            },
-          },
-        },
-      ],
-      payment_intent_data: {
-        application_fee_amount: feeCents,
-        transfer_data: { destination: operatorStripe },
-        metadata: { itinerary_id: itineraryId },
-      },
-    });
-
-    if (!session?.url) {
-      throw new BadRequestException('Stripe did not return a checkout session URL');
-    }
-
-    return { url: session.url };
+    throw new ServiceUnavailableException('Itinerary payments are not available; book a published tour');
   }
 }

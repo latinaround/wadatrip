@@ -3,6 +3,8 @@ import { withPaymentBooking, financialAudit, assertPaymentOwnership, enqueueBook
 import { CANCELLATION_POLICY_VERSION } from '@wadatrip/common/booking-policy';
 import { refreshCapacity } from '@wadatrip/common/booking-capacity';
 import { paymentObject } from './booking-payment.service';
+import { assertPaymentMode } from '@wadatrip/common/payment-lifecycle';
+import { stripePaymentMode } from './payment-config.service';
 
 const idOf = (value: any) => typeof value === 'string' ? value : value?.id;
 const keyFor = (payment: any) => `wadatrip:refund:${payment.id}:v1`;
@@ -48,6 +50,7 @@ export async function recordVerifiedRefund(prisma: any, bookingId: string, refun
 export async function syncAutomaticRefund(prisma: any, stripe: any, bookingId: string) {
   const payment = await prisma.paymentRecord.findUnique({ where: { booking_id: bookingId } });
   if (!payment?.refund_id) return null;
+  assertPaymentMode(payment, stripePaymentMode());
   const refund = await stripe.refunds.retrieve(payment.refund_id);
   return recordVerifiedRefund(prisma, bookingId, refund);
 }
@@ -55,6 +58,8 @@ export async function syncAutomaticRefund(prisma: any, stripe: any, bookingId: s
 export async function runAutomaticRefund(prisma: any, stripe: any, bookingId: string) {
   const claim = await withPaymentBooking(prisma, bookingId, async (tx, booking) => {
     const p = await tx.paymentRecord.findUnique({ where: { booking_id: bookingId } });
+    // Unknown historical records require manual mode verification, never automatic IO.
+    if (p?.processor_mode !== stripePaymentMode()) return null;
     if (!p || booking.booking_terms?.version !== CANCELLATION_POLICY_VERSION || booking.cancellation_refund_due !== true
       || !booking.cancellation_requested_at || p.resolution !== 'refund_required'
       || ['failed', 'review_required', 'succeeded'].includes(p.refund_status)) return null;
