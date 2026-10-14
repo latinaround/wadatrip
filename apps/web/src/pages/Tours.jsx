@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
 import { getListingPriceBadge, isFreeTour } from '../utils/listingMode';
 import { getHostBadge, getHostTrustScore, sortHostsByTrust } from '../utils/hostRanking';
+import { useAuth } from '../context/AuthContext.jsx';
+import { Button } from '../components/ui/button';
 
 const normalizeBaseUrl = (base) => (base || '').replace(/\/$/, '');
 
@@ -92,6 +94,7 @@ function ExperienceCard({ experience, destinationCoverMap }) {
 }
 
 export default function Tours() {
+  const { user } = useAuth();
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const location = useLocation();
   const [items, setItems] = useState([]);
@@ -236,6 +239,13 @@ export default function Tours() {
   return (
     <div className="page-shell">
       <div className="page-container space-y-10">
+        {user ? (
+          <nav aria-label="Your trips">
+            <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
+              <Link to="/account#my-trips">Back to my trips</Link>
+            </Button>
+          </nav>
+        ) : null}
         <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
           <div className="overflow-hidden rounded-[30px] border border-white/12 bg-[linear-gradient(135deg,#0f7f77_0%,#14908d_42%,#dd8a63_100%)] p-8 shadow-[0_26px_70px_rgba(15,23,42,0.22)] md:p-9">
             <div className="space-y-5">

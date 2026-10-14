@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
@@ -162,6 +162,7 @@ const formatProviderStatus = (provider) => {
 };
 
 const Account = () => {
+  const location = useLocation();
   const { user, token, logout, refreshProfile } = useAuth();
   const [itineraries, setItineraries] = useState([]);
   const [itinerariesLoading, setItinerariesLoading] = useState(true);
@@ -181,6 +182,14 @@ const Account = () => {
   const [guideSaving, setGuideSaving] = useState(false);
   const [guideMessage, setGuideMessage] = useState(null);
   const [showGuideSetup, setShowGuideSetup] = useState(false);
+
+  useEffect(() => {
+    if (!user || bookingsLoading || location.hash !== '#my-trips') return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('my-trips')?.scrollIntoView({ block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [user, bookingsLoading, location.hash]);
 
   const fetchJson = useCallback(async (path, init = {}) => {
     if (!token) throw new Error('User is not authenticated');
@@ -431,8 +440,12 @@ const Account = () => {
           <h1 className="text-3xl font-bold text-white">Hi, {user.name || user.email}</h1>
           <p className="text-[#a0a0a0]">Manage your trips, bookings, payments, and profile.</p>
           <div className="flex flex-wrap gap-3">
-            <a className="neon-cta" href="#my-trips">My trips</a>
-            <Link className="neon-outline" to="/tours">Explore tours</Link>
+            <Button asChild className="h-12 rounded-2xl bg-[#167c7d] px-6 font-semibold text-white hover:bg-[#136f71]">
+              <a href="#my-trips">My trips</a>
+            </Button>
+            <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
+              <Link to="/tours">Explore tours</Link>
+            </Button>
           </div>
         </div>
 
