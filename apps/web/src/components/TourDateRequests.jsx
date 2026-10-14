@@ -12,7 +12,7 @@ import { dateRequestApi } from '../services/tourDateRequests';
 const keyOf = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const dayOf = value => new Date(`${value.slice(0, 10)}T12:00:00`);
 
-export default function TourDateRequests({ apiBase, listingId, operator = false, onSignIn, onAvailabilityChange }) {
+export default function TourDateRequests({ apiBase, listingId, operator = false, bookingDate = '', onSignIn, onAvailabilityChange }) {
   const { t, i18n } = useTranslation();
   const auth = useAuth(), session = useRef(auth); session.current = auth;
   const [enabled, setEnabled] = useState(false);
@@ -88,7 +88,7 @@ export default function TourDateRequests({ apiBase, listingId, operator = false,
   };
 
   if (!enabled) return null;
-  return <section className={operator ? 'page-card space-y-4' : 'mt-5 space-y-4 rounded-2xl border border-[#d7e6e3] bg-white p-4 text-[#172033]'} aria-label={text(operator ? 'inbox' : 'title')}>
+  const content = <>
     <h2 className="font-semibold">{text(operator ? 'inbox' : 'title')}</h2>
     <p className="text-sm">{text(operator ? 'operator_help' : 'help')}</p>
     {!operator && (!auth.user || !auth.token ? <Button type="button" disabled={auth.loading} onClick={onSignIn}>{text('sign_in')}</Button> :
@@ -135,5 +135,11 @@ export default function TourDateRequests({ apiBase, listingId, operator = false,
         {!operator && ['requested', 'available'].includes(item.status) && <Button type="button" variant="outline" disabled={busy} onClick={() => act({ path: `/${item.id}/cancel`, method: 'POST' })}>{text('close')}</Button>}
       </article>)}
     </>}
+  </>;
+  return <section className={operator ? 'page-card space-y-4' : 'mt-5 space-y-4 rounded-2xl border border-[#d7e6e3] bg-white p-4 text-[#172033]'} aria-label={text(operator ? 'inbox' : 'title')}>
+    {operator ? content : <details open={!bookingDate}>
+      <summary className="cursor-pointer font-semibold text-[#167c7d]">{text(bookingDate ? 'different_date' : 'title')}</summary>
+      <div className="mt-3 space-y-4">{content}</div>
+    </details>}
   </section>;
 }

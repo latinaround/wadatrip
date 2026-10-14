@@ -157,6 +157,9 @@ export default function TourDetail() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [travelerName, setTravelerName] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
+  const bookingButtonRef = useRef(null);
+  const focusAfterNameSave = useRef(false);
+  const needsTravelerName = Boolean(user && token && !String(user.name || '').trim());
   const [shareMessage, setShareMessage] = useState(null);
   const [bookingForm, setBookingForm] = useState({
     num_people: 1,
@@ -170,6 +173,13 @@ export default function TourDetail() {
   useEffect(() => {
     setTravelerName(String(user?.name || ''));
   }, [user?.id, user?.name]);
+
+  useEffect(() => {
+    if (focusAfterNameSave.current && !profileSaving && user && token && !needsTravelerName) {
+      focusAfterNameSave.current = false;
+      bookingButtonRef.current?.focus();
+    }
+  }, [profileSaving, user, token, needsTravelerName]);
 
   useEffect(() => {
     let mounted = true;
@@ -295,6 +305,7 @@ export default function TourDetail() {
     setProfileSaving(true);
     try {
       await auth.updateProfile({ name });
+      focusAfterNameSave.current = true;
       setBookingSuccess('Name saved. You can now complete your booking.');
     } catch (err) {
       setBookingError(err?.message || 'Could not save your name.');
@@ -521,10 +532,10 @@ export default function TourDetail() {
               {currentTerms.terms.version ? <label className="flex items-start gap-2"><input type="checkbox" checked={policyAccepted} onChange={event => setPolicyAccepted(event.target.checked)} />I have read and accept this cancellation policy.</label> : null}
             </div> : null}
             {!authLoading && (!user || !token) && !bookingError && <p className="mt-4 text-sm text-[#526173]">{SIGN_IN_REQUIRED}</p>}
-            {!authLoading && user && token && !String(user.name || '').trim() ? (
+            {!authLoading && needsTravelerName ? (
               <div className="mt-4 rounded-2xl border border-[#e7c89d] bg-[#fff8eb] p-4">
                 <p className="font-semibold text-[#172033]">Add your name before booking</p>
-                <p className="mt-1 text-sm text-[#526173]">Your host will use it to identify your reservation. It is saved securely to your Wadatrip account.</p>
+                <p className="mt-1 text-sm text-[#526173]">Your host will use it to identify your reservation. Save it once to your account; your selected date will stay the same.</p>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <Input
                     type="text"
@@ -536,9 +547,6 @@ export default function TourDetail() {
                     placeholder="Your full name"
                     className="!rounded-2xl !border-[#d7e6e3] !bg-white !text-[#172033]"
                   />
-                  <Button type="button" variant="outline" onClick={handleSaveTravelerName} disabled={profileSaving}>
-                    {profileSaving ? 'Saving...' : 'Save name'}
-                  </Button>
                 </div>
               </div>
             ) : null}
@@ -546,8 +554,8 @@ export default function TourDetail() {
             {bookingSuccess && <p className="mt-4 text-sm text-[#167c7d]">{bookingSuccess}</p>}
             {shareMessage && <p className="mt-4 text-sm text-[#167c7d]">{shareMessage}</p>}
 
-            <Button className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={handleBooking} disabled={bookingLoading || authLoading || profileSaving}>
-              {authLoading ? 'Checking session...' : bookingLoading ? 'Processing...' : !user || !token ? 'Sign in to book' : !String(user.name || '').trim() ? 'Add your name to book' : getListingBookingCta(currentHost)}
+            <Button ref={bookingButtonRef} type="button" className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={needsTravelerName ? handleSaveTravelerName : handleBooking} disabled={bookingLoading || authLoading || profileSaving || (needsTravelerName && !travelerName.trim())}>
+              {authLoading ? 'Checking session...' : profileSaving ? 'Saving name...' : bookingLoading ? 'Processing...' : !user || !token ? 'Sign in to book' : needsTravelerName ? 'Save name and continue' : getListingBookingCta(currentHost)}
             </Button>
             <Button
               variant="outline"
@@ -557,6 +565,7 @@ export default function TourDetail() {
               Copy public tour link
             </Button>
             <TourDateRequests key={currentHost.id} apiBase={apiBase} listingId={currentHost.id}
+              bookingDate={bookingForm.date}
               onSignIn={() => setAuthOpen(true)} onAvailabilityChange={() => setAvailabilityRetry(value => value + 1)} />
           </div>
         </section>

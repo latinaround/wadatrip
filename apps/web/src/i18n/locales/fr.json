@@ -1,5 +1,6 @@
 {
     "date_requests": {
+        "different_date": "Besoin d'une autre date ? (facultatif)",
         "title": "Demander une date", "inbox": "Demandes de date", "help": "Aucun départ adapté ? Proposez une date à l'hôte. Aucun paiement ni réservation de places.",
         "operator_help": "Répondez aux voyageurs. Proposez uniquement un départ réel avec assez de places. Une demande ne réserve pas de places.",
         "sign_in": "Connectez-vous pour demander une date", "date": "Date demandée", "choose": "Choisir une date à proposer", "people": "Voyageurs",

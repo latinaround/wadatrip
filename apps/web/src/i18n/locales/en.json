@@ -1,5 +1,6 @@
 {
     "date_requests": {
+        "different_date": "Need a different date? (optional)",
         "title": "Request a date", "inbox": "Date requests", "help": "No suitable departure? Ask the host for a date. This is an inquiry: no booking, reserved spots or payment.",
         "operator_help": "Respond to traveler inquiries. Offer only a real departure with enough spots. Requests do not reserve inventory.",
         "sign_in": "Sign in to request a date", "date": "Requested date", "choose": "Choose a requested date", "people": "Travelers",

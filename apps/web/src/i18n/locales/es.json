@@ -1,5 +1,6 @@
 {
     "date_requests": {
+        "different_date": "¿Necesitas otra fecha? (opcional)",
         "title": "Solicitar una fecha", "inbox": "Solicitudes de fecha", "help": "¿No hay una salida adecuada? Consulta al anfitrión por una fecha. No crea una reserva, no aparta cupos y no tiene cobro.",
         "operator_help": "Responde las consultas de viajeros. Ofrece solo una salida real con cupos suficientes. Las solicitudes no apartan inventario.",
         "sign_in": "Inicia sesión para solicitar una fecha", "date": "Fecha solicitada", "choose": "Elegir una fecha para consultar", "people": "Viajeros",
