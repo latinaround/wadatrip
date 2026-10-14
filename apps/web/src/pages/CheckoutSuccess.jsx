@@ -5,6 +5,7 @@ import AuthDialog from '../components/AuthDialog.jsx';
 import BookingCancellationPanel from '../components/BookingCancellationPanel.jsx';
 import { AppConfig } from '../config/appConfig';
 import { bookingStatusMessage } from '../services/bookingStatus';
+import { Button } from '../components/ui/button';
 
 export default function CheckoutSuccess() {
   const auth = useAuth();
@@ -48,14 +49,18 @@ export default function CheckoutSuccess() {
         <p>{!auth.user ? 'Sign in to check your booking.' : !bookingId ? 'Open your booking from your account to check its status.' : error || message.body}</p>
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
           {!auth.user ? (
-            <button className="neon-cta" onClick={() => setAuthOpen(true)}>Sign in</button>
+            <Button className="h-12 w-full min-w-48 rounded-2xl bg-[#167c7d] px-6 font-semibold text-white hover:bg-[#136f71] sm:w-auto" onClick={() => setAuthOpen(true)}>Sign in</Button>
           ) : (
             <>
-              <Link className="neon-cta" to="/account">View my trips</Link>
-              <button className="neon-outline" onClick={() => setRefresh(value => value + 1)}>Refresh booking status</button>
+              <Button asChild className="h-12 w-full min-w-48 rounded-2xl bg-[#167c7d] px-6 font-semibold text-white hover:bg-[#136f71] sm:w-auto">
+                <Link to="/account">View my trips</Link>
+              </Button>
+              <Button variant="outline" className="h-11 w-full rounded-2xl px-5 sm:w-auto" onClick={() => setRefresh(value => value + 1)}>Refresh booking status</Button>
             </>
           )}
-          <Link className="neon-outline" to="/tours">Explore more tours</Link>
+          <Button asChild variant="outline" className="h-11 w-full rounded-2xl px-5 sm:w-auto">
+            <Link to="/tours">Explore more tours</Link>
+          </Button>
         </div>
         {booking ? <BookingCancellationPanel key={`${auth.user?.id}:${booking.id}`} booking={booking} onChanged={() => setRefresh(value => value + 1)} /> : null}
       </div></div>
