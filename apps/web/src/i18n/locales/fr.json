@@ -1,4 +1,8 @@
 {
+    "booking_currency": {
+        "usd": "Devise de paiement : USD (dollars américains).",
+        "bank_fees": "Le total final est affiché au moment du paiement. Votre banque peut appliquer des frais de conversion ou de transaction internationale."
+    },
     "date_requests": {
         "different_date": "Besoin d'une autre date ? (facultatif)",
         "title": "Demander une date", "inbox": "Demandes de date", "help": "Aucun départ adapté ? Proposez une date à l'hôte. Aucun paiement ni réservation de places.",

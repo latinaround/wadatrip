@@ -18,8 +18,9 @@ const formatPrice = (value, currency = 'USD') => {
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    currencyDisplay: 'code',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 };
 

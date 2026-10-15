@@ -1,4 +1,8 @@
 {
+    "booking_currency": {
+        "usd": "Payment currency: USD (US dollars).",
+        "bank_fees": "The final total is shown at checkout. Your bank may apply currency conversion or international transaction fees."
+    },
     "date_requests": {
         "different_date": "Need a different date? (optional)",
         "title": "Request a date", "inbox": "Date requests", "help": "No suitable departure? Ask the host for a date. This is an inquiry: no booking, reserved spots or payment.",

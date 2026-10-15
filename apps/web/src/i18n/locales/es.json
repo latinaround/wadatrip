@@ -1,4 +1,8 @@
 {
+    "booking_currency": {
+        "usd": "Moneda de pago: USD (dólares estadounidenses).",
+        "bank_fees": "El total final se muestra al pagar. Tu banco puede aplicar cargos por conversión de moneda o transacciones internacionales."
+    },
     "date_requests": {
         "different_date": "¿Necesitas otra fecha? (opcional)",
         "title": "Solicitar una fecha", "inbox": "Solicitudes de fecha", "help": "¿No hay una salida adecuada? Consulta al anfitrión por una fecha. No crea una reserva, no aparta cupos y no tiene cobro.",

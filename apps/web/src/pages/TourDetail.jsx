@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AppConfig } from '../config/appConfig';
 import { findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
@@ -23,8 +24,9 @@ const formatPrice = (value, currency = 'USD') => {
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    currencyDisplay: 'code',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 };
 
@@ -138,6 +140,7 @@ function TrustItem({ label, copy }) {
 }
 
 export default function TourDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const auth = useAuth();
@@ -554,6 +557,12 @@ export default function TourDetail() {
             {bookingSuccess && <p className="mt-4 text-sm text-[#167c7d]">{bookingSuccess}</p>}
             {shareMessage && <p className="mt-4 text-sm text-[#167c7d]">{shareMessage}</p>}
 
+            {!freeTour && String(currentHost?.currency || '').trim().toUpperCase() === 'USD' && (
+              <div role="note" className="mt-5 rounded-xl border border-[#167c7d]/20 bg-[#e7f7f5] p-4 text-sm text-[#435164]">
+                <p className="font-semibold text-[#136f71]">{t('booking_currency.usd')}</p>
+                <p className="mt-1">{t('booking_currency.bank_fees')}</p>
+              </div>
+            )}
             <Button ref={bookingButtonRef} type="button" className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={needsTravelerName ? handleSaveTravelerName : handleBooking} disabled={bookingLoading || authLoading || profileSaving || (needsTravelerName && !travelerName.trim())}>
               {authLoading ? 'Checking session...' : profileSaving ? 'Saving name...' : bookingLoading ? 'Processing...' : !user || !token ? 'Sign in to book' : needsTravelerName ? 'Save name and continue' : getListingBookingCta(currentHost)}
             </Button>
