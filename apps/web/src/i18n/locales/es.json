@@ -1,4 +1,7 @@
 {
+    "booking_details": {
+        "per_person": "por persona", "duration": "Duración:", "travelers": "Viajeros"
+    },
     "booking_currency": {
         "usd": "Moneda de pago: USD (dólares estadounidenses).",
         "bank_fees": "El total final se muestra al pagar. Tu banco puede aplicar cargos por conversión de moneda o transacciones internacionales."

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
@@ -33,6 +34,7 @@ const buildExperienceKey = (item) => {
 };
 
 function ExperienceCard({ experience, destinationCoverMap }) {
+  const { t } = useTranslation();
   const cheapestHost = experience.hosts[0] || null;
   const hostCount = experience.hosts.length;
   const freeTour = experience.hosts.some((host) => isFreeTour(host));
@@ -54,8 +56,9 @@ function ExperienceCard({ experience, destinationCoverMap }) {
           <p className="text-[11px] uppercase tracking-[0.24em] text-[#167c7d]">{experience.city || 'Destination'}</p>
           <h2 className="mt-2 text-2xl font-semibold leading-tight text-[#0f172a]">{experience.title}</h2>
         </div>
-        <div className="rounded-full border border-[#f1d6c1] bg-[#ffecde] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
+        <div className="shrink-0 rounded-full border border-[#f1d6c1] bg-[#ffecde] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
           {getListingPriceBadge(cheapestHost || experience.primary, formatPrice)}
+          {!isFreeTour(cheapestHost || experience.primary) && <span className="mt-1 block text-center font-normal">{t('booking_details.per_person')}</span>}
         </div>
       </div>
 

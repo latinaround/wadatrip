@@ -1,4 +1,7 @@
 {
+    "booking_details": {
+        "per_person": "per person", "duration": "Duration:", "travelers": "Travelers"
+    },
     "booking_currency": {
         "usd": "Payment currency: USD (US dollars).",
         "bank_fees": "The final total is shown at checkout. Your bank may apply currency conversion or international transaction fees."

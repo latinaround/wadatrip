@@ -45,6 +45,7 @@ const getInitials = (name) =>
     .toUpperCase();
 
 function HostOptionCard({ item, selected, onSelect }) {
+  const { t } = useTranslation();
   const freeTour = isFreeTour(item);
   const initials = getInitials(item.provider_name);
   const avatar = resolveProviderAvatar(item);
@@ -76,11 +77,12 @@ function HostOptionCard({ item, selected, onSelect }) {
             </p>
           </div>
         </div>
-        <span className="rounded-full border border-[#ecd0bc] bg-[#ffebdc] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
+        <span className="shrink-0 rounded-full border border-[#ecd0bc] bg-[#ffebdc] px-3 py-2 text-xs font-semibold text-[#136f71] shadow-sm">
           {getListingPriceBadge(item, formatPrice)}
+          {!freeTour && <span className="mt-1 block text-center font-normal">{t('booking_details.per_person')}</span>}
         </span>
       </div>
-      <p className="mt-3 text-sm leading-relaxed text-[#526173]">
+      <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-[#526173]">
         {item.provider_bio_short || item.description || 'Local operator ready to host this experience.'}
       </p>
       {guideHref || whatsappUrl || instagramUrl ? (
@@ -140,7 +142,7 @@ function TrustItem({ label, copy }) {
 }
 
 export default function TourDetail() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const auth = useAuth();
@@ -239,6 +241,14 @@ export default function TourDetail() {
   const availability = availabilityResult?.listingId === currentHost?.id ? availabilityResult : null;
   const availableDates = availability?.items || [];
   const freeTour = isFreeTour(currentHost);
+  const durationMinutes = Number(currentHost?.duration_minutes);
+  const durationLabel = Number.isSafeInteger(durationMinutes) && durationMinutes > 0
+    ? new Intl.NumberFormat(i18n.language, {
+        style: 'unit',
+        unit: durationMinutes % 60 === 0 ? 'hour' : 'minute',
+        unitDisplay: 'long',
+      }).format(durationMinutes % 60 === 0 ? durationMinutes / 60 : durationMinutes)
+    : null;
   const currentHostInitials = getInitials(currentHost?.provider_name);
   const currentHostAvatar = resolveProviderAvatar(currentHost);
   const heroImage = resolveListingImage(currentHost || tour, destinationCoverMap);
@@ -408,7 +418,7 @@ export default function TourDetail() {
               <BrandLogo size="sm" light className="mb-2" />
               <p className="page-kicker text-[#dcfffb]">{tour.city || 'Destination'} {tour.country_code ? `· ${tour.country_code}` : ''}</p>
               <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] text-white md:text-6xl">{tour.title}</h1>
-              <p className="max-w-2xl text-base leading-relaxed text-white/86 md:text-lg">
+              <p className="max-w-2xl whitespace-pre-line text-base leading-relaxed text-white/86 md:text-lg">
                 {tour.description || 'Local experience hosted by verified tour guides and operators.'}
               </p>
               <div className="flex flex-wrap items-center gap-3">
@@ -429,11 +439,13 @@ export default function TourDetail() {
                 <p className="mt-1 text-3xl font-semibold text-[#0f172a]">
                   {getListingPriceBadge(currentHost, formatPrice)}
                 </p>
+                {!freeTour && <p className="mt-1 text-sm text-[#526173]">{t('booking_details.per_person')}</p>}
               </div>
               <div className="rounded-full bg-[#e7f7f5] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#167c7d]">
                 {currentHost?.provider_name || 'Verified host'}
               </div>
             </div>
+            {durationLabel && <p className="mt-4 text-sm font-semibold text-[#172033]">{t('booking_details.duration')} {durationLabel}</p>}
             <p className="mt-4 text-sm leading-relaxed text-[#526173]">
               {freeTour
                 ? 'Travelers request a spot first. The host confirms the details directly.'
@@ -504,16 +516,18 @@ export default function TourDetail() {
             </div>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2">
-              <Input
-                type="number"
-                min="1"
-                step="1"
-                aria-label="Travelers"
-                value={bookingForm.num_people}
-                onChange={(event) => handleBookingChange('num_people', event.target.value)}
-                placeholder="Travelers"
-                className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
-              />
+              <div className="space-y-2">
+                <label htmlFor="booking-travelers" className="block text-sm font-semibold text-[#172033]">{t('booking_details.travelers')}</label>
+                <Input
+                  id="booking-travelers"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={bookingForm.num_people}
+                  onChange={(event) => handleBookingChange('num_people', event.target.value)}
+                  className="!rounded-2xl !border-[#d7e6e3] !bg-[#fff5ec] !text-[#172033]"
+                />
+              </div>
               <TourDatePicker key={currentHost?.id}
                 dates={availableDates}
                 value={bookingForm.date}
