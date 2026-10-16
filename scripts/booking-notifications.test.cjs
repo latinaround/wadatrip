@@ -133,6 +133,81 @@ test('disabled operator owner never falls back to an unverified legacy profile e
   assert.equal(notifications[0].last_error, 'recipient_not_configured');
 });
 
+test('traveler emails link directly to their authenticated booking without credentials in the URL', async () => {
+  for (const kind of ['confirmed', 'cancelled']) {
+    notifications = [row(kind, 'traveler')];
+    booking.status = kind; booking.payment_status = kind === 'confirmed' ? 'paid' : 'refunded';
+    booking.payment.status = kind === 'confirmed' ? 'succeeded' : 'refunded';
+    const sent = [];
+    await sendBookingNotifications(prisma, async options => { sent.push(options); return { sent: true }; });
+    assert.equal(sent.length, 1);
+    const url = new URL(sent[0].text.match(/https:\/\/\S+/)[0]);
+    assert.equal(url.origin, 'https://www.wadatrip.com');
+    assert.equal(url.pathname, '/checkout/success');
+    assert.deepEqual([...url.searchParams], [['booking_id', booking.id]]);
+  }
+});
+
+test('missing booked meeting point never falls back to a changed current listing', async () => {
+  notifications.push(row('confirmed', 'traveler'));
+  booking.booking_terms.meeting_point = null;
+  booking.listing.meeting_point = 'Changed current listing point';
+  const sent = [];
+  await sendBookingNotifications(prisma, async options => { sent.push(options); return { sent: true }; });
+  assert.doesNotMatch(sent[0].text, /Changed current listing point/);
+  assert.match(sent[0].text, /Meeting point: See your booking details/);
+});
+
+test('saved meeting point wins over current listing instructions', async () => {
+  notifications.push(row('confirmed', 'traveler'));
+  booking.listing.meeting_point = 'Changed current listing point';
+  const sent = [];
+  await sendBookingNotifications(prisma, async options => { sent.push(options); return { sent: true }; });
+  assert.match(sent[0].text, /Meeting point: Synthetic public point/);
+  assert.doesNotMatch(sent[0].text, /Changed current listing point/);
+});
+
+test('legacy calendar date stays on the booked UTC day without inventing a departure time', async () => {
+  notifications.push(row('confirmed', 'traveler'));
+  booking.booking_terms = { timezone: 'America/Lima' };
+  const sent = [];
+  await sendBookingNotifications(prisma, async options => { sent.push(options); return { sent: true }; });
+  assert.match(sent[0].text, /Date: Nov 30, 2026\n/);
+  assert.doesNotMatch(sent[0].text, /Nov 29|12:00|America\/Lima/);
+});
+
+test('saved departure retains the local contractual time and timezone', async () => {
+  notifications.push(row('confirmed', 'traveler'));
+  const sent = [];
+  await sendBookingNotifications(prisma, async options => { sent.push(options); return { sent: true }; });
+  assert.match(sent[0].text, /Date: Nov 30, 2026, 9:30 AM \(America\/Lima\)/);
+});
+
+test('invalid saved timezone falls back to an explicitly UTC instant', async () => {
+  notifications.push(row('confirmed', 'traveler'));
+  booking.booking_terms.timezone = 'Synthetic/Invalid';
+  const sent = [];
+  await sendBookingNotifications(prisma, async options => { sent.push(options); return { sent: true }; });
+  assert.match(sent[0].text, /Date: 2026-11-30T14:30:00.000Z \(UTC\)/);
+});
+
+test('missing currency does not fabricate a USD booking total', async () => {
+  notifications.push(row('confirmed', 'traveler')); booking.currency = null;
+  const sent = [];
+  await sendBookingNotifications(prisma, async options => { sent.push(options); return { sent: true }; });
+  assert.match(sent[0].text, /Total: See booking details/);
+  assert.doesNotMatch(sent[0].text, /\$50|USD/);
+});
+
+test('invalid historical amount is not presented as zero', async () => {
+  for (const amount of [null, -100]) {
+    notifications = [row('confirmed', 'traveler')]; booking.amount_cents = amount;
+    const sent = [];
+    await sendBookingNotifications(prisma, async options => { sent.push(options); return { sent: true }; });
+    assert.match(sent[0].text, /Total: See booking details/);
+  }
+});
+
 test('migration is additive, constrained and does not backfill historical bookings', () => {
   const sql = fs.readFileSync('libs/db/prisma/migrations/20261012000000_booking_notifications/migration.sql', 'utf8').replace(/--[^\n]*/g, '');
   assert.doesNotMatch(sql, /^\s*(UPDATE|DELETE|DROP|TRUNCATE)\b/m);
@@ -140,4 +215,12 @@ test('migration is additive, constrained and does not backfill historical bookin
   assert.match(sql, /CREATE UNIQUE INDEX "booking_notifications_booking_id_kind_audience_key"/);
   assert.match(sql, /CHECK \("kind" IN \('confirmed', 'cancelled'\)\)/);
   assert.doesNotMatch(sql, /INSERT\s+INTO/i);
+});
+
+test('notification release preflight is read-only and reports counts without message or recipient fields', () => {
+  const sql = fs.readFileSync('scripts/notification-release-preflight.sql', 'utf8').replace(/--[^\n]*/g, '');
+  assert.match(sql, /BEGIN READ ONLY;/);
+  assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|CREATE|GRANT|REVOKE)\b/i);
+  assert.doesNotMatch(sql, /\b(email|phone|payload|recipient|body|token)\b/i);
+  assert.match(sql, /'pending_attempted'/); assert.match(sql, /'active_leases'/);
 });

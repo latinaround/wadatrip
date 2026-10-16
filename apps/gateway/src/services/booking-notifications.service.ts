@@ -32,28 +32,35 @@ function notificationStillValid(booking: any, kind: string) {
 }
 
 function departureLabel(booking: any) {
-  const departure = booking.booking_terms?.departure_at || booking.date;
+  const departure = booking.booking_terms?.departure_at;
   const timezone = booking.booking_terms?.timezone;
-  const parsed = new Date(departure);
-  if (!Number.isFinite(+parsed)) return String(departure || 'See booking details');
-  try {
-    return new Intl.DateTimeFormat('en-US', {
-      dateStyle: 'medium', timeStyle: booking.booking_terms?.departure_at ? 'short' : undefined,
-      ...(timezone ? { timeZone: timezone } : {}),
-    }).format(parsed) + (timezone ? ` (${timezone})` : '');
-  } catch {
-    return parsed.toISOString();
+  const parsed = departure ? new Date(departure) : null;
+  if (parsed && Number.isFinite(+parsed)) {
+    if (timezone) {
+      try {
+        return new Intl.DateTimeFormat('en-US', {
+          dateStyle: 'medium', timeStyle: 'short', timeZone: timezone,
+        }).format(parsed) + ` (${timezone})`;
+      } catch { /* Invalid legacy timezone: show an explicitly UTC instant below. */ }
+    }
+    return `${parsed.toISOString()} (UTC)`;
   }
+  // Legacy booking.date is a calendar day, not a midnight departure to shift into local time.
+  if (!booking.date) return 'See booking details';
+  const day = new Date(booking.date);
+  return Number.isFinite(+day)
+    ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' }).format(day)
+    : 'See booking details';
 }
 
 function moneyLabel(booking: any) {
   const cents = booking.amount_cents;
-  const currency = String(booking.currency || 'usd').toUpperCase();
-  if (!Number.isSafeInteger(cents) || cents < 0) return 'See booking details';
+  const currency = String(booking.currency || '').trim().toUpperCase();
+  if (!Number.isSafeInteger(cents) || cents < 0 || !/^[A-Z]{3}$/.test(currency)) return 'See booking details';
   try {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(cents / 100);
   } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
+    return 'See booking details';
   }
 }
 
@@ -72,7 +79,8 @@ function cancellationPaymentLine(booking: any) {
 
 function emailFor(notification: any, booking: any) {
   const title = booking.listing?.title || 'your experience';
-  const accountUrl = 'https://www.wadatrip.com/account';
+  // Booking reference only. The destination still requires the traveler's own JWT.
+  const bookingUrl = `https://www.wadatrip.com/checkout/success?booking_id=${encodeURIComponent(booking.id)}`;
   const operatorUrl = 'https://www.wadatrip.com/operator/tours/new';
   const travelerName = booking.user?.name || 'Name not provided';
   const hostName = booking.provider?.name || 'your host';
@@ -82,7 +90,7 @@ function emailFor(notification: any, booking: any) {
     return {
       to: booking.user?.status === 'active' ? booking.user.email : '',
       subject: `Wadatrip booking confirmed: ${title}`,
-      text: `Your booking with ${hostName} is confirmed.\n\n${common}\nTotal: ${moneyLabel(booking)}\nMeeting point: ${booking.booking_terms?.meeting_point || booking.listing?.meeting_point || 'See your booking details'}\n\nView your trip: ${accountUrl}`,
+      text: `Your booking with ${hostName} is confirmed.\n\n${common}\nTotal: ${moneyLabel(booking)}\nMeeting point: ${booking.booking_terms?.meeting_point || 'See your booking details'}\n\nView your trip: ${bookingUrl}`,
     };
   }
   if (notification.kind === 'confirmed' && notification.audience === 'operator') {
@@ -96,7 +104,7 @@ function emailFor(notification: any, booking: any) {
     return {
       to: booking.user?.status === 'active' ? booking.user.email : '',
       subject: `Wadatrip booking cancelled: ${title}`,
-      text: `Your booking has been cancelled.\n\n${common}\n${cancellationPaymentLine(booking)}\n\nView your booking: ${accountUrl}`,
+      text: `Your booking has been cancelled.\n\n${common}\n${cancellationPaymentLine(booking)}\n\nView your booking: ${bookingUrl}`,
     };
   }
   return {
