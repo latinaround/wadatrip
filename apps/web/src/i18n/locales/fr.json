@@ -1,4 +1,15 @@
 {
+    "cancellation": {
+        "policy_title": "Vos conditions d'annulation", "deadline": "Annulation gratuite jusqu'au {{deadline}}.",
+        "deadline_unknown": "Contactez l'assistance pour confirmer la date limite d'annulation de votre réservation.",
+        "review": "Examiner l'annulation et le remboursement", "review_help": "Ouvrir cet écran n'annule pas votre réservation.",
+        "dialog_title": "Annuler cette réservation ?", "dialog_help": "Vérifiez les conséquences avant de confirmer. Vous pouvez aussi conserver votre réservation.",
+        "refund_preview": "Remboursement estimé : {{amount}}", "refund_check": "L'annulation et le droit au remboursement sont vérifiés à la réception de votre demande par Wadatrip. Le remboursement n'est confirmé qu'après la mise à jour du statut de votre réservation.",
+        "late": "Après la date limite d'annulation gratuite, aucun remboursement automatique ne s'applique selon les conditions acceptées.",
+        "no_payment": "Aucun paiement n'était requis pour cette réservation.", "payment_review": "L'annulation et tout remboursement dépendent du statut actuel du paiement. Un paiement en cours peut laisser l'annulation en attente. Ne payez pas à nouveau.",
+        "keep": "Conserver ma réservation", "confirm": "Confirmer l'annulation", "busy": "Demande d'annulation…",
+        "sign_in": "Connectez-vous pour annuler cette réservation.", "error": "L'annulation n'a pas pu être confirmée. Actualisez la réservation avant de réessayer."
+    },
     "booking_summary": {
         "title": "Détails de votre réservation", "host": "Hôte", "departure": "Départ", "travelers": "Voyageurs",
         "total": "Total de la réservation", "meeting": "Point de rendez-vous", "reference": "Référence de réservation", "unavailable": "Non disponible",

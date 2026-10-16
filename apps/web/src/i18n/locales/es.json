@@ -1,4 +1,15 @@
 {
+    "cancellation": {
+        "policy_title": "Tu política de cancelación", "deadline": "Cancelación gratuita hasta {{deadline}}.",
+        "deadline_unknown": "Consulta con soporte para confirmar el plazo de cancelación de tu reserva.",
+        "review": "Revisar cancelación y reembolso", "review_help": "Abrir esta revisión no cancela tu reserva.",
+        "dialog_title": "¿Cancelar esta reserva?", "dialog_help": "Revisa qué ocurrirá con tu reserva antes de confirmar. También puedes mantenerla.",
+        "refund_preview": "Reembolso estimado: {{amount}}", "refund_check": "La cancelación y el derecho a reembolso se comprueban cuando Wadatrip recibe tu solicitud. El reembolso no está confirmado hasta que se actualice el estado de tu reserva.",
+        "late": "Después del plazo de cancelación gratuita no corresponde un reembolso automático según la política aceptada.",
+        "no_payment": "Esta reserva no requirió ningún pago.", "payment_review": "La cancelación y cualquier reembolso dependen del estado actual del pago. Si sigue procesándose, la cancelación puede quedar pendiente. No vuelvas a pagar.",
+        "keep": "Mantener mi reserva", "confirm": "Confirmar cancelación", "busy": "Solicitando cancelación…",
+        "sign_in": "Inicia sesión para cancelar esta reserva.", "error": "No se pudo confirmar la cancelación. Actualiza la reserva antes de volver a intentarlo."
+    },
     "booking_summary": {
         "title": "Detalles de tu reserva", "host": "Anfitrión", "departure": "Salida", "travelers": "Viajeros",
         "total": "Total de la reserva", "meeting": "Punto de encuentro", "reference": "Referencia de reserva", "unavailable": "No disponible",

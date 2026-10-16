@@ -1,4 +1,15 @@
 {
+    "cancellation": {
+        "policy_title": "Your cancellation policy", "deadline": "Free cancellation until {{deadline}}.",
+        "deadline_unknown": "Check your booking with support to confirm the cancellation deadline.",
+        "review": "Review cancellation and refund", "review_help": "Opening this review does not cancel your booking.",
+        "dialog_title": "Cancel this booking?", "dialog_help": "Review the effect on your reservation before confirming. You can keep your booking instead.",
+        "refund_preview": "Estimated refund: {{amount}}", "refund_check": "Final cancellation and refund eligibility are checked when Wadatrip receives your request. A refund is not confirmed until your booking status is updated.",
+        "late": "No automatic refund applies after the free cancellation deadline under your accepted policy.",
+        "no_payment": "No payment was required for this booking.", "payment_review": "Cancellation and any refund depend on the current payment status. A payment still processing may leave cancellation pending. Do not pay again.",
+        "keep": "Keep my booking", "confirm": "Confirm cancellation", "busy": "Requesting cancellation…",
+        "sign_in": "Sign in to cancel this booking.", "error": "Cancellation could not be confirmed. Refresh the booking before trying again."
+    },
     "booking_summary": {
         "title": "Your booking details", "host": "Host", "departure": "Departure", "travelers": "Travelers",
         "total": "Booking total", "meeting": "Meeting point", "reference": "Booking reference", "unavailable": "Not available",
