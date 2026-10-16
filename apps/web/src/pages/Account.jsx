@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
@@ -162,6 +163,7 @@ const formatProviderStatus = (provider) => {
 };
 
 const Account = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const { user, token, logout, refreshProfile } = useAuth();
   const [itineraries, setItineraries] = useState([]);
@@ -182,6 +184,11 @@ const Account = () => {
   const [guideSaving, setGuideSaving] = useState(false);
   const [guideMessage, setGuideMessage] = useState(null);
   const [showGuideSetup, setShowGuideSetup] = useState(false);
+  const [personalTripsOpen, setPersonalTripsOpen] = useState(false);
+
+  useEffect(() => {
+    if (location.hash === '#my-trips') setPersonalTripsOpen(true);
+  }, [location.hash]);
 
   useEffect(() => {
     if (!user || bookingsLoading || location.hash !== '#my-trips') return;
@@ -334,6 +341,7 @@ const Account = () => {
       setPayments([]);
       setGuideProfile(null);
       setGuideForm(emptyGuideForm);
+      setPersonalTripsOpen(false);
       setItinerariesLoading(false);
       setBookingsLoading(false);
       setPaymentsLoading(false);
@@ -352,6 +360,8 @@ const Account = () => {
   const guideStatusLabel = formatProviderStatus(guideProfile);
   const guideSaveLabel = guideProfile ? 'Save guide profile' : 'Create my guide profile';
   const guideCitySuggestions = useMemo(() => getCitySuggestions(guideForm.country_code), [guideForm.country_code]);
+  // Ownership comes from /providers/me, not the account's role label.
+  const TripsContainer = guideProfile ? 'details' : 'section';
 
   const handleAccountField = (field, value) => {
     setAccountForm((prev) => ({ ...prev, [field]: value }));
@@ -438,11 +448,20 @@ const Account = () => {
       <div className="container mx-auto flex flex-col gap-10 px-4">
         <div className="order-1 space-y-4">
           <h1 className="text-3xl font-bold text-white">Hi, {user.name || user.email}</h1>
-          <p className="text-[#a0a0a0]">Manage your trips, bookings, payments, and profile.</p>
+          <p className="text-[#a0a0a0]">{guideProfile ? t('account_context.host_help') : 'Manage your trips, bookings, payments, and profile.'}</p>
           <div className="flex flex-wrap gap-3">
             <Button asChild className="h-12 rounded-2xl bg-[#167c7d] px-6 font-semibold text-white hover:bg-[#136f71]">
-              <a href="#my-trips">My trips</a>
+              {guideProfile ? (
+                <Link to="/operator/tours/new">{t('account_context.dashboard')}</Link>
+              ) : (
+                <a href="#my-trips">My trips</a>
+              )}
             </Button>
+            {guideProfile ? (
+              <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
+                <a href="#my-trips" onClick={() => setPersonalTripsOpen(true)}>{t('account_context.personal')}</a>
+              </Button>
+            ) : null}
             <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
               <Link to="/tours">Explore tours</Link>
             </Button>
@@ -678,7 +697,7 @@ const Account = () => {
                   ) : null}
                   {guideProfile ? (
                     <Button asChild variant="outline" className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
-                      <Link to="/operator/tours/new">Manage tours</Link>
+                      <Link to="/operator/tours/new">{t('account_context.dashboard')}</Link>
                     </Button>
                   ) : (
                     <Button type="button" variant="outline" className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white" onClick={() => setShowGuideSetup(false)}>
@@ -691,11 +710,19 @@ const Account = () => {
           </div>
         </div>
 
-        <div className="order-2">
+        <TripsContainer id="my-trips" className="order-2 scroll-mt-24 space-y-6"
+          {...(guideProfile ? { open: personalTripsOpen, onToggle: (event) => setPersonalTripsOpen(event.currentTarget.open) } : {})}>
+          {guideProfile ? (
+            <summary className="cursor-pointer rounded-2xl border border-[#2d3548] bg-[#1a1f3a] p-5 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00D9FF]">
+              <span className="font-semibold">{t('account_context.personal')}</span>
+              <span className="mt-2 block text-sm text-[#a0a0a0]">{t('account_context.personal_help')}</span>
+            </summary>
+          ) : null}
+        <div>
           <SummaryCards stats={stats} />
         </div>
 
-        <div id="my-trips" className="order-3 scroll-mt-24 grid gap-6 xl:grid-cols-3">
+        <div className="grid gap-6 xl:grid-cols-3">
           <div className="space-y-6 xl:col-span-2">
             <BookingsList
               bookings={bookings}
@@ -761,6 +788,7 @@ const Account = () => {
             />
           </div>
         </div>
+        </TripsContainer>
       </div>
     </section>
   );

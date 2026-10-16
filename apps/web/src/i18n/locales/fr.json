@@ -1,4 +1,10 @@
 {
+    "account_context": {
+        "dashboard": "Tableau de bord hôte",
+        "host_help": "Gérez vos visites et les réservations de vos clients dans votre tableau de bord hôte.",
+        "personal": "Mes réservations en tant que voyageur",
+        "personal_help": "Seuls les voyages réservés depuis votre compte figurent ici. Les réservations de vos clients sont dans votre tableau de bord hôte."
+    },
     "cancellation": {
         "policy_title": "Vos conditions d'annulation", "deadline": "Annulation gratuite jusqu'au {{deadline}}.",
         "deadline_unknown": "Contactez l'assistance pour confirmer la date limite d'annulation de votre réservation.",

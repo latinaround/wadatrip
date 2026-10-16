@@ -1,4 +1,10 @@
 {
+    "account_context": {
+        "dashboard": "Operator dashboard",
+        "host_help": "Manage your tours and customer reservations in your operator dashboard.",
+        "personal": "My bookings as a traveler",
+        "personal_help": "Only trips booked from your account appear here. Customer reservations are in your operator dashboard."
+    },
     "cancellation": {
         "policy_title": "Your cancellation policy", "deadline": "Free cancellation until {{deadline}}.",
         "deadline_unknown": "Check your booking with support to confirm the cancellation deadline.",

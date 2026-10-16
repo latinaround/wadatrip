@@ -1,4 +1,10 @@
 {
+    "account_context": {
+        "dashboard": "Panel de operadora u operador",
+        "host_help": "Gestiona tus tours y las reservas de tus clientes en tu panel de operadora u operador.",
+        "personal": "Mis reservas como viajero",
+        "personal_help": "Aquí solo aparecen viajes reservados desde tu cuenta. Las reservas de tus clientes están en tu panel de operadora u operador."
+    },
     "cancellation": {
         "policy_title": "Tu política de cancelación", "deadline": "Cancelación gratuita hasta {{deadline}}.",
         "deadline_unknown": "Consulta con soporte para confirmar el plazo de cancelación de tu reserva.",
