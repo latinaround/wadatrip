@@ -194,7 +194,7 @@ async function main() {
     await check('Clipboard unavailable does not report a successful copy', async () => {
       await page.goto(`${origin}/tours/${listing.id}`);
       await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined }));
-      await page.getByRole('button', { name: 'Copy public link', exact: true }).first().click();
+      await page.getByRole('button', { name: 'Copy public tour link', exact: true }).click();
       await page.getByText('Copy the URL from your browser and share it with travelers.', { exact: true }).waitFor();
     });
     await check('Host profile links are not nested inside selection buttons', async () => {
@@ -276,10 +276,12 @@ async function main() {
       await page.setViewportSize({ width: 1440, height: 1000 });
       await page.evaluate(() => localStorage.setItem('wadatrip_token', 'synthetic-browser-test-token'));
       await page.goto(`${origin}/tours/${listing.id}`);
-      await page.getByRole('button', { name: 'Add your name to book', exact: true }).waitFor();
+      await page.getByRole('button', { name: 'Save name and continue', exact: true }).waitFor();
+      assert.equal(await page.getByRole('button', { name: 'Add your name to book', exact: true }).count(), 0);
+      assert.equal(await page.getByRole('button', { name: 'Save name', exact: true }).count(), 0);
       const before = calls.length;
       await page.getByLabel('Traveler name', { exact: true }).fill('Saved Synthetic Traveler');
-      await page.getByRole('button', { name: 'Save name', exact: true }).click();
+      await page.getByRole('button', { name: 'Save name and continue', exact: true }).click();
       await page.getByText('Name saved. You can now complete your booking.', { exact: true }).waitFor();
       const update = calls.slice(before).find(call => call.path === '/auth/update');
       assert.equal(update.method, 'PATCH');

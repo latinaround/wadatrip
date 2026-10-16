@@ -1,4 +1,11 @@
 {
+    "tour_details": {
+        "host_count_one": "{{count}} anfitrión", "host_count_other": "{{count}} anfitriones",
+        "hosts_title": "Elige tu anfitrión", "hosts_help": "Compara precios y elige un anfitrión para ver sus salidas disponibles.",
+        "host_summary": "Consulta el perfil de este anfitrión y sus salidas disponibles.",
+        "copy_link": "Copiar enlace del tour", "link_copied": "Enlace del tour copiado.",
+        "copy_unavailable": "Copia la dirección de tu navegador para compartirla."
+    },
     "booking_details": {
         "per_person": "por persona", "duration": "Duración:", "travelers": "Viajeros"
     },

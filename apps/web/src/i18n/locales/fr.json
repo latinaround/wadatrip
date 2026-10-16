@@ -1,4 +1,11 @@
 {
+    "tour_details": {
+        "host_count_one": "{{count}} hôte", "host_count_other": "{{count}} hôtes",
+        "hosts_title": "Choisissez votre hôte", "hosts_help": "Comparez les prix et choisissez un hôte pour voir ses départs disponibles.",
+        "host_summary": "Consultez le profil de cet hôte et ses départs disponibles.",
+        "copy_link": "Copier le lien du circuit", "link_copied": "Lien du circuit copié.",
+        "copy_unavailable": "Copiez l'adresse de votre navigateur pour la partager."
+    },
     "booking_details": {
         "per_person": "par personne", "duration": "Durée :", "travelers": "Voyageurs"
     },

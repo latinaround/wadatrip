@@ -5,7 +5,7 @@ import { AppConfig } from '../config/appConfig';
 import { findListingIdFromSlug, isLikelyListingId } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
 import { buildGuideHref, buildInstagramUrl, buildWhatsAppUrl, formatGuideRating } from '../utils/guideProfile';
-import { getListingBookingCta, getListingPriceBadge, getListingShareCopy, isFreeTour } from '../utils/listingMode';
+import { getListingBookingCta, getListingPriceBadge, isFreeTour } from '../utils/listingMode';
 import { getHostBadge, sortHostsByTrust } from '../utils/hostRanking';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -83,7 +83,7 @@ function HostOptionCard({ item, selected, onSelect }) {
         </span>
       </div>
       <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-[#526173]">
-        {item.provider_bio_short || item.description || 'Local operator ready to host this experience.'}
+        {item.provider_bio_short || t('tour_details.host_summary')}
       </p>
       {guideHref || whatsappUrl || instagramUrl ? (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -128,15 +128,6 @@ function HostOptionCard({ item, selected, onSelect }) {
       <Button type="button" className="mt-4" aria-label={`Select ${item.provider_name || 'host'}`} aria-pressed={selected} onClick={() => onSelect(item)}>
         {selected ? 'Selected host' : 'Choose this host'}
       </Button>
-    </div>
-  );
-}
-
-function TrustItem({ label, copy }) {
-  return (
-    <div className="rounded-[22px] border border-[#dec8b6] bg-[linear-gradient(180deg,#f5e4d3_0%,#fcf4ec_100%)] p-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
-      <p className="text-[11px] uppercase tracking-[0.22em] text-[#167c7d]">{label}</p>
-      <p className="mt-2 text-sm leading-relaxed text-[#526173]">{copy}</p>
     </div>
   );
 }
@@ -302,9 +293,9 @@ export default function TourDetail() {
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(publicTourUrl);
-      setShareMessage('Public tour link copied.');
+      setShareMessage(t('tour_details.link_copied'));
     } catch {
-      setShareMessage('Copy the URL from your browser and share it with travelers.');
+      setShareMessage(t('tour_details.copy_unavailable'));
     }
   };
 
@@ -422,7 +413,7 @@ export default function TourDetail() {
                 {tour.description || 'Local experience hosted by verified tour guides and operators.'}
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">{experienceHosts.length} host options</span>
+                <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">{t('tour_details.host_count', { count: experienceHosts.length })}</span>
                 <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">Verified marketplace</span>
                 <span className="rounded-full bg-white/14 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white">
                   {freeTour ? 'Join without checkout' : 'Secure checkout'}
@@ -470,17 +461,6 @@ export default function TourDetail() {
                   <p className="text-sm leading-relaxed text-[#526173]">{currentHost?.provider_bio_short || 'Verified local guide or operator ready to host this experience.'}</p>
                   {currentGuideHref || currentHostWhatsappUrl || currentHostInstagramUrl ? (
               <div className="flex flex-wrap gap-2 pt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-full border border-[#d8ecea] bg-white/70 px-3 py-2 text-xs font-semibold text-[#167c7d] hover:bg-white"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          void handleCopyPublicLink()
-                        }}
-                      >
-                        Copy public link
-                      </Button>
                       {currentGuideHref ? (
                         <a
                           href={currentGuideHref}
@@ -569,7 +549,7 @@ export default function TourDetail() {
             ) : null}
             {bookingError && <p role="alert" className="mt-4 text-sm text-[#d15371]">{bookingError}</p>}
             {bookingSuccess && <p className="mt-4 text-sm text-[#167c7d]">{bookingSuccess}</p>}
-            {shareMessage && <p className="mt-4 text-sm text-[#167c7d]">{shareMessage}</p>}
+            {shareMessage && <p role="status" className="mt-4 text-sm text-[#167c7d]">{shareMessage}</p>}
 
             {!freeTour && String(currentHost?.currency || '').trim().toUpperCase() === 'USD' && (
               <div role="note" className="mt-5 rounded-xl border border-[#167c7d]/20 bg-[#e7f7f5] p-4 text-sm text-[#435164]">
@@ -585,7 +565,7 @@ export default function TourDetail() {
               className="mt-3 h-12 w-full rounded-2xl border border-[#167c7d]/30 text-[#167c7d] hover:bg-[#e7f7f5]"
               onClick={handleCopyPublicLink}
             >
-              Copy public tour link
+              {t('tour_details.copy_link')}
             </Button>
             <TourDateRequests key={currentHost.id} apiBase={apiBase} listingId={currentHost.id}
               bookingDate={bookingForm.date}
@@ -593,37 +573,13 @@ export default function TourDetail() {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <TrustItem label="Why travelers book" copy="Cleaner listings, verified hosts, and less duplicated marketplace noise." />
-          <TrustItem label="What changes here" copy="You choose the experience first, then pick the host that fits your style and budget." />
-          <TrustItem label={freeTour ? 'Before you join' : 'Before you pay'} copy={freeTour ? getListingShareCopy(currentHost) : 'Confirm the date, traveler count, and host you want before moving to checkout.'} />
-        </section>
-
-        <section className="rounded-[26px] border border-[#ddc2ae] bg-[linear-gradient(180deg,#f6e7da_0%,#fcf4ec_100%)] p-6 shadow-[0_14px_40px_rgba(15,23,42,0.06)]">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="page-kicker text-[#167c7d]">Share this tour</p>
-              <h2 className="mt-2 text-2xl font-semibold text-[#0f172a]">Send one clean link to travelers</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#526173]">
-                {getListingShareCopy(currentHost)}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="h-12 rounded-2xl border border-[#167c7d]/30 px-5 text-[#167c7d] hover:bg-[#e7f7f5]"
-              onClick={handleCopyPublicLink}
-            >
-              Copy public tour link
-            </Button>
-          </div>
-        </section>
-
+        {experienceHosts.length > 1 && (
         <section className="space-y-5">
           <div className="space-y-2">
             <p className="page-kicker text-[#167c7d]">Available hosts</p>
-            <h2 className="text-3xl font-semibold text-white">Meet your host options</h2>
+            <h2 className="text-3xl font-semibold text-white">{t('tour_details.hosts_title')}</h2>
             <p className="max-w-3xl text-sm leading-relaxed text-[#cad3df]">
-              Compare verified tour guides and operators for the same experience. Choose by trust, style, and price instead of browsing repetitive cards.
+              {t('tour_details.hosts_help')}
             </p>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
@@ -637,6 +593,7 @@ export default function TourDetail() {
             ))}
           </div>
         </section>
+        )}
       </div>
     </div>
   );

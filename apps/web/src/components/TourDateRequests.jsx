@@ -89,7 +89,7 @@ export default function TourDateRequests({ apiBase, listingId, operator = false,
 
   if (!enabled) return null;
   const content = <>
-    <h2 className="font-semibold">{text(operator ? 'inbox' : 'title')}</h2>
+    {operator && <h2 className="font-semibold">{text('inbox')}</h2>}
     <p className="text-sm">{text(operator ? 'operator_help' : 'help')}</p>
     {!operator && (!auth.user || !auth.token ? <Button type="button" disabled={auth.loading} onClick={onSignIn}>{text('sign_in')}</Button> :
       <form className="space-y-3" onSubmit={event => { event.preventDefault(); void act({ method: 'POST', body: { listing_id: listingId, date, num_people: Number(people) } }); }}>

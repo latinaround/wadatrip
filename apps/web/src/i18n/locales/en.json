@@ -1,4 +1,11 @@
 {
+    "tour_details": {
+        "host_count_one": "{{count}} host", "host_count_other": "{{count}} hosts",
+        "hosts_title": "Choose your host", "hosts_help": "Compare prices and choose a host to see their available departures.",
+        "host_summary": "View this host's profile and available departures.",
+        "copy_link": "Copy public tour link", "link_copied": "Public tour link copied.",
+        "copy_unavailable": "Copy the URL from your browser and share it with travelers."
+    },
     "booking_details": {
         "per_person": "per person", "duration": "Duration:", "travelers": "Travelers"
     },
