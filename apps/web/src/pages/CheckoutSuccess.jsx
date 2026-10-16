@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import AuthDialog from '../components/AuthDialog.jsx';
 import BookingCancellationPanel from '../components/BookingCancellationPanel.jsx';
+import BookingDetails from '../components/BookingDetails.jsx';
 import { AppConfig } from '../config/appConfig';
 import { bookingStatusMessage } from '../services/bookingStatus';
 import { Button } from '../components/ui/button';
@@ -47,6 +48,7 @@ export default function CheckoutSuccess() {
       <div className="page-container py-8 md:py-10"><div className="page-card space-y-4 text-center" aria-live="polite">
         <h1 className="text-3xl font-semibold neon-title">{message.title}</h1>
         <p>{!auth.user ? 'Sign in to check your booking.' : !bookingId ? 'Open your booking from your account to check its status.' : error || message.body}</p>
+        {booking ? <BookingDetails booking={booking} /> : null}
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
           {!auth.user ? (
             <Button className="h-12 w-full min-w-48 rounded-2xl bg-[#167c7d] px-6 font-semibold text-white hover:bg-[#136f71] sm:w-auto" onClick={() => setAuthOpen(true)}>Sign in</Button>

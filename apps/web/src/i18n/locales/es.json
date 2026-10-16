@@ -1,4 +1,9 @@
 {
+    "booking_summary": {
+        "title": "Detalles de tu reserva", "host": "Anfitrión", "departure": "Salida", "travelers": "Viajeros",
+        "total": "Total de la reserva", "meeting": "Punto de encuentro", "reference": "Referencia de reserva", "unavailable": "No disponible",
+        "help": "¿Necesitas ayuda? Incluye la referencia de tu reserva al contactarnos.", "support": "Contactar con soporte"
+    },
     "tour_details": {
         "host_count_one": "{{count}} anfitrión", "host_count_other": "{{count}} anfitriones",
         "hosts_title": "Elige tu anfitrión", "hosts_help": "Compara precios y elige un anfitrión para ver sus salidas disponibles.",

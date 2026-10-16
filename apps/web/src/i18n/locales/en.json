@@ -1,4 +1,9 @@
 {
+    "booking_summary": {
+        "title": "Your booking details", "host": "Host", "departure": "Departure", "travelers": "Travelers",
+        "total": "Booking total", "meeting": "Meeting point", "reference": "Booking reference", "unavailable": "Not available",
+        "help": "Need help? Include your booking reference when contacting us.", "support": "Contact support"
+    },
     "tour_details": {
         "host_count_one": "{{count}} host", "host_count_other": "{{count}} hosts",
         "hosts_title": "Choose your host", "hosts_help": "Compare prices and choose a host to see their available departures.",

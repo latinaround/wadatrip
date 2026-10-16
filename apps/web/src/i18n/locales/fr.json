@@ -1,4 +1,9 @@
 {
+    "booking_summary": {
+        "title": "Détails de votre réservation", "host": "Hôte", "departure": "Départ", "travelers": "Voyageurs",
+        "total": "Total de la réservation", "meeting": "Point de rendez-vous", "reference": "Référence de réservation", "unavailable": "Non disponible",
+        "help": "Besoin d'aide ? Indiquez votre référence de réservation en nous contactant.", "support": "Contacter l'assistance"
+    },
     "tour_details": {
         "host_count_one": "{{count}} hôte", "host_count_other": "{{count}} hôtes",
         "hosts_title": "Choisissez votre hôte", "hosts_help": "Comparez les prix et choisissez un hôte pour voir ses départs disponibles.",
