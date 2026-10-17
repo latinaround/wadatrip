@@ -4,6 +4,30 @@ const numericCents = (value) => {
   return Number.isFinite(cents) ? cents : null;
 };
 
+// Only persisted processor mode proves a Sandbox payment. Unknown historical
+// records stay visible; names, email addresses and processor ID formats prove nothing.
+export const separateTestActivity = (bookings = [], payments = []) => {
+  const modesByBooking = new Map();
+  for (const payment of payments) {
+    if (!payment.bookingId) continue;
+    const modes = modesByBooking.get(payment.bookingId) || new Set();
+    modes.add(payment.processorMode);
+    modesByBooking.set(payment.bookingId, modes);
+  }
+  const isTestBooking = booking => {
+    const modes = modesByBooking.get(booking.id);
+    // Never hide a booking with evidence of a real payment, even if data conflicts.
+    if (booking.processorMode === 'live' || modes?.has('live')) return false;
+    return booking.processorMode === 'test' || modes?.has('test');
+  };
+  return {
+    bookings: bookings.filter(booking => !isTestBooking(booking)),
+    testBookings: bookings.filter(isTestBooking),
+    payments: payments.filter(payment => payment.processorMode !== 'test'),
+    testPayments: payments.filter(payment => payment.processorMode === 'test'),
+  };
+};
+
 export const paymentAmountCents = (payment = {}) => {
   for (const value of [
     payment.amount_charged_cents,

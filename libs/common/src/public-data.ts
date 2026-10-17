@@ -54,6 +54,7 @@ export const bookingSelect = {
   booking_terms: true, cancellation_requested_at: true, cancellation_refund_due: true, cancellation_source: true,
   created_at: true, listing: { select: publicListingSelect },
   provider: { select: publicProviderSelect }, user: { select: safeUserSelect },
+  payment: { select: { processor_mode: true } },
 } as const;
 
 export function safeUser(user: any) {

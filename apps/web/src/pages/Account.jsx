@@ -12,7 +12,7 @@ import SummaryCards from '../components/dashboard/SummaryCards.jsx';
 import BookingsList from '../components/dashboard/BookingsList.jsx';
 import PaymentsList from '../components/dashboard/PaymentsList.jsx';
 import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
-import { paymentAmountCents } from '../utils/accountDisplay.js';
+import { paymentAmountCents, separateTestActivity } from '../utils/accountDisplay.js';
 
 const apiBase = (AppConfig.api.baseUrl || '').replace(/\/$/, '');
 
@@ -92,6 +92,7 @@ const normalizeBookings = (payload) => {
       people,
       status: String(statusRaw || '').toLowerCase(),
       paymentStatus: String(paymentRaw || '').toLowerCase(),
+      processorMode: item.payment?.processor_mode || null,
       departureAt: item.booking_terms?.departure_at || null,
       timezone: item.booking_terms?.timezone || null,
     };
@@ -111,6 +112,7 @@ const normalizePayments = (payload) => {
       method: item.method || item.payment_method || item.source || 'card',
       createdAt: item.created_at || item.createdAt || item.date || item.timestamp || item.updated_at,
       mock: Boolean(item.mock || item.metadata?.mock || item.demo),
+      processorMode: item.processor_mode || null,
     };
   });
 };
@@ -354,7 +356,8 @@ const Account = () => {
     loadGuideProfile();
   }, [token, loadItineraries, loadBookings, loadPayments, loadGuideProfile]);
 
-  const stats = useMemo(() => getStats(itineraries, bookings, payments), [itineraries, bookings, payments]);
+  const activity = useMemo(() => separateTestActivity(bookings, payments), [bookings, payments]);
+  const stats = useMemo(() => getStats(itineraries, activity.bookings, activity.payments), [itineraries, activity]);
 
   const guidePublicHref = guideProfile?.id ? `/guides/${guideProfile.id}` : null;
   const guideStatusLabel = formatProviderStatus(guideProfile);
@@ -725,7 +728,7 @@ const Account = () => {
         <div className="grid gap-6 xl:grid-cols-3">
           <div className="space-y-6 xl:col-span-2">
             <BookingsList
-              bookings={bookings}
+              bookings={activity.bookings}
               loading={bookingsLoading}
               error={bookingsError}
               onRefresh={loadBookings}
@@ -782,12 +785,22 @@ const Account = () => {
 
           <div className="space-y-6">
             <PaymentsList
-              payments={payments}
+              payments={activity.payments}
               loading={paymentsLoading}
               error={paymentsError}
             />
           </div>
         </div>
+        {activity.testBookings.length || activity.testPayments.length ? (
+          <details className="rounded-2xl border border-amber-400/30 p-5">
+            <summary className="cursor-pointer font-semibold text-amber-200">{t('account_context.test_history')}</summary>
+            <p className="my-4 text-sm text-[#a0a0a0]">{t('account_context.test_help')}</p>
+            <div className="space-y-6">
+              <BookingsList bookings={activity.testBookings} loading={bookingsLoading} error={bookingsError} onRefresh={loadBookings} />
+              <PaymentsList payments={activity.testPayments} loading={paymentsLoading} error={paymentsError} />
+            </div>
+          </details>
+        ) : null}
         </TripsContainer>
       </div>
     </section>

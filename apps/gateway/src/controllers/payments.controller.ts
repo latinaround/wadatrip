@@ -125,7 +125,7 @@ export class PaymentsController {
       where: { booking_id: { in: bookingIds } },
       orderBy: { created_at: 'desc' },
       select: { id: true, booking_id: true, amount_gross_cents: true, currency: true,
-        status: true, resolution: true, amount_charged_cents: true, charged_currency: true, created_at: true },
+        status: true, resolution: true, amount_charged_cents: true, charged_currency: true, created_at: true, processor_mode: true },
     });
 
     return { items };

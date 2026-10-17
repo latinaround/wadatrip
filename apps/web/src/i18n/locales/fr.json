@@ -3,7 +3,9 @@
         "dashboard": "Tableau de bord hôte",
         "host_help": "Gérez vos visites et les réservations de vos clients dans votre tableau de bord hôte.",
         "personal": "Mes réservations en tant que voyageur",
-        "personal_help": "Seuls les voyages réservés depuis votre compte figurent ici. Les réservations de vos clients sont dans votre tableau de bord hôte."
+        "personal_help": "Seuls les voyages réservés depuis votre compte figurent ici. Les réservations de vos clients sont dans votre tableau de bord hôte.",
+        "test_history": "Réservations et paiements de test",
+        "test_help": "Activité Sandbox uniquement. Ces paiements n'ont débité aucun argent réel et sont exclus des totaux de voyages et de dépenses. L'historique des tests est conservé ici."
     },
     "cancellation": {
         "policy_title": "Vos conditions d'annulation", "deadline": "Annulation gratuite jusqu'au {{deadline}}.",

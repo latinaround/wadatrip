@@ -214,6 +214,37 @@ function assertPublic(record) {
   }
 }
 
+test('account payment mode is server-derived, private and scoped to the traveler', async t => {
+  const previous = prisma.paymentRecord;
+  const fixtures = ['a', 'b'].map((id, index) => ({ id: `synthetic-ledger-${id}`, booking_id: `booking-${id}`,
+    processor_mode: index === 0 ? 'test' : 'live', amount_gross_cents: 5000, status: 'succeeded',
+    stripe_payment_intent_id: 'PRIVATE-PAYMENT', secret: 'PRIVATE-SECRET' }));
+  prisma.paymentRecord = { findMany: async args => fixtures.filter(row => args.where.booking_id.in.includes(row.booking_id))
+    .map(row => Object.fromEntries(Object.keys(args.select).map(key => [key, row[key]]))) };
+  t.after(() => { prisma.paymentRecord = previous; });
+  await t.test('anonymous cannot obtain payment history or mode', async () => {
+    assert.equal((await http(gateway, '/payments/user-history')).status, 401);
+  });
+  await t.test('each traveler sees only the persisted mode of their own payments', async () => {
+    for (const [id, mode] of [['a', 'test'], ['b', 'live']]) {
+      const result = await http(gateway, '/payments/user-history?user_id=other&processor_mode=live', id);
+      assert.equal(result.status, 200); assert.equal(result.body.items.length, 1);
+      assert.equal(result.body.items[0].booking_id, `booking-${id}`);
+      assert.equal(result.body.items[0].processor_mode, mode);
+      assertPublic(result.body);
+    }
+  });
+  await t.test('booking projection exposes only processor mode from the private payment relation', async () => {
+    const booking = rows.bookings[0];
+    booking.payment = { processor_mode: 'test', stripe_payment_intent_id: 'PRIVATE-PAYMENT', secret: 'PRIVATE-SECRET' };
+    try {
+      const result = await http(gateway, '/bookings/booking-a', 'a');
+      assert.equal(result.status, 200);
+      assert.deepEqual(result.body.payment, { processor_mode: 'test' });
+    } finally { delete booking.payment; }
+  });
+});
+
 for (const service of ['gateway', 'hub', 'gateway -> Hub']) {
   test(`${service}: HTTP authorization and public projections`, async t => {
     const base = service === 'gateway' ? gateway : service === 'hub' ? hub : proxiedGateway;

@@ -3,7 +3,9 @@
         "dashboard": "Operator dashboard",
         "host_help": "Manage your tours and customer reservations in your operator dashboard.",
         "personal": "My bookings as a traveler",
-        "personal_help": "Only trips booked from your account appear here. Customer reservations are in your operator dashboard."
+        "personal_help": "Only trips booked from your account appear here. Customer reservations are in your operator dashboard.",
+        "test_history": "Test bookings and payments",
+        "test_help": "Sandbox activity only. These payments did not charge real money and are excluded from your trip and spending totals. Test history is preserved here."
     },
     "cancellation": {
         "policy_title": "Your cancellation policy", "deadline": "Free cancellation until {{deadline}}.",

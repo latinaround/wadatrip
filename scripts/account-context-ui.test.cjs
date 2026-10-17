@@ -30,7 +30,8 @@ async function main() {
    if (url.pathname === '/providers/me') { body = options.host === false ? { message: 'No synthetic provider' } : provider; status = options.host === false ? 404 : 200; }
    if (url.pathname === `/providers/${providerId}`) body = provider;
    if (url.pathname === '/bookings/mine') { status = 404; body = { message: 'Synthetic legacy route missing' }; }
-   if (url.pathname === '/bookings') body = { items: url.searchParams.has('provider_id') ? [incoming] : [ownBooking], total: 1 };
+   if (url.pathname === '/bookings') body = { items: url.searchParams.has('provider_id') ? [incoming] : [{ ...ownBooking, payment: { processor_mode: options.paymentMode || 'live' } }], total: 1 };
+   if (url.pathname === '/payments/user-history') body = { items: [{ id: 'synthetic-context-payment', booking_id: ownBooking.id, amount_charged_cents: 5000, currency: 'USD', status: 'succeeded', processor_mode: options.paymentMode || 'live' }] };
    if (url.pathname === '/bookings/synthetic-personal-booking') body = ownBooking;
    if (url.pathname.startsWith('/listings') || url.pathname.endsWith('/listings')) body = { items: [listing] };
    return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -107,6 +108,18 @@ async function main() {
    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
    await page.screenshot({ path: 'logs/account-operator-context-mobile-synthetic.png' });
   });
+  await check('Sandbox booking and payment do not inflate personal trip or spending totals', async page => {
+   await dashboard(page).first().waitFor(); await page.getByRole('link', { name: 'My bookings as a traveler', exact: true }).click();
+   const trips = page.locator('#my-trips');
+   const spent = trips.getByText('Total spent', { exact: true }).locator('../..');
+   await spent.getByText('$0', { exact: true }).waitFor();
+   const upcoming = trips.getByText('Upcoming trips', { exact: true }).locator('../..');
+   await upcoming.getByText('0', { exact: true }).waitFor();
+   assert.equal(await personal(page).isVisible(), false);
+   await trips.getByText('Test bookings and payments', { exact: true }).click();
+   await personal(page).waitFor();
+   await trips.getByText('synthetic-personal-booking', { exact: true }).waitFor();
+  }, { paymentMode: 'test' });
   console.log(`ACCOUNT CONTEXT UI: ${passed}/${passed + failures.length} passed; localhost/synthetic only`);
   if (failures.length) process.exitCode = 1;
  } finally { await browser.close(); }
