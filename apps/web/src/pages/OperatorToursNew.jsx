@@ -972,6 +972,13 @@ export default function OperatorToursNew() {
     <div className="page-shell">
       <div className="page-container flex w-full flex-col gap-10">
         <header className="space-y-4 text-center">
+          {isAuthenticatedMode ? (
+            <div className="flex justify-start">
+              <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
+                <Link to="/account">{t('account_context.back_account')}</Link>
+              </Button>
+            </div>
+          ) : null}
           <div className="flex flex-col items-center gap-3">
             <span className="page-kicker">
               {isAuthenticatedMode ? 'Host workspace' : t('operator.kicker', 'Guide publishing')}
