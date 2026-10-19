@@ -1,7 +1,8 @@
 {
     "account_context": {
+        "trips_title": "Mes voyages", "trips_help": "Vos réservations et paiements en tant que voyageur.", "back_account": "Retour à mon compte",
         "current_bookings": "Réservations à venir et actives", "current_help": "Voyages à venir et réservations qui nécessitent encore votre attention.",
-        "no_upcoming": "Aucune réservation à venir.", "history": "Réservations passées et inactives ({{count}})", "history_title": "Historique des réservations",
+        "no_upcoming": "Vous n'avez aucun voyage à venir en tant que voyageur.", "history": "Réservations passées et inactives ({{count}})", "history_title": "Historique des réservations",
         "history_help": "Les anciens dossiers sont conservés ici avec leur statut d'origine. Une réservation non payée n'est pas un achat.",
         "dashboard": "Tableau de bord hôte",
         "host_help": "Gérez vos visites et les réservations de vos clients dans votre tableau de bord hôte.",

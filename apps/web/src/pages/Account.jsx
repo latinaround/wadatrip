@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -167,6 +167,7 @@ const formatProviderStatus = (provider) => {
 const Account = () => {
   const { t } = useTranslation();
   const location = useLocation();
+  const isTripsView = location.pathname.replace(/\/+$/, '') === '/account/trips';
   const { user, token, logout, refreshProfile } = useAuth();
   const [itineraries, setItineraries] = useState([]);
   const [itinerariesLoading, setItinerariesLoading] = useState(true);
@@ -186,19 +187,10 @@ const Account = () => {
   const [guideSaving, setGuideSaving] = useState(false);
   const [guideMessage, setGuideMessage] = useState(null);
   const [showGuideSetup, setShowGuideSetup] = useState(false);
-  const [personalTripsOpen, setPersonalTripsOpen] = useState(false);
 
   useEffect(() => {
-    if (location.hash === '#my-trips') setPersonalTripsOpen(true);
-  }, [location.hash]);
-
-  useEffect(() => {
-    if (!user || bookingsLoading || location.hash !== '#my-trips') return;
-    const frame = window.requestAnimationFrame(() => {
-      document.getElementById('my-trips')?.scrollIntoView({ block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [user, bookingsLoading, location.hash]);
+    if (isTripsView) window.scrollTo({ top: 0, left: 0 });
+  }, [isTripsView]);
 
   const fetchJson = useCallback(async (path, init = {}) => {
     if (!token) throw new Error('User is not authenticated');
@@ -343,7 +335,6 @@ const Account = () => {
       setPayments([]);
       setGuideProfile(null);
       setGuideForm(emptyGuideForm);
-      setPersonalTripsOpen(false);
       setItinerariesLoading(false);
       setBookingsLoading(false);
       setPaymentsLoading(false);
@@ -364,8 +355,6 @@ const Account = () => {
   const guideStatusLabel = formatProviderStatus(guideProfile);
   const guideSaveLabel = guideProfile ? 'Save guide profile' : 'Create my guide profile';
   const guideCitySuggestions = useMemo(() => getCitySuggestions(guideForm.country_code), [guideForm.country_code]);
-  // Ownership comes from /providers/me, not the account's role label.
-  const TripsContainer = guideProfile ? 'details' : 'section';
 
   const handleAccountField = (field, value) => {
     setAccountForm((prev) => ({ ...prev, [field]: value }));
@@ -436,12 +425,14 @@ const Account = () => {
     }
   };
 
+  if (location.hash === '#my-trips') return <Navigate to="/account/trips" replace />;
+
   if (!user) {
     return (
         <section className="py-20 bg-[#0a0e27]">
         <div className="container mx-auto px-4 text-center max-w-xl">
           <h1 className="text-3xl font-bold mb-4 text-white">Sign in to view your trips</h1>
-          <p className="text-[#a0a0a0]">Save custom itineraries and come back to them whenever you want.</p>
+          <p className="text-[#a0a0a0]">Sign in with your Wadatrip account to view your bookings.</p>
         </div>
       </section>
     );
@@ -451,19 +442,21 @@ const Account = () => {
     <section className="bg-[#0a0e27] py-16">
       <div className="container mx-auto flex flex-col gap-10 px-4">
         <div className="order-1 space-y-4">
-          <h1 className="text-3xl font-bold text-white">Hi, {user.name || user.email}</h1>
-          <p className="text-[#a0a0a0]">{guideProfile ? t('account_context.host_help') : 'Manage your trips, bookings, payments, and profile.'}</p>
+          <h1 className="text-3xl font-bold text-white">{isTripsView ? t('account_context.trips_title') : `Hi, ${user.name || user.email}`}</h1>
+          <p className="text-[#a0a0a0]">{isTripsView ? t('account_context.trips_help') : guideProfile ? t('account_context.host_help') : 'Manage your trips, bookings, payments, and profile.'}</p>
           <div className="flex flex-wrap gap-3">
             <Button asChild className="h-12 rounded-2xl bg-[#167c7d] px-6 font-semibold text-white hover:bg-[#136f71]">
-              {guideProfile ? (
+              {isTripsView ? (
+                <Link to="/account">{t('account_context.back_account')}</Link>
+              ) : guideProfile ? (
                 <Link to="/operator/tours/new">{t('account_context.dashboard')}</Link>
               ) : (
-                <a href="#my-trips">My trips</a>
+                <Link to="/account/trips">{t('account_context.trips_title')}</Link>
               )}
             </Button>
             {guideProfile ? (
               <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
-                <a href="#my-trips" onClick={() => setPersonalTripsOpen(true)}>{t('account_context.personal')}</a>
+                {isTripsView ? <Link to="/operator/tours/new">{t('account_context.dashboard')}</Link> : <Link to="/account/trips">{t('account_context.personal')}</Link>}
               </Button>
             ) : null}
             <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
@@ -472,7 +465,7 @@ const Account = () => {
           </div>
         </div>
 
-        <div className="order-4 grid gap-6 xl:grid-cols-2">
+        {!isTripsView ? <div className="order-4 grid gap-6 xl:grid-cols-2">
           <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -712,22 +705,11 @@ const Account = () => {
               </form>
             )}
           </div>
-        </div>
+        </div> : null}
 
-        <TripsContainer id="my-trips" className="order-2 scroll-mt-24 space-y-6"
-          {...(guideProfile ? { open: personalTripsOpen, onToggle: (event) => setPersonalTripsOpen(event.currentTarget.open) } : {})}>
-          {guideProfile ? (
-            <summary className="cursor-pointer rounded-2xl border border-[#2d3548] bg-[#1a1f3a] p-5 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00D9FF]">
-              <span className="font-semibold">{t('account_context.personal')}</span>
-              <span className="mt-2 block text-sm text-[#a0a0a0]">{t('account_context.personal_help')}</span>
-            </summary>
-          ) : null}
-        <div>
-          <SummaryCards stats={stats} />
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-3">
-          <div className="space-y-6 xl:col-span-2">
+        {isTripsView ? <section id="my-trips" className="order-2 min-w-0 w-full space-y-6">
+        <div className="grid min-w-0 gap-6 xl:grid-cols-3">
+          <div className="min-w-0 space-y-6 xl:col-span-2">
             <BookingsList
               bookings={bookingHistory.current}
               loading={bookingsLoading}
@@ -746,7 +728,7 @@ const Account = () => {
               </details>
             ) : null}
 
-            <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
+            {itineraries.length || itinerariesError ? <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
               <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-white">Generated itineraries</h2>
@@ -792,10 +774,10 @@ const Account = () => {
                   ))}
                 </div>
               )}
-            </div>
+            </div> : null}
           </div>
 
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <PaymentsList
               payments={activity.payments}
               loading={paymentsLoading}
@@ -803,6 +785,7 @@ const Account = () => {
             />
           </div>
         </div>
+        <SummaryCards stats={stats} />
         {activity.testBookings.length || activity.testPayments.length ? (
           <details className="rounded-2xl border border-amber-400/30 p-5">
             <summary className="cursor-pointer font-semibold text-amber-200">{t('account_context.test_history')}</summary>
@@ -813,7 +796,7 @@ const Account = () => {
             </div>
           </details>
         ) : null}
-        </TripsContainer>
+        </section> : null}
       </div>
     </section>
   );

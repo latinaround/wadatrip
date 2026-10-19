@@ -55,7 +55,7 @@ export default function CheckoutSuccess() {
           ) : (
             <>
               <Button asChild className="h-12 w-full min-w-48 rounded-2xl bg-[#167c7d] px-6 font-semibold text-white hover:bg-[#136f71] sm:w-auto">
-                <Link to="/account#my-trips">View my trips</Link>
+                <Link to="/account/trips">View my trips</Link>
               </Button>
               <Button variant="outline" className="h-11 w-full rounded-2xl px-5 sm:w-auto" onClick={() => setRefresh(value => value + 1)}>Refresh booking status</Button>
             </>

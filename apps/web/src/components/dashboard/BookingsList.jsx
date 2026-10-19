@@ -62,7 +62,7 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh, title = 'Your 
           <TableBody>
             {(loading ? Array.from({ length: 3 }).map((_, index) => ({ id: `loading-${index}`, loading: true })) : bookings).map((booking) => (
               <TableRow key={booking.id || booking.internalId}>
-                <TableCell className="max-w-[220px] truncate font-medium text-slate-800">
+                <TableCell className="max-w-[220px] truncate font-medium text-white">
                   {booking.loading ? skeleton('w-32') : (booking.title || 'Untitled booking')}
                   {!booking.loading && booking.id ? <Link className="mt-1 block text-sm font-semibold text-[#22d3ee] underline" to={`/checkout/success?booking_id=${encodeURIComponent(booking.id)}`}>{bookingActionLabel(booking)}</Link> : null}
                   {booking.provider && !booking.loading && (

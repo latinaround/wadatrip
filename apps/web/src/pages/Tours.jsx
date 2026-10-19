@@ -246,7 +246,7 @@ export default function Tours() {
         {user ? (
           <nav aria-label="Your trips">
             <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
-              <Link to="/account#my-trips">Back to my trips</Link>
+              <Link to="/account/trips">Back to my trips</Link>
             </Button>
           </nav>
         ) : null}

@@ -368,6 +368,7 @@ function App() {
           <Route path="/enhanced-search" element={<TourAlerts />} />
           <Route path="/flight-notifications" element={<FlightPriceNotifications />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/account/trips" element={<Account />} />
           <Route path="/tours" element={<Tours />} />
           <Route path="/tours/:id" element={<TourDetail />} />
           <Route path="/guides/:id" element={<GuideProfile />} />

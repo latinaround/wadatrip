@@ -133,7 +133,7 @@ const Header = ({ user, onLogout }) => {
                 </Button>
                 {user ? (
                   <>
-                    <Button size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105" onClick={goToAccount}>
+                    <Button size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105" onClick={() => { setIsMenuOpen(false); navigate('/account/trips'); }}>
                       {t('nav.my_trips', { defaultValue: 'My trips' })}
                     </Button>
                     {user.role === 'admin' && <Link to="/admin/users" className="px-3 py-2 text-[#16d7d0]" onClick={() => setIsMenuOpen(false)}>Admin</Link>}
