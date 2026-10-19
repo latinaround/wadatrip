@@ -28,6 +28,41 @@ export const separateTestActivity = (bookings = [], payments = []) => {
   };
 };
 
+// Presentation only: never change the stored lifecycle or infer Test/Live mode.
+export const partitionBookingHistory = (bookings = [], now = Date.now()) => {
+  const current = [], historical = [];
+  const financialAttention = new Set(['payment_pending', 'cancellation_pending', 'reconciliation_required',
+    'refund_required', 'processing', 'requires_action', 'requires_capture', 'requires_confirmation', 'requires_payment_method']);
+  for (const booking of bookings) {
+    const status = String(booking.status || '').toLowerCase();
+    const payment = String(booking.paymentStatus || '').toLowerCase();
+    let archive = false;
+    if (!financialAttention.has(status) && payment !== 'pending' && !financialAttention.has(payment)) {
+      const inactive = ['cancelled', 'canceled', 'rejected', 'completed', 'payment_failed'].includes(status);
+      // A cancelled but paid record may still need financial review.
+      const unsettledCancellation = inactive && status !== 'completed' && ['paid', 'succeeded', 'partially_refunded'].includes(payment);
+      if (!unsettledCancellation && inactive) archive = true;
+      else if (!unsettledCancellation && ['pending', 'confirmed'].includes(status)) {
+        const departure = booking.departureAt ? Date.parse(booking.departureAt) : NaN;
+        if (Number.isFinite(departure)) archive = departure < now;
+        else {
+          const day = String(booking.date || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+          const parsed = day ? new Date(`${day}T00:00:00Z`) : null;
+          if (parsed && Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day) {
+            try {
+              const parts = new Intl.DateTimeFormat('en-US', { timeZone: booking.timezone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(now));
+              const value = type => parts.find(part => part.type === type).value;
+              archive = day < `${value('year')}-${value('month')}-${value('day')}`;
+            } catch { /* Ambiguous historical dates stay visible for review. */ }
+          }
+        }
+      }
+    }
+    (archive ? historical : current).push(booking);
+  }
+  return { current, historical };
+};
+
 export const paymentAmountCents = (payment = {}) => {
   for (const value of [
     payment.amount_charged_cents,

@@ -1,5 +1,8 @@
 {
     "account_context": {
+        "current_bookings": "Próximas reservas y reservas activas", "current_help": "Próximos viajes y reservas que aún necesitan tu atención.",
+        "no_upcoming": "No tienes próximas reservas.", "history": "Reservas pasadas e inactivas ({{count}})", "history_title": "Historial de reservas",
+        "history_help": "Conservamos aquí los registros pasados e inactivos con su estado original. Una reserva sin pagar no es una compra.",
         "dashboard": "Panel de operadora u operador",
         "host_help": "Gestiona tus tours y las reservas de tus clientes en tu panel de operadora u operador.",
         "personal": "Mis reservas como viajero",

@@ -30,8 +30,8 @@ async function main() {
    if (url.pathname === '/providers/me') { body = options.host === false ? { message: 'No synthetic provider' } : provider; status = options.host === false ? 404 : 200; }
    if (url.pathname === `/providers/${providerId}`) body = provider;
    if (url.pathname === '/bookings/mine') { status = 404; body = { message: 'Synthetic legacy route missing' }; }
-   if (url.pathname === '/bookings') body = { items: url.searchParams.has('provider_id') ? [incoming] : [{ ...ownBooking, payment: { processor_mode: options.paymentMode || 'live' } }], total: 1 };
-   if (url.pathname === '/payments/user-history') body = { items: [{ id: 'synthetic-context-payment', booking_id: ownBooking.id, amount_charged_cents: 5000, currency: 'USD', status: 'succeeded', processor_mode: options.paymentMode || 'live' }] };
+   if (url.pathname === '/bookings') body = { items: url.searchParams.has('provider_id') ? [incoming] : options.legacyHistory ? [{ ...ownBooking, id: 'synthetic-historical-booking', listing: { ...listing, title: 'Synthetic historical reservation' }, status: 'pending', payment_status: 'unpaid', date: '2001-02-03T00:00:00Z', payment: null }] : [{ ...ownBooking, payment: { processor_mode: options.paymentMode || 'live' } }], total: 1 };
+   if (url.pathname === '/payments/user-history') body = { items: options.legacyHistory ? [] : [{ id: 'synthetic-context-payment', booking_id: ownBooking.id, amount_charged_cents: 5000, currency: 'USD', status: 'succeeded', processor_mode: options.paymentMode || 'live' }] };
    if (url.pathname === '/bookings/synthetic-personal-booking') body = ownBooking;
    if (url.pathname.startsWith('/listings') || url.pathname.endsWith('/listings')) body = { items: [listing] };
    return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -120,6 +120,20 @@ async function main() {
    await personal(page).waitFor();
    await trips.getByText('synthetic-personal-booking', { exact: true }).waitFor();
   }, { paymentMode: 'test' });
+  await check('Old unpaid legacy bookings are preserved in collapsed history, with zero upcoming trips and spending', async page => {
+   await dashboard(page).first().waitFor();
+   await page.getByRole('link', { name: 'My bookings as a traveler', exact: true }).click();
+   const trips = page.locator('#my-trips');
+   await trips.getByText('No upcoming bookings.', { exact: true }).waitFor();
+   await trips.getByText('Total spent', { exact: true }).locator('../..').getByText('$0', { exact: true }).waitFor();
+   await trips.getByText('Upcoming trips', { exact: true }).locator('../..').getByText('0', { exact: true }).waitFor();
+   const row = trips.getByRole('cell', { name: /^Synthetic historical reservation/, includeHidden: true });
+   assert.equal(await row.isVisible(), false);
+   assert.equal(await trips.getByText('Test bookings and payments', { exact: true }).count(), 0);
+   await trips.getByText('Past and inactive bookings (1)', { exact: true }).click();
+   await row.waitFor();
+   assert.equal(await row.getByRole('link', { name: 'View booking', exact: true }).getAttribute('href'), '/checkout/success?booking_id=synthetic-historical-booking');
+  }, { legacyHistory: true });
   console.log(`ACCOUNT CONTEXT UI: ${passed}/${passed + failures.length} passed; localhost/synthetic only`);
   if (failures.length) process.exitCode = 1;
  } finally { await browser.close(); }

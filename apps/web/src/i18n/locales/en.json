@@ -1,5 +1,8 @@
 {
     "account_context": {
+        "current_bookings": "Upcoming and active bookings", "current_help": "Upcoming trips and reservations that still need your attention.",
+        "no_upcoming": "No upcoming bookings.", "history": "Past and inactive bookings ({{count}})", "history_title": "Booking history",
+        "history_help": "Past and inactive records are preserved here with their original status. An unpaid booking is not a purchase.",
         "dashboard": "Operator dashboard",
         "host_help": "Manage your tours and customer reservations in your operator dashboard.",
         "personal": "My bookings as a traveler",

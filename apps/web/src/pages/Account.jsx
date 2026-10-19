@@ -12,7 +12,7 @@ import SummaryCards from '../components/dashboard/SummaryCards.jsx';
 import BookingsList from '../components/dashboard/BookingsList.jsx';
 import PaymentsList from '../components/dashboard/PaymentsList.jsx';
 import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
-import { paymentAmountCents, separateTestActivity } from '../utils/accountDisplay.js';
+import { paymentAmountCents, separateTestActivity, partitionBookingHistory } from '../utils/accountDisplay.js';
 
 const apiBase = (AppConfig.api.baseUrl || '').replace(/\/$/, '');
 
@@ -357,6 +357,7 @@ const Account = () => {
   }, [token, loadItineraries, loadBookings, loadPayments, loadGuideProfile]);
 
   const activity = useMemo(() => separateTestActivity(bookings, payments), [bookings, payments]);
+  const bookingHistory = partitionBookingHistory(activity.bookings);
   const stats = useMemo(() => getStats(itineraries, activity.bookings, activity.payments), [itineraries, activity]);
 
   const guidePublicHref = guideProfile?.id ? `/guides/${guideProfile.id}` : null;
@@ -728,11 +729,22 @@ const Account = () => {
         <div className="grid gap-6 xl:grid-cols-3">
           <div className="space-y-6 xl:col-span-2">
             <BookingsList
-              bookings={activity.bookings}
+              bookings={bookingHistory.current}
               loading={bookingsLoading}
               error={bookingsError}
               onRefresh={loadBookings}
+              title={t('account_context.current_bookings')}
+              description={t('account_context.current_help')}
+              emptyMessage={t('account_context.no_upcoming')}
             />
+            {bookingHistory.historical.length ? (
+              <details className="rounded-2xl border border-white/10 p-5">
+                <summary className="cursor-pointer font-semibold text-[#cad3df]">{t('account_context.history', { count: bookingHistory.historical.length })}</summary>
+                <p className="my-4 text-sm text-[#a0a0a0]">{t('account_context.history_help')}</p>
+                <BookingsList bookings={bookingHistory.historical} loading={bookingsLoading} error={bookingsError} onRefresh={loadBookings}
+                  title={t('account_context.history_title')} description={t('account_context.history_help')} />
+              </details>
+            ) : null}
 
             <div className="rounded-2xl border border-[#2d3548]/60 bg-[#1a1f3a] p-6 shadow-sm">
               <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

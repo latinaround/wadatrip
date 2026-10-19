@@ -25,12 +25,13 @@ const bookingActionLabel = (booking) => {
   return 'View booking';
 };
 
-const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
+const BookingsList = ({ bookings = [], loading, error, onRefresh, title = 'Your bookings',
+  description = 'Recent bookings created from the web marketplace.', emptyMessage = 'No bookings yet.' }) => (
   <Card className="border border-[#2d3548]/60 shadow-sm">
     <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <div>
-        <CardTitle className="text-lg font-semibold text-white">Your bookings</CardTitle>
-        <p className="text-sm text-[#a0a0a0]">Recent bookings created from the web marketplace.</p>
+        <CardTitle className="text-lg font-semibold text-white">{title}</CardTitle>
+        <p className="text-sm text-[#a0a0a0]">{description}</p>
       </div>
       <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
         {loading ? 'Refreshing...' : 'Refresh'}
@@ -44,7 +45,7 @@ const BookingsList = ({ bookings = [], loading, error, onRefresh }) => (
       )}
       {!loading && bookings.length === 0 ? (
         <div className="py-8 text-center text-sm text-[#a0a0a0]">
-          No bookings yet.
+          {emptyMessage}
         </div>
       ) : (
         <Table>
