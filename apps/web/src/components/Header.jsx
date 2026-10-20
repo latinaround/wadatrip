@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, Search, UserCircle } from 'lucide-react';
+import { Menu, X, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LanguageSwitcher from './LanguageSwitcher';
 import BrandLogo from './BrandLogo';
@@ -13,14 +13,10 @@ const Header = ({ user, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
-    { key: 'products', href: '/products' },
-    { key: 'solutions', href: '/solutions' },
-    { key: 'price_alerts', href: '/price-alerts' },
-    { key: 'tour_alerts', href: '/enhanced-search', icon: Search },
     { key: 'tours', href: '/tours' },
-    { key: 'about_us', href: '/about-us' },
+    { key: 'about_us', href: '/about-us', label: t('marketplace.about_company') },
     { key: 'contact', href: '/contact' },
-    { key: 'privacy_policy', href: '/privacy-policy' },
+    ...(user ? [{ key: 'my_trips', href: '/account/trips' }] : []),
   ];
 
   const guideEntryHref = user ? '/operator/tours/new' : '/guide/register';
@@ -56,7 +52,7 @@ const Header = ({ user, onLogout }) => {
                     className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-[#e0e0e0] transition-colors hover:text-[#16d7d0]"
                   >
                     {IconComponent && <IconComponent size={16} />}
-                    {t(`nav.${item.key}`)}
+                    {item.label || t(`nav.${item.key}`)}
                   </Link>
                 );
               })}
@@ -123,7 +119,7 @@ const Header = ({ user, onLogout }) => {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {IconComponent && <IconComponent size={16} />}
-                    {t(`nav.${item.key}`)}
+                    {item.label || t(`nav.${item.key}`)}
                   </Link>
                 );
               })}
@@ -137,8 +133,8 @@ const Header = ({ user, onLogout }) => {
                 {user ? (
                   <>
                     <OperatorInboxLink onClick={() => setIsMenuOpen(false)} />
-                    <Button size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105" onClick={() => { setIsMenuOpen(false); navigate('/account/trips'); }}>
-                      {t('nav.my_trips', { defaultValue: 'My trips' })}
+                    <Button asChild size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105">
+                      <Link to="/account" onClick={() => setIsMenuOpen(false)}>{t('marketplace.my_account')}</Link>
                     </Button>
                     {user.role === 'admin' && <Link to="/admin/users" className="px-3 py-2 text-[#16d7d0]" onClick={() => setIsMenuOpen(false)}>Admin</Link>}
                     <Button

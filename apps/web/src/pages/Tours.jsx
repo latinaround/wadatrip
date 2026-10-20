@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { AppConfig } from '../config/appConfig';
 import { buildTourSlug } from '../utils/tourSlug';
 import { fetchDestinationCoverMap, resolveListingImage, resolveProviderAvatar } from '../utils/destinationMedia';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
+import DestinationCountryPicker from '../components/DestinationCountryPicker';
+import DestinationCityPicker from '../components/DestinationCityPicker';
+import { getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
 import { getListingPriceBadge, isFreeTour } from '../utils/listingMode';
 import { getHostBadge, getHostTrustScore, sortHostsByTrust } from '../utils/hostRanking';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -30,7 +31,7 @@ const buildTourHref = (item) => `/tours/${buildTourSlug({ title: item.title, cit
 const buildExperienceKey = (item) => {
   const city = String(item?.city || '').trim().toLowerCase();
   const title = String(item?.title || '').trim().toLowerCase();
-  return `${title}::${city}`;
+  return `${normalizeCountryCode(item?.country_code)}::${title}::${city}`;
 };
 
 function ExperienceCard({ experience, destinationCoverMap }) {
@@ -63,16 +64,16 @@ function ExperienceCard({ experience, destinationCoverMap }) {
       </div>
 
       <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#435164]">
-        {experience.description || 'Compare verified local hosts offering the same experience in one clean view.'}
+        {experience.description || t('marketplace.compare_help')}
       </p>
       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#167c7d]">
-        {freeTour ? 'Join flow, no checkout first' : 'Online checkout available'}
+        {t(freeTour ? 'marketplace.free_flow' : 'marketplace.view_dates')}
       </p>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <div className="space-y-2">
           <div className="inline-flex items-center rounded-full bg-[#e8faf8] px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#167c7d]">
-            {hostCount} {hostCount === 1 ? 'Host' : 'Hosts'} Available
+            {t('tour_details.host_count', { count: hostCount })}
           </div>
           <div className="flex items-center gap-3">
           {providerAvatar ? (
@@ -83,14 +84,14 @@ function ExperienceCard({ experience, destinationCoverMap }) {
             </div>
           )}
           <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-[#6b7687]">Top trusted host</p>
-              <p className="mt-1 text-sm font-semibold text-[#0f172a]">{cheapestHost?.provider_name || 'Verified local host'}</p>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-[#6b7687]">{t('booking_summary.host')}</p>
+              <p className="mt-1 text-sm font-semibold text-[#0f172a]">{cheapestHost?.provider_name || t('booking_summary.host')}</p>
               {getHostBadge(cheapestHost) ? <p className="mt-1 text-xs font-semibold text-[#167c7d]">{getHostBadge(cheapestHost)}</p> : null}
           </div>
         </div>
         </div>
         <span className="inline-flex items-center justify-center rounded-2xl bg-[#0f172a] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition-colors group-hover:bg-[#167c7d]">
-          {freeTour ? 'Compare guides to join' : 'Compare guides to book'}
+          {t('marketplace.view_tour')}
         </span>
       </div>
     </Link>
@@ -99,21 +100,28 @@ function ExperienceCard({ experience, destinationCoverMap }) {
 
 export default function Tours() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const location = useLocation();
   const [items, setItems] = useState([]);
   const [destinationCoverMap, setDestinationCoverMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({ city: '', country: '' });
-  const [freeOnly, setFreeOnly] = useState(false);
+  const [filters, setFilters] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return { city: params.get('city') || '', country: normalizeCountryCode(params.get('country_code')) };
+  });
+  const [freeOnly, setFreeOnly] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('free') === 'true' || params.get('free_tour') === 'true';
+  });
   const [geoStatus, setGeoStatus] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const wantsFree = params.get('free') === 'true' || params.get('free_tour') === 'true';
     const city = params.get('city') || '';
-    const country = params.get('country_code') || '';
+    const country = normalizeCountryCode(params.get('country_code'));
     setFreeOnly(wantsFree);
     setFilters({ city, country });
   }, [location.search]);
@@ -130,7 +138,7 @@ export default function Tours() {
           sort: 'featured',
         });
         if (filters.city.trim()) params.set('city', filters.city.trim());
-        if (filters.country.trim()) params.set('country_code', filters.country.trim().toUpperCase());
+        if (filters.country.trim()) params.set('country_code', normalizeCountryCode(filters.country));
         if (freeOnly) params.set('free_tour', 'true');
 
         const response = await fetch(`${apiBase}/listings/search?${params.toString()}`);
@@ -157,7 +165,16 @@ export default function Tours() {
   }, [apiBase, filters.city, filters.country, freeOnly]);
 
   const handleFilterChange = (field, value) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
+    setGeoStatus('');
+    setFilters((prev) => field === 'country'
+      ? { country: normalizeCountryCode(value), city: '' }
+      : { ...prev, [field]: value });
+  };
+
+  const clearFilters = () => {
+    setFilters({ country: '', city: '' });
+    setFreeOnly(false);
+    setGeoStatus('');
   };
 
   const applyGeolocation = () => {
@@ -219,10 +236,11 @@ export default function Tours() {
         || b.hosts.length - a.hosts.length || a.title.localeCompare(b.title));
   }, [items]);
 
-  const suggestedCities = useMemo(() => getCitySuggestions(filters.country), [filters.country]);
+  const suggestedCities = useMemo(() => filters.country ? getCitySuggestions(filters.country) : [], [filters.country]);
   const activeCities = useMemo(() => {
-    return Array.from(new Set(experiences.map((item) => String(item.city || '').trim()).filter(Boolean)));
-  }, [experiences]);
+    return Array.from(new Set(items.filter(item => !filters.country || normalizeCountryCode(item.country_code) === filters.country)
+      .map(item => String(item.city || '').trim()).filter(Boolean)));
+  }, [items, filters.country]);
   const cityOptions = useMemo(() => {
     const known = new Map();
     [...suggestedCities, ...activeCities].forEach((city) => {
@@ -246,22 +264,21 @@ export default function Tours() {
         {user ? (
           <nav aria-label="Your trips">
             <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
-              <Link to="/account/trips">Back to my trips</Link>
+              <Link to="/account/trips">{t('marketplace.back_trips')}</Link>
             </Button>
           </nav>
         ) : null}
         <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
           <div className="overflow-hidden rounded-[30px] border border-white/12 bg-[linear-gradient(135deg,#0f7f77_0%,#14908d_42%,#dd8a63_100%)] p-8 shadow-[0_26px_70px_rgba(15,23,42,0.22)] md:p-9">
             <div className="space-y-5">
-              <p className="page-kicker text-[#dcfffb]">Tours marketplace</p>
-              <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] text-white md:text-5xl">Pick the experience first. Compare hosts second.</h1>
+              <p className="page-kicker text-[#dcfffb]">{t('marketplace.kicker')}</p>
+              <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] text-white md:text-5xl">{t('marketplace.title')}</h1>
               <p className="max-w-2xl text-base leading-relaxed text-white/86">
-                WadaTrip helps travelers find one clean experience page, then compare verified tour guides and operators without scrolling through duplicated listings.
+                {t('marketplace.compare_help')}
               </p>
               <div className="flex flex-wrap gap-3">
-                <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">Verified hosts</span>
-                <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">Cleaner pricing</span>
-                <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">Traveler-first flow</span>
+                <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">{t('marketplace.local_hosts')}</span>
+                <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white">{t('marketplace.clear_prices')}</span>
               </div>
             </div>
           </div>
@@ -270,54 +287,31 @@ export default function Tours() {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="page-kicker text-[#167c7d]">Filters</p>
-                  <p className="text-sm text-[#64748b]">Choose a country first, then start typing a city and we will suggest matching places.</p>
+                  <p className="page-kicker text-[#167c7d]">{t('marketplace.filters')}</p>
+                  <p className="text-sm text-[#64748b]">{t('marketplace.destination_help')}</p>
                 </div>
-                <div className="text-xs uppercase tracking-[0.18em] text-[#6b7687]">{experiences.length} experiences</div>
+                <div className="text-xs uppercase tracking-[0.18em] text-[#6b7687]">{t('marketplace.experience_count', { count: loading ? '…' : experiences.length })}</div>
               </div>
               <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
                 <div>
-                  <label htmlFor="tours-country" className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">Country</label>
+                  <label htmlFor="tours-country" className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">{t('marketplace.country')}</label>
                   <div className="mt-2">
-                    <Select
-                      value={normalizeCountryCode(filters.country) || 'all'}
-                      onValueChange={(value) => handleFilterChange('country', value === 'all' ? '' : value)}
-                    >
-                      <SelectTrigger id="tours-country" className="h-[50px] w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 text-sm text-[#172033]">
-                        <SelectValue placeholder="Choose a country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All countries</SelectItem>
-                        {COUNTRY_OPTIONS.map((country) => (
-                          <SelectItem key={country.code} value={country.code}>
-                            {country.label} ({country.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <DestinationCountryPicker id="tours-country" value={filters.country} onChange={value => handleFilterChange('country', value)} />
                   </div>
                 </div>
                 <div>
-                  <label htmlFor="tours-city" className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">City</label>
-                  <input
-                    id="tours-city"
-                    value={filters.city}
-                    onChange={(event) => handleFilterChange('city', event.target.value)}
-                    placeholder={filters.country ? 'Start typing a city' : 'Choose a country, then type a city'}
-                    list="tours-city-suggestions"
-                    autoComplete="off"
-                    className="mt-2 w-full rounded-2xl border border-[#d7e6e3] bg-[#fff5ec] px-4 py-3 text-sm text-[#172033] outline-none transition-shadow focus:border-[#169a99] focus:shadow-[0_0_0_3px_rgba(22,154,153,0.15)]"
-                  />
-                  <datalist id="tours-city-suggestions">
-                    {filteredCitySuggestions.map((city) => <option key={city} value={city} />)}
-                  </datalist>
+                  <label htmlFor="tours-city" className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7687]">{t('marketplace.city')}</label>
+                  <div className="mt-2">
+                    <DestinationCityPicker id="tours-city" value={filters.city} onChange={value => handleFilterChange('city', value)}
+                      options={cityOptions} placeholder={t(filters.country ? 'marketplace.type_city' : 'marketplace.destination_help')} />
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={applyGeolocation}
                   className="h-12 rounded-2xl border border-[#d7bca9] px-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#0f172a] transition-colors hover:bg-[#fff2e7]"
                 >
-                  Use My Location
+                  {t('marketplace.use_location')}
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-3 text-sm text-[#435164]">
@@ -328,7 +322,7 @@ export default function Tours() {
                     checked={freeOnly}
                     onChange={(event) => setFreeOnly(event.target.checked)}
                   />
-                  <span>Free walking tours</span>
+                  <span>{t('marketplace.free_tours')}</span>
                 </label>
                 {geoStatus ? <span className="text-xs uppercase tracking-[0.16em] text-[#6b7687]">{geoStatus}</span> : null}
               </div>
@@ -351,14 +345,17 @@ export default function Tours() {
           </section>
         ) : null}
 
-        {loading && <p className="text-[#cad3df]">Loading tours...</p>}
+        {loading && <p role="status" className="text-[#cad3df]">{t('marketplace.loading')}</p>}
         {error && <p className="text-[#ff6d8e]">{error}</p>}
         {!loading && !error && experiences.length === 0 && (
-          <p className="text-[#cad3df]">No tours have been published yet.</p>
+          <div role="status" className="space-y-3 text-[#cad3df]">
+            <p>{t('marketplace.empty')}</p>
+            {(filters.country || filters.city || freeOnly) ? <Button type="button" variant="outline" onClick={clearFilters}>{t('marketplace.clear_filters')}</Button> : null}
+          </div>
         )}
 
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-          {experiences.map((experience) => (
+          {!loading && !error && experiences.map((experience) => (
             <ExperienceCard key={experience.key} experience={experience} destinationCoverMap={destinationCoverMap} />
           ))}
         </div>

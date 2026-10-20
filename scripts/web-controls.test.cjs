@@ -91,7 +91,7 @@ async function main() {
     });
     await check('Every desktop navigation link opens its matching page', async () => {
       await page.goto(origin);
-      for (const route of ['/products', '/solutions', '/price-alerts', '/enhanced-search', '/tours', '/about-us', '/contact', '/privacy-policy']) {
+      for (const route of ['/tours', '/about-us', '/contact']) {
         await page.locator(`header a[href="${route}"]`).first().click();
         await page.waitForURL(url => url.pathname === route);
         await page.locator('h1').first().waitFor();
