@@ -1,4 +1,25 @@
 {
+    "operator_inbox": {
+            "title": "New reservations",
+            "help": "Review each confirmed reservation here. Marking it reviewed only clears your alert; it does not change the booking, payment or available spots. Existing confirmed reservations may also need review.",
+            "refresh": "Refresh alerts",
+            "loading": "Loading booking alerts…",
+            "error": "Booking alerts could not be updated. Try again; email and your reservation list remain separate.",
+            "reservations": "Reservations to review",
+            "sandbox": "Sandbox reservations to review",
+            "unverified": "Payment environment not verified",
+            "sandbox_help": "Test activity only. No real money was charged.",
+            "unverified_help": "These records cannot be classified as Live or Sandbox. Check with support before treating them as paid sales.",
+            "empty": "No reservations to review.",
+            "review": "Mark as reviewed",
+            "saving": "Saving…",
+            "more": "Review these reservations to see the next ones.",
+            "reference": "Booking reference",
+            "new_count": "New: {{count}}",
+            "test_count": "Sandbox: {{count}}",
+            "unverified_count": "Unverified: {{count}}",
+            "travelers": "Travelers: {{count}}"
+    },
     "account_context": {
         "trips_title": "My trips", "trips_help": "Your traveler reservations and payments.", "back_account": "Back to my account",
         "current_bookings": "Upcoming and active bookings", "current_help": "Upcoming trips and reservations that still need your attention.",

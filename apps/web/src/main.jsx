@@ -4,6 +4,7 @@ import './index.css'
 import './i18n'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { OperatorInboxProvider } from './context/OperatorInboxContext.jsx'
 
 const preloadReloadKey = 'wadatrip:vite-preload-reload';
 
@@ -26,7 +27,7 @@ if (typeof window !== 'undefined') {
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <AuthProvider>
-      <App />
+      <OperatorInboxProvider><App /></OperatorInboxProvider>
     </AuthProvider>
   </BrowserRouter>
 )

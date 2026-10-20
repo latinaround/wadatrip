@@ -5,6 +5,7 @@ import { Menu, X, Search, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LanguageSwitcher from './LanguageSwitcher';
 import BrandLogo from './BrandLogo';
+import OperatorInboxLink from './OperatorInboxLink.jsx';
 
 const Header = ({ user, onLogout }) => {
   const { t } = useTranslation();
@@ -107,6 +108,8 @@ const Header = ({ user, onLogout }) => {
           </div>
         </div>
 
+        {user ? <div className="mx-auto hidden max-w-7xl justify-end pb-3 md:flex"><OperatorInboxLink /></div> : null}
+
         {isMenuOpen && (
           <div className="border-t border-[#2d3548] py-4 lg:hidden">
             <nav className="flex flex-col space-y-4">
@@ -133,6 +136,7 @@ const Header = ({ user, onLogout }) => {
                 </Button>
                 {user ? (
                   <>
+                    <OperatorInboxLink onClick={() => setIsMenuOpen(false)} />
                     <Button size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105" onClick={() => { setIsMenuOpen(false); navigate('/account/trips'); }}>
                       {t('nav.my_trips', { defaultValue: 'My trips' })}
                     </Button>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -14,6 +14,7 @@ import { uploadImageFile } from '../services/mediaUpload';
 import OperatorReadinessPanel from '../components/OperatorReadinessPanel.jsx';
 import TourDateRequests from '../components/TourDateRequests.jsx';
 import { formatBookingDeparture } from '../utils/accountDisplay.js';
+import OperatorBookingInbox from '../components/OperatorBookingInbox.jsx';
 
 const tokenStorageKey = 'wadatrip_token';
 
@@ -110,6 +111,7 @@ function ProviderBookingCard({ booking }) {
 }
 
 export default function OperatorToursNew() {
+  const location = useLocation();
   const { t } = useTranslation();
   const { user, token, logout } = useAuth();
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
@@ -151,10 +153,14 @@ export default function OperatorToursNew() {
   const [activePanel, setActivePanel] = useState(() => {
     if (typeof window === 'undefined') return 'operations';
     const params = new URLSearchParams(window.location.search);
+    if (params.get('panel') === 'operations') return 'operations';
     return params.has('edit') || params.has('connect') ? 'tours' : 'operations';
   });
 
   const accessCodeTrimmed = accessCode.trim();
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('panel') === 'operations') setActivePanel('operations');
+  }, [location.key, location.search]);
   const isAuthenticatedMode = Boolean(sessionToken);
   const ownedProviderId = providerStatus?.id ? String(providerStatus.id) : '';
   const providerApprovalStatus = String(providerStatus?.status || providerStatus?.verification_status || '').toLowerCase();
@@ -1028,6 +1034,7 @@ export default function OperatorToursNew() {
           </nav>
         ) : null}
 
+        {user && token && ownedProviderId && activePanel === 'operations' ? <OperatorBookingInbox key={user.id} /> : null}
         {user && token && activePanel === 'operations' ? <TourDateRequests apiBase={apiBase} operator /> : null}
 
         {isAuthenticatedMode && ownedProviderId && activePanel === 'operations' ? (

@@ -1,4 +1,25 @@
 {
+    "operator_inbox": {
+            "title": "Nuevas reservas",
+            "help": "Revisa aquí cada reserva confirmada. Marcarla como revisada solo elimina tu aviso; no cambia la reserva, el pago ni los cupos. Las reservas confirmadas anteriores también pueden requerir revisión.",
+            "refresh": "Actualizar avisos",
+            "loading": "Cargando avisos de reservas…",
+            "error": "No se pudieron actualizar los avisos. Inténtalo de nuevo; el correo y la lista de reservas son independientes.",
+            "reservations": "Reservas por revisar",
+            "sandbox": "Reservas Sandbox por revisar",
+            "unverified": "Entorno de pago sin verificar",
+            "sandbox_help": "Solo actividad de prueba. No se cobró dinero real.",
+            "unverified_help": "Estos registros no se pueden clasificar como Live o Sandbox. Consulta con soporte antes de tratarlos como ventas pagadas.",
+            "empty": "No hay reservas por revisar.",
+            "review": "Marcar como revisada",
+            "saving": "Guardando…",
+            "more": "Revisa estas reservas para ver las siguientes.",
+            "reference": "Referencia de reserva",
+            "new_count": "Nuevas: {{count}}",
+            "test_count": "Sandbox: {{count}}",
+            "unverified_count": "Sin verificar: {{count}}",
+            "travelers": "Viajeros: {{count}}"
+    },
     "account_context": {
         "trips_title": "Mis viajes", "trips_help": "Tus reservas y pagos como viajero.", "back_account": "Volver a mi cuenta",
         "current_bookings": "Próximas reservas y reservas activas", "current_help": "Próximos viajes y reservas que aún necesitan tu atención.",

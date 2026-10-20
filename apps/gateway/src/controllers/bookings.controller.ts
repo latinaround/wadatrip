@@ -8,6 +8,7 @@ import { reconcileBookingPayment } from '../services/booking-payment.service';
 import { cancelPolicyBooking } from '@wadatrip/common/booking-cancellation';
 import { assertPaymentMode } from '@wadatrip/common/payment-lifecycle';
 import { assertStripeObjectMode, stripePaymentMode } from '../services/payment-config.service';
+import { operatorBookingInbox, reviewOperatorBooking } from '../services/operator-booking-inbox';
 
 const HUB = process.env.PROVIDER_HUB_URL || 'http://localhost:3014';
 const ENABLED = (process.env.FF_PROVIDER_HUB || 'false').toLowerCase() === 'true';
@@ -63,6 +64,18 @@ async function enrichBookingLinks(booking: any) {
 
 @Controller()
 export class BookingsController {
+  @Get('operator/booking-inbox')
+  async operatorInbox(@Req() req: any) {
+    const prisma = getPrisma();
+    return operatorBookingInbox(prisma, await requireActor(req, prisma));
+  }
+
+  @Post('operator/booking-inbox/:id/review')
+  async reviewOperatorInbox(@Param('id') id: string, @Req() req: any) {
+    const prisma = getPrisma();
+    return reviewOperatorBooking(prisma, await requireActor(req, prisma), id);
+  }
+
   @Get('bookings')
   async list(@Query() q: any, @Req() req: any) {
     const actor = await requireActor(req, getPrisma());

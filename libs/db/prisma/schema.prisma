@@ -31,6 +31,7 @@ model users {
   tour_date_requests  tour_date_requests[]
   admin_mfa           admin_mfa?
   admin_audit_log     admin_audit_log[]
+  operator_booking_reviews operator_booking_reviews[]
 
 
   @@index([email])
@@ -429,6 +430,7 @@ model bookings {
   trip     trips?    @relation(fields: [trip_id], references: [id])
   payment  PaymentRecord?
   notifications booking_notifications[]
+  operator_reviews operator_booking_reviews[]
 
   @@index([provider_id, status, date], name: "idx_bookings_provider_status_date")
   @@index([user_id, status], name: "idx_bookings_user_status")
@@ -437,6 +439,18 @@ model bookings {
 }
 
 // Durable booking emails are committed with the business transition and sent later.
+model operator_booking_reviews {
+  booking_id  String
+  user_id     String
+  reviewed_at DateTime @default(now())
+
+  booking bookings @relation(fields: [booking_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user users @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([booking_id, user_id])
+  @@index([user_id, reviewed_at])
+}
+
 model booking_notifications {
   id              String   @id @default(cuid())
   booking_id      String

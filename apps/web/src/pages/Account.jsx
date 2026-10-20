@@ -13,6 +13,7 @@ import BookingsList from '../components/dashboard/BookingsList.jsx';
 import PaymentsList from '../components/dashboard/PaymentsList.jsx';
 import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
 import { paymentAmountCents, separateTestActivity, partitionBookingHistory } from '../utils/accountDisplay.js';
+import { OperatorInboxCounts } from '../components/OperatorInboxLink.jsx';
 
 const apiBase = (AppConfig.api.baseUrl || '').replace(/\/$/, '');
 
@@ -445,18 +446,18 @@ const Account = () => {
           <h1 className="text-3xl font-bold text-white">{isTripsView ? t('account_context.trips_title') : `Hi, ${user.name || user.email}`}</h1>
           <p className="text-[#a0a0a0]">{isTripsView ? t('account_context.trips_help') : guideProfile ? t('account_context.host_help') : 'Manage your trips, bookings, payments, and profile.'}</p>
           <div className="flex flex-wrap gap-3">
-            <Button asChild className="h-12 rounded-2xl bg-[#167c7d] px-6 font-semibold text-white hover:bg-[#136f71]">
+            <Button asChild className="h-auto min-h-12 max-w-full flex-wrap whitespace-normal rounded-2xl bg-[#167c7d] px-6 font-semibold text-white hover:bg-[#136f71]">
               {isTripsView ? (
                 <Link to="/account">{t('account_context.back_account')}</Link>
               ) : guideProfile ? (
-                <Link to="/operator/tours/new">{t('account_context.dashboard')}</Link>
+                <Link to="/operator/tours/new">{t('account_context.dashboard')} <OperatorInboxCounts /></Link>
               ) : (
                 <Link to="/account/trips">{t('account_context.trips_title')}</Link>
               )}
             </Button>
             {guideProfile ? (
-              <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
-                {isTripsView ? <Link to="/operator/tours/new">{t('account_context.dashboard')}</Link> : <Link to="/account/trips">{t('account_context.personal')}</Link>}
+              <Button asChild variant="outline" className="h-auto min-h-11 max-w-full flex-wrap whitespace-normal rounded-2xl px-5">
+                {isTripsView ? <Link to="/operator/tours/new">{t('account_context.dashboard')} <OperatorInboxCounts /></Link> : <Link to="/account/trips">{t('account_context.personal')}</Link>}
               </Button>
             ) : null}
             <Button asChild variant="outline" className="h-11 rounded-2xl px-5">
@@ -693,8 +694,8 @@ const Account = () => {
                     </Button>
                   ) : null}
                   {guideProfile ? (
-                    <Button asChild variant="outline" className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
-                      <Link to="/operator/tours/new">{t('account_context.dashboard')}</Link>
+                    <Button asChild variant="outline" className="h-auto min-h-12 max-w-full flex-wrap whitespace-normal border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white">
+                      <Link to="/operator/tours/new">{t('account_context.dashboard')} <OperatorInboxCounts /></Link>
                     </Button>
                   ) : (
                     <Button type="button" variant="outline" className="h-12 border border-[#00D9FF]/40 text-[#00D9FF] hover:text-white" onClick={() => setShowGuideSetup(false)}>

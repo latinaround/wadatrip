@@ -1,4 +1,25 @@
 {
+    "operator_inbox": {
+            "title": "Nouvelles réservations",
+            "help": "Consultez chaque réservation confirmée ici. La marquer comme consultée efface uniquement votre alerte ; la réservation, le paiement et les places restent inchangés. Les réservations existantes peuvent aussi nécessiter une consultation.",
+            "refresh": "Actualiser les alertes",
+            "loading": "Chargement des alertes…",
+            "error": "Impossible de mettre à jour les alertes. Réessayez ; les e-mails et la liste des réservations restent indépendants.",
+            "reservations": "Réservations à consulter",
+            "sandbox": "Réservations Sandbox à consulter",
+            "unverified": "Environnement de paiement non vérifié",
+            "sandbox_help": "Activité de test uniquement. Aucun argent réel débité.",
+            "unverified_help": "Ces données ne peuvent pas être classées Live ou Sandbox. Contactez l’assistance avant de les considérer comme des ventes payées.",
+            "empty": "Aucune réservation à consulter.",
+            "review": "Marquer comme consultée",
+            "saving": "Enregistrement…",
+            "more": "Consultez ces réservations pour afficher les suivantes.",
+            "reference": "Référence de réservation",
+            "new_count": "Nouvelles : {{count}}",
+            "test_count": "Sandbox : {{count}}",
+            "unverified_count": "Non vérifiées : {{count}}",
+            "travelers": "Voyageurs : {{count}}"
+    },
     "account_context": {
         "trips_title": "Mes voyages", "trips_help": "Vos réservations et paiements en tant que voyageur.", "back_account": "Retour à mon compte",
         "current_bookings": "Réservations à venir et actives", "current_help": "Voyages à venir et réservations qui nécessitent encore votre attention.",
