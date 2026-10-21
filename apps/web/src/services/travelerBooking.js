@@ -5,13 +5,10 @@ function sessionError() {
   return Object.assign(new Error(SIGN_IN_REQUIRED), { status: 401 });
 }
 
-// AuthContext owns the session. This flow never reads storage or accepts a caller-selected actor.
-export async function bookTravelerExperience({ apiBase, getSession, booking }) {
+// AuthContext owns the session. Never read storage or accept a caller-selected actor.
+function travelerRequest({ apiBase, getSession }) {
   const session = getSession();
-  if (session.loading || !session.user || !session.token) throw sessionError();
-  if (!String(session.user.name || '').trim()) {
-    throw Object.assign(new Error(TRAVELER_NAME_REQUIRED), { status: 400, code: 'traveler_name_required' });
-  }
+  if (session.loading || !session.user?.id || !session.token) throw sessionError();
 
   const assertSession = () => {
     const current = getSession();
@@ -38,6 +35,35 @@ export async function bookTravelerExperience({ apiBase, getSession, booking }) {
     assertSession();
     if (!response.ok) throw new Error(data?.message || data?.error || response.statusText || 'Request failed');
     return data;
+  }
+  return { session, post };
+}
+
+// Presentation guard only. The authenticated checkout endpoint owns all authorization,
+// financial-state and processor-session checks, including races with cancellation.
+export function canResumeTravelerCheckout(booking) {
+  return Boolean(booking?.id && ['pending', 'payment_pending'].includes(booking.status)
+    && booking.payment_status === 'unpaid' && !booking.cancellation_requested_at
+    && booking.inventory_state !== 'released'
+    && Number.isSafeInteger(booking.amount_cents) && booking.amount_cents > 0);
+}
+
+export async function resumeTravelerCheckout({ apiBase, getSession, booking }) {
+  const { post } = travelerRequest({ apiBase, getSession });
+  if (!canResumeTravelerCheckout(booking)) throw new Error('This booking is not awaiting payment. Refresh its status.');
+  const checkout = await post(`/payments/bookings/${encodeURIComponent(booking.id)}/checkout`);
+  let url;
+  try { url = new URL(checkout?.url); } catch { throw new Error('Checkout URL missing or invalid'); }
+  if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com' || url.port || url.username || url.password) {
+    throw new Error('Checkout URL is not a secure Stripe checkout');
+  }
+  return url.href;
+}
+
+export async function bookTravelerExperience({ apiBase, getSession, booking }) {
+  const { session, post } = travelerRequest({ apiBase, getSession });
+  if (!String(session.user.name || '').trim()) {
+    throw Object.assign(new Error(TRAVELER_NAME_REQUIRED), { status: 400, code: 'traveler_name_required' });
   }
 
   const created = await post('/bookings', {
