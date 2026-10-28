@@ -118,6 +118,21 @@ async function webhook(session,eventId,signature=true){
   return fetch(`${gateway}/webhooks/stripe`,{method:'POST',headers,body});
 }
 
+test('preparation beta blocks direct and proxied HTTP reservations without consuming capacity or initiating payment',async()=>{
+  const prior=process.env.OPERATOR_BETA_PREPARATION_ONLY;
+  const bookings=await db.bookings.count(),payments=await db.paymentRecord.count(),calls=checkoutRequests.length;
+  process.env.OPERATOR_BETA_PREPARATION_ONLY='true';
+  try {
+    for(const price of [120,0]) {
+      const id=await listing(price);
+      const replies=await Promise.all([request(gateway,'/bookings','traveler-a',payload(id)),request(proxyGateway,'/bookings','traveler-b',payload(id)),request(gateway,'/bookings/simple','traveler-a',payload(id))]);
+      for(const reply of replies)assert.equal(reply.status,503);
+      assert.equal((await db.listing_availability.findFirst({where:{listing_id:id}})).spots_available,1);
+    }
+    assert.equal(await db.bookings.count(),bookings);assert.equal(await db.paymentRecord.count(),payments);assert.equal(checkoutRequests.length,calls);
+  } finally {if(prior===undefined)delete process.env.OPERATOR_BETA_PREPARATION_ONLY;else process.env.OPERATOR_BETA_PREPARATION_ONLY=prior;}
+});
+
 test('traveler helper sends JWT through real booking/checkout HTTP and stores canonical price',async()=>{
   const id=await listing();const jwtToken=token('traveler-a');
   const result=await bookTravelerExperience({apiBase:gateway,getSession:()=>({user:{id:'traveler-a',name:'Synthetic traveler-a'},token:jwtToken,logout:()=>assert.fail('unexpected logout')}),

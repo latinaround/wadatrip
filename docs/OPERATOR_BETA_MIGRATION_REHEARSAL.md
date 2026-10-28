@@ -78,3 +78,20 @@ MFA y aislamiento antes de admitir hasta cinco operadores en preparación.
 Storage efectivo y su configuración cliente también requieren aceptación antes
 de habilitar cargas. Live permanece apagado. El corredor de payout aprobado es
 un gate independiente de ventas reales; no impide preparar la beta cerrada.
+
+## Cierre de reservas durante la preparación
+
+Antes de publicar se reprodujo un hueco: cerrar Checkout no impedía crear una
+reserva y retener cupos. Dos pruebas unitarias fallaron antes de corregirlo. La
+función compartida `createCapacityBooking` ahora rechaza nuevas reservas antes de
+abrir una transacción cuando `OPERATOR_BETA_PREPARATION_ONLY=true`; cubre Gateway
+y Provider Hub sin bloquear la gestión de reservas existentes. Una prueba HTTP
+real descubrió además que Gateway convertía el 503 de Hub en 500; se corrigió su
+propagación y la misma prueba pasó.
+
+Validación de la corrección: 220 pruebas unitarias en 13 suites y 30 controles
+PostgreSQL reales (HTTP 10 y concurrencia 20). Incluye experiencias gratuitas y
+pagadas, solicitudes directas y a través de Hub, ninguna reserva nueva, ningún
+PaymentRecord nuevo, cupos intactos y ninguna llamada al procesador al estar
+pausado. Los tests PostgreSQL usaron exclusivamente datos sintéticos y procesador
+loopback; no se ensayó este fallo contra datos de clientes o Stripe.
