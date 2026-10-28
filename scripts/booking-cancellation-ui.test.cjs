@@ -100,7 +100,7 @@ async function main() {
     }, { cancelStatus: 503 });
     await check('Cancellation 401 signs out without displaying the previous booking', async page => {
       await review(page).click(); await dialog(page).getByRole('button', { name: 'Confirm cancellation', exact: true }).click();
-      await page.getByText('Sign in to check your booking.', { exact: true }).waitFor();
+      await page.getByRole('heading', { name: 'Sign in to view your booking', exact: true }).waitFor();
       assert.equal(await page.getByText('Synthetic cancellation tour', { exact: true }).count(), 0);
     }, { cancelStatus: 401 });
     await check('A delayed request disables both actions and prevents a duplicate submission', async (page, cancellations, release) => {

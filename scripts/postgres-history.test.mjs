@@ -91,9 +91,11 @@ test('history: recovered eighteen-migration baseline upgrades without rewriting 
   const bookingBefore = await db.$queryRawUnsafe('SELECT to_jsonb(b) value FROM bookings b');
   assert.equal(deploy(name).status, 0);
   const completed = await db.$queryRawUnsafe('SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL');
-  // The recovered eighteen-migration baseline is upgraded by restore history,
-  // payment lifecycle, operator readiness and booking policy automation.
-  assert.equal(completed.length, 22);
+  // Verify every repository migration was applied, not a count frozen before
+  // later additive migrations. The fixed recovered baseline remains checked above.
+  const expected = fs.readdirSync('libs/db/prisma/migrations')
+    .filter(name => fs.existsSync(`libs/db/prisma/migrations/${name}/migration.sql`)).sort();
+  assert.deepEqual(completed.map(row => row.migration_name).sort(), expected);
   const ledger = await db.paymentRecord.findUnique({ where: { id: 'recovered-payment' } });
   const booking = await db.bookings.findUnique({ where: { id: 'hist-booking' } });
   // Read both snapshots as SQL JSON, avoiding Prisma Date/Decimal transformations.

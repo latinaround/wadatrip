@@ -85,7 +85,7 @@ function ExperienceCard({ item, tone = 'warm', destinationCoverMap }) {
         </div>
       </div>
       <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-[#475569]">
-        {item.description || 'Local experience published directly by a verified host.'}
+        {item.description || 'Explore this local experience and its host profile.'}
       </p>
       <div className="mt-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -98,7 +98,7 @@ function ExperienceCard({ item, tone = 'warm', destinationCoverMap }) {
           )}
           <div>
             <p className="text-[11px] uppercase tracking-[0.22em] text-[#7c8aa0]">Host</p>
-            <p className="mt-1 text-sm font-semibold text-[#0f172a]">{item.provider_name || 'Verified local host'}</p>
+            <p className="mt-1 text-sm font-semibold text-[#0f172a]">{item.provider_name || 'Host'}</p>
           </div>
         </div>
         <span className="inline-flex items-center rounded-full bg-[#0f172a] px-3 py-2 text-xs font-semibold text-white transition-colors group-hover:bg-[#167c7d]">
@@ -198,14 +198,14 @@ export default function Home() {
             <div className="flex h-full flex-col justify-between gap-8">
               <div className="space-y-5">
                 <BrandLogo size="md" showTagline light className="mb-3" />
-                <p className="page-kicker text-[#dcfffb]">{t('home.hero_kicker', 'Verified local experiences')}</p>
+                <p className="page-kicker text-[#dcfffb]">{t('marketplace.local_hosts')}</p>
                 <div className="space-y-4">
                   <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] text-white md:text-6xl">
-                    {t('home.hero_title', 'Book better tours. Meet verified local hosts.')}
+                    {t('marketplace.home_title')}
                   </h1>
                   <p className="max-w-2xl text-base leading-relaxed text-white/86 md:text-lg">
                     {t(
-                      'home.hero_subtitle',
+                      'marketplace.compare_help',
                       'WadaTrip helps travelers compare real experiences from local tour guides and operators without the clutter of duplicated marketplace listings.'
                     )}
                   </p>
@@ -230,9 +230,9 @@ export default function Home() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
-                <StatCard label="Live tours" value={loading ? '...' : String(items.length || 0)} tone="cyan" />
+                <StatCard label={t('marketplace.published_tours')} value={loading ? '...' : String(items.length || 0)} tone="cyan" />
                 <StatCard label="Cities" value={loading ? '...' : String(uniqueCities.size || 0)} tone="coral" />
-                <StatCard label="Verified hosts" value={loading ? '...' : String(uniqueHosts.size || 0)} tone="rose" />
+                <StatCard label={t('marketplace.local_hosts')} value={loading ? '...' : String(uniqueHosts.size || 0)} tone="rose" />
               </div>
             </div>
           </div>
@@ -281,8 +281,8 @@ export default function Home() {
         <section className="space-y-6">
           <SectionHeader
             kicker={t('home.top_kicker', 'Featured tours')}
-            title={t('home.top_title', 'Experiences ready to book now')}
-            subtitle={t('home.top_subtitle', 'A traveler-first selection of tours that already have local hosts and clear pricing.')}
+            title={t('marketplace.published_tours')}
+            subtitle={t('marketplace.view_dates')}
             actionLabel={t('home.see_all', 'See all tours')}
             actionHref="/tours"
           />

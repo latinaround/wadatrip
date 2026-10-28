@@ -13,7 +13,7 @@ import {
   UploadedFiles,
 } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
-import { requireAdmin, requireProviderAccess } from '@wadatrip/common/security';
+import { requireAdmin, requireProviderAccess, requireOperatorBetaAccess } from '@wadatrip/common/security';
 import { publicProviderDetailSelect } from '@wadatrip/common/public-data';
 import { ProviderUploadGuard } from '../security.guard';
 import { randomUUID } from 'crypto';
@@ -423,7 +423,8 @@ export class ProvidersController {
 
   @Post(':id/resubmit')
   async resubmit(@Param('id') id: string, @Req() req: Request) {
-    await requireProviderAccess(req, getPrisma(), id);
+    const { actor } = await requireProviderAccess(req, getPrisma(), id);
+    requireOperatorBetaAccess(actor);
     const prisma = getPrisma();
     const provider = await prisma.providers.findUnique({ where: { id } });
     if (!provider) throw new BadRequestException('provider not found');

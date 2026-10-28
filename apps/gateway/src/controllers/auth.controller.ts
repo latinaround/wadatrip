@@ -8,6 +8,8 @@ import { getJwtSecret, requireActor } from '@wadatrip/common/security';
 import { safeUser as sanitizeUser } from '@wadatrip/common/public-data';
 import { verifyFirebaseIdToken } from '../utils/firebase-auth';
 import { sendTransactionalEmail } from '../services/email.service';
+import { isEmail } from 'class-validator';
+import { reserveAuthCodeRequest } from '../services/auth-rate-limit.service';
 
 const TOKEN_TTL_SECONDS = Number(process.env.JWT_TTL_SECONDS) || 60 * 60 * 24 * 7;
 const EMAIL_FROM = process.env.EMAIL_FROM || '';
@@ -105,15 +107,15 @@ async function verifyGoogleIdToken(idToken: string) {
 @Controller('auth')
 export class AuthController {
   @Post('request-code')
-  async requestCode(@Body() body: any) {
-    const email = String(body?.email || '').trim().toLowerCase();
+  async requestCode(@Body() body: any, @Req() req: any) {
+    const email = typeof body?.email === 'string' ? body.email.normalize('NFC').trim().toLowerCase() : '';
     const role = normalizeRole(body?.role);
-    const name = body?.name ? String(body.name).trim() : null;
-    if (!email) {
-      throw new BadRequestException('email is required');
+    if (email.length > 254 || !isEmail(email)) {
+      throw new BadRequestException('A valid email is required');
     }
 
     const prisma = getPrisma();
+    await reserveAuthCodeRequest(prisma, email, req);
     const existingUser = await prisma.users.findUnique({ where: { email } });
     const code = generateLoginCode();
     const expiresAt = new Date(Date.now() + AUTH_CODE_TTL_MINUTES * 60 * 1000);
@@ -137,8 +139,6 @@ export class AuthController {
       ok: true,
       channel: 'email',
       expires_in_minutes: AUTH_CODE_TTL_MINUTES,
-      account_hint: existingUser ? 'existing_user' : 'new_user',
-      name_hint: name || undefined,
       ...(emailResult.sent ? {} : { delivery: emailResult.reason }),
       ...(AUTH_CODE_PREVIEW ? { preview_code: code } : {}),
     };

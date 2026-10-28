@@ -71,7 +71,7 @@ test('conflicting key aliases and unknown credential formats fail closed', () =>
 });
 
 test('Live admission requires enabled gate, exact provider allowlist and an explicit fee', () => {
-  const env = { STRIPE_SECRET_KEY: 'sk_live_synthetic', PAYMENTS_LIVE_ENABLED: 'true', PAYMENTS_ACCEPT_NEW: 'true', PAYMENTS_LIVE_PROVIDER_IDS: 'synthetic-provider', WADATRIP_FEE_PCT: '12' };
+  const env = { OPERATOR_BETA_PREPARATION_ONLY: 'false', STRIPE_SECRET_KEY: 'sk_live_synthetic', PAYMENTS_LIVE_ENABLED: 'true', PAYMENTS_ACCEPT_NEW: 'true', PAYMENTS_LIVE_PROVIDER_IDS: 'synthetic-provider', WADATRIP_FEE_PCT: '12' };
   assert.equal(config.requireNewPaymentAccess('synthetic-provider', env), 'live');
   assert.throws(() => config.requireNewPaymentAccess('another-provider', env));
   assert.throws(() => config.requireNewPaymentAccess('synthetic-provider', { ...env, WADATRIP_FEE_PCT: '' }));
@@ -79,7 +79,7 @@ test('Live admission requires enabled gate, exact provider allowlist and an expl
 });
 
 test('Live admission rejects invalid fee configuration before processor setup', () => {
-  const env = { STRIPE_SECRET_KEY: 'sk_live_synthetic', PAYMENTS_LIVE_ENABLED: 'true', PAYMENTS_ACCEPT_NEW: 'true', PAYMENTS_LIVE_PROVIDER_IDS: 'synthetic-provider' };
+  const env = { OPERATOR_BETA_PREPARATION_ONLY: 'false', STRIPE_SECRET_KEY: 'sk_live_synthetic', PAYMENTS_LIVE_ENABLED: 'true', PAYMENTS_ACCEPT_NEW: 'true', PAYMENTS_LIVE_PROVIDER_IDS: 'synthetic-provider' };
   for (const fee of ['not-a-percentage', '-1', '101', 'Infinity']) {
     assert.throws(() => config.requireNewPaymentAccess('synthetic-provider', { ...env, WADATRIP_FEE_PCT: fee }),
       error => error.getStatus?.() === 400);

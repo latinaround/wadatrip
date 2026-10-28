@@ -8,6 +8,7 @@ import * as express from 'express';
 import { EventEmitter } from 'events';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
 import cors from 'cors';
+import { allowedWebOrigins } from './services/request-security';
 import { createWriteStream, existsSync, mkdirSync, WriteStream } from 'fs';
 import { join } from 'path';
 import type { ClientRequest, IncomingMessage } from 'http';
@@ -74,15 +75,7 @@ async function bootstrap() {
   const logStream = createWriteStream(join(logsDir, 'gateway.log'), { flags: 'a' });
   const logger = new GatewayLogger(logStream);
 
-  const allowedOriginPatterns = [
-    'https://wadatrip.com',
-    'https://www.wadatrip.com',
-    /\.vercel\.app$/i,
-  ];
-  const isAllowedOrigin = (origin?: string) =>
-    !!origin && allowedOriginPatterns.some((pattern) => (
-      typeof pattern === 'string' ? origin === pattern : pattern.test(origin)
-    ));
+  const isAllowedOrigin = allowedWebOrigins(process.env);
   const corsOptions = {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       if (!origin || isAllowedOrigin(origin)) {
@@ -228,15 +221,11 @@ async function bootstrap() {
   console.log('PROVIDER_HUB_URL =', process.env.PROVIDER_HUB_URL);
 
   // ?? Registrar proxies solo para servicios inactivos cuando se habiliten
-  const enableOperatorLeadsProxy = (process.env.ENABLE_OPERATOR_LEADS_PROXY || 'true').toLowerCase() !== 'false';
   const enableWadagentProxy = (process.env.ENABLE_WADAGENT_PROXY || 'false').toLowerCase() === 'true';
   const proxyPrefixes: string[] = [];
 
   // Provider and alert traffic must pass Nest authorization; raw proxy bypasses are retired.
-  if (enableOperatorLeadsProxy) {
-    attachProxy('/operator-leads', process.env.OPERATOR_LEADS_URL || 'http://localhost:3023', 'operator-leads');
-    proxyPrefixes.push('/operator-leads');
-  }
+  // Operator leads uses its authenticated Nest controller, never a raw proxy.
 
   if (enableWadagentProxy) {
     attachProxy('/wadagent', process.env.WADAGENT_URL || 'http://localhost:3022', 'wadagent');
@@ -277,13 +266,13 @@ async function bootstrap() {
 const port = Number(process.env.GATEWAY_PORT ?? process.env.PORT ?? 3015);
 await app.listen(port, '0.0.0.0');
 
-// 🚫 Desactivar todos los timeouts HTTP (evita 504)
+// Bound receipt of headers/request bodies and idle keep-alive connections.
+// Node requestTimeout does not impose a deadline on payment processing responses.
 const httpServer = app.getHttpServer();
 if (httpServer && httpServer.keepAliveTimeout !== undefined) {
-  httpServer.keepAliveTimeout = 0;
-  httpServer.headersTimeout = 0;
-  httpServer.requestTimeout = 0;
-  console.log('🕒 HTTP timeouts disabled (infinite timeout mode)');
+  httpServer.keepAliveTimeout = 5000;
+  httpServer.headersTimeout = 15000;
+  httpServer.requestTimeout = 30000;
 }
 
 logger.log(`[gateway] listening on :${port}`, 'Bootstrap');

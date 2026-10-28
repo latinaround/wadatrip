@@ -92,6 +92,29 @@ test('readiness requires Stripe-confirmed transfers and payouts', () => {
   assert.match(text, /8\/8/);
 });
 
+test('complete Sandbox checks do not claim approval for real money', () => {
+  const text = render({ ...provider, id: 'provider-synthetic' }, listing, {
+    payoutStatus: { linked: true, ready: true, transfers_enabled: true, payouts_enabled: true, payment_mode: 'test' },
+    onConnectPayout: () => {},
+  });
+  assert.match(text, /8\/8/);
+  assert.match(text, /Test \/ Sandbox — no real money/);
+  assert.match(text, /Completing these setup checks does not enable real payments/);
+  assert.doesNotMatch(text, /Payout account ready|Stripe confirmed that this account can receive payouts/);
+});
+
+test('an older backend with no mode never implies a Live environment', () => {
+  const text = render(provider, listing, { payoutStatus: { ready: true, transfers_enabled: true, payouts_enabled: true } });
+  assert.match(text, /Payment environment not verified/);
+  assert.doesNotMatch(text, /Live payment environment/);
+});
+
+test('Live account checks are separate from authorization to sell', () => {
+  const text = render(provider, listing, { payoutStatus: { ready: true, transfers_enabled: true, payouts_enabled: true, payment_mode: 'live' } });
+  assert.match(text, /Live payment environment/);
+  assert.match(text, /Wadatrip must separately approve real sales and operator payouts/);
+});
+
 test('operator tour editing gives immediate feedback and restores the sole tour after Stripe return', () => {
   const page = fs.readFileSync(path.resolve(__dirname, '../apps/web/src/pages/OperatorToursNew.jsx'), 'utf8');
   assert.match(page, /const \[loadingTourId, setLoadingTourId\] = useState\(null\)/);
@@ -113,7 +136,7 @@ test('editing an existing tour cannot accidentally submit the create-tour action
 test('an authenticated operator can review incoming bookings for their own provider', () => {
   const page = fs.readFileSync(path.resolve(__dirname, '../apps/web/src/pages/OperatorToursNew.jsx'), 'utf8');
   assert.match(page, /\/bookings\?provider_id=\$\{encodeURIComponent\(ownedProviderId\)\}&limit=50/);
-  assert.match(page, /Incoming bookings/);
-  assert.match(page, /No incoming bookings yet/);
+  assert.match(page, /Upcoming bookings/);
+  assert.match(page, /No upcoming bookings yet/);
   assert.match(page, /booking\.user\?\.name \|\| booking\.user\?\.email/);
 });

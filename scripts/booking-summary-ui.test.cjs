@@ -104,13 +104,13 @@ async function main() {
       assert.equal(await summary(page).count(), 0);
     }, { status: 403 });
     await check('Anonymous visitor cannot fetch or display a booking', async (page, calls) => {
-      await page.getByText('Sign in to check your booking.', { exact: true }).waitFor();
+      await page.getByRole('heading', { name: 'Sign in to view your booking', exact: true }).waitFor();
       assert.equal(await summary(page).count(), 0); assert.equal(calls.some(call => call.path.includes(id)), false);
     }, { anonymous: true });
     await check('Logout removes the previous travelers booking details', async page => {
       await summary(page).waitFor(); await page.setViewportSize({ width: 1440, height: 900 });
       await page.getByRole('button', { name: 'Log out', exact: true }).click();
-      await page.getByText('Sign in to check your booking.', { exact: true }).waitFor();
+      await page.getByRole('heading', { name: 'Sign in to view your booking', exact: true }).waitFor();
       assert.equal(await summary(page).count(), 0);
       assert.equal(await page.getByText('Synthetic booked meeting point', { exact: true }).count(), 0);
     });

@@ -2,7 +2,7 @@ import { Controller, Post, Get, Query, Body, BadRequestException, ConflictExcept
 import { getPrisma } from '@wadatrip/db';
 import type { Request } from 'express';
 
-import { requireAdmin, requireProviderAccess } from '@wadatrip/common/security';
+import { requireAdmin, requireProviderAccess, requireOperatorBetaAccess, requireOperatorPublication } from '@wadatrip/common/security';
 import { publicListingSelect, publicProviderSelect } from '@wadatrip/common/public-data';
 import { lockedListing, occupied } from '@wadatrip/common/booking-capacity';
 
@@ -21,6 +21,12 @@ function normalizeCutoff(value: any): number | null {
     throw new BadRequestException('booking_cutoff_hours must be an integer from 0 to 8760');
   }
   return hours;
+}
+
+async function requireWorkspace(req: Request, prisma: any, listing: any) {
+  const { actor } = await requireProviderAccess(req, prisma, listing.provider_id);
+  requireOperatorBetaAccess(actor);
+  if (['published', 'approved'].includes(listing.status)) requireOperatorPublication(actor);
 }
 
 const managedListingSelect = {
@@ -49,8 +55,12 @@ export class ListingsController {
     const provider = await prisma.providers.findUnique({ where: { id: String(body.provider_id) } });
     if (!provider) throw new BadRequestException('provider not found');
     const { actor } = await requireProviderAccess(req, prisma, provider.id);
+    requireOperatorBetaAccess(actor);
+    const status = String(body.status || 'draft').toLowerCase();
+    if (!['draft', 'published', 'inactive'].includes(status)) throw new BadRequestException('invalid status');
+    if (status === 'published') requireOperatorPublication(actor);
     const allowUnverified = actor.admin;
-    if (!allowUnverified && !['approved', 'verified'].includes(String(provider.status || '').toLowerCase()))
+    if (status === 'published' && !allowUnverified && !['approved', 'verified'].includes(String(provider.status || '').toLowerCase()))
       throw new BadRequestException('provider must be approved');
 
     const listing = await prisma.listings.create({
@@ -76,7 +86,7 @@ export class ListingsController {
           : typeof body.tags === 'string'
             ? String(body.tags).split(',').map((s) => s.trim()).filter(Boolean)
             : [],
-        status: body.status ? String(body.status) : undefined,
+        status,
         cover_image_url: body.cover_image_url ?? body.coverImageUrl ?? null,
       },
     });
@@ -176,6 +186,8 @@ export class ListingsController {
     const exists = await prisma.listings.findUnique({ where: { id: String(id) } });
     if (!exists) throw new BadRequestException('listing not found');
     const { actor, provider } = await requireProviderAccess(req, prisma, exists.provider_id);
+    requireOperatorBetaAccess(actor);
+    if (status === 'published' || ['published', 'approved'].includes(exists.status)) requireOperatorPublication(actor);
     if (!actor.admin && status === 'published' && !['approved', 'verified'].includes(provider.status)) throw new BadRequestException('provider must be approved');
     const updated = await prisma.listings.update({ where: { id: String(id) }, data: { status } });
     return updated;
@@ -196,7 +208,7 @@ export class ListingsController {
     const prisma = getPrisma();
     const listing = await prisma.listings.findUnique({ where: { id: String(id) } });
     if (!listing) throw new BadRequestException('listing not found');
-    await requireProviderAccess(req, prisma, listing.provider_id);
+    await requireWorkspace(req, prisma, listing);
     const items = await prisma.listing_availability.findMany({
       where: { listing_id: listing.id },
       orderBy: { date: 'asc' },
@@ -210,7 +222,7 @@ export class ListingsController {
     const prisma = getPrisma();
     const listing = await prisma.listings.findUnique({ where: { id: String(id) } });
     if (!listing) throw new BadRequestException('listing not found');
-    await requireProviderAccess(req, prisma, listing.provider_id);
+    await requireWorkspace(req, prisma, listing);
     return prisma.listings.findUnique({ where: { id: listing.id }, select: managedListingSelect });
   }
 
@@ -219,7 +231,7 @@ export class ListingsController {
     const prisma = getPrisma();
     const listing = await prisma.listings.findUnique({ where: { id: String(id) } });
     if (!listing) throw new BadRequestException('listing not found');
-    await requireProviderAccess(req, prisma, listing.provider_id);
+    await requireWorkspace(req, prisma, listing);
     const day = utcDay(body?.date); const total = Number(body?.spots_total);
     if (!Number.isInteger(total) || total < 1) throw new BadRequestException('spots_total must be at least 1');
     const today = new Date(); today.setUTCHours(0, 0, 0, 0); if (day < today) throw new BadRequestException('availability date must not be in the past');
@@ -241,7 +253,7 @@ export class ListingsController {
   async deleteAvailability(@Param('id') id: string, @Param('date') rawDate: string, @Req() req: Request) {
     const prisma = getPrisma(); const listing = await prisma.listings.findUnique({ where: { id: String(id) } });
     if (!listing) throw new BadRequestException('listing not found');
-    await requireProviderAccess(req, prisma, listing.provider_id);
+    await requireWorkspace(req, prisma, listing);
     const day = utcDay(rawDate); const end = new Date(+day + 86400000);
     await prisma.$transaction(async (tx: any) => {
       await lockedListing(tx, listing.id);

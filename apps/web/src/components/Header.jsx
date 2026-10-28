@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, Search, UserCircle } from 'lucide-react';
+import { Menu, X, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LanguageSwitcher from './LanguageSwitcher';
 import BrandLogo from './BrandLogo';
@@ -13,14 +13,11 @@ const Header = ({ user, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
-    { key: 'products', href: '/products' },
-    { key: 'solutions', href: '/solutions' },
-    { key: 'price_alerts', href: '/price-alerts' },
-    { key: 'tour_alerts', href: '/enhanced-search', icon: Search },
     { key: 'tours', href: '/tours' },
-    { key: 'about_us', href: '/about-us' },
+    { key: 'community', href: '/community', label: t('nav.community', { defaultValue: 'Community' }) },
+    { key: 'about_us', href: '/about-us', label: t('marketplace.about_company') },
     { key: 'contact', href: '/contact' },
-    { key: 'privacy_policy', href: '/privacy-policy' },
+    ...(user ? [{ key: 'my_trips', href: '/account/trips' }] : []),
   ];
 
   const guideEntryHref = user ? '/operator/tours/new' : '/guide/register';
@@ -45,7 +42,7 @@ const Header = ({ user, onLogout }) => {
             </Link>
           </div>
 
-          <div className="hidden flex-1 justify-center lg:flex">
+          <div className="hidden flex-1 justify-center xl:flex">
             <nav className="flex items-center gap-3 text-sm">
               {navItems.map((item) => {
                 const IconComponent = item.icon;
@@ -56,14 +53,14 @@ const Header = ({ user, onLogout }) => {
                     className="flex items-center gap-1 whitespace-nowrap px-2 py-1 text-[#e0e0e0] transition-colors hover:text-[#16d7d0]"
                   >
                     {IconComponent && <IconComponent size={16} />}
-                    {t(`nav.${item.key}`)}
+                    {item.label || t(`nav.${item.key}`)}
                   </Link>
                 );
               })}
             </nav>
           </div>
 
-          <div className="flex flex-1 justify-end lg:hidden">
+          <div className="flex flex-1 justify-end xl:hidden">
             <Button
               variant="ghost"
               size="sm"
@@ -81,12 +78,12 @@ const Header = ({ user, onLogout }) => {
             <Button asChild
               variant="secondary"
               size="sm"
-              className="hidden bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105 md:flex"
+              className="hidden bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105 xl:flex"
             >
               <a href={guideEntryHref}>{t('nav.list_tour') ?? 'Become a guide'}</a>
             </Button>
             {user ? (
-              <div className="hidden items-center gap-2 md:flex">
+              <div className="hidden items-center gap-2 xl:flex">
                 <Button variant="ghost" size="sm" className="text-white" onClick={goToAccount}>
                   <UserCircle className="mr-1 h-4 w-4" />
                   {user.name || user.email}
@@ -108,10 +105,10 @@ const Header = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {user ? <div className="mx-auto hidden max-w-7xl justify-end pb-3 md:flex"><OperatorInboxLink /></div> : null}
+        {user ? <div className="mx-auto hidden max-w-7xl justify-end pb-3 xl:flex"><OperatorInboxLink /></div> : null}
 
         {isMenuOpen && (
-          <div className="border-t border-[#2d3548] py-4 lg:hidden">
+          <div className="border-t border-[#2d3548] py-4 xl:hidden">
             <nav className="flex flex-col space-y-4">
               {navItems.map((item) => {
                 const IconComponent = item.icon;
@@ -123,7 +120,7 @@ const Header = ({ user, onLogout }) => {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {IconComponent && <IconComponent size={16} />}
-                    {t(`nav.${item.key}`)}
+                    {item.label || t(`nav.${item.key}`)}
                   </Link>
                 );
               })}
@@ -137,8 +134,8 @@ const Header = ({ user, onLogout }) => {
                 {user ? (
                   <>
                     <OperatorInboxLink onClick={() => setIsMenuOpen(false)} />
-                    <Button size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105" onClick={() => { setIsMenuOpen(false); navigate('/account/trips'); }}>
-                      {t('nav.my_trips', { defaultValue: 'My trips' })}
+                    <Button asChild size="sm" className="bg-gradient-to-r from-[#ff3f97] via-[#ffb347] to-[#16d7d0] font-black text-white transition-all hover:scale-105">
+                      <Link to="/account" onClick={() => setIsMenuOpen(false)}>{t('marketplace.my_account')}</Link>
                     </Button>
                     {user.role === 'admin' && <Link to="/admin/users" className="px-3 py-2 text-[#16d7d0]" onClick={() => setIsMenuOpen(false)}>Admin</Link>}
                     <Button

@@ -29,6 +29,7 @@ function matches(row, query = {}) {
   });
 }
 const prisma = {
+  admin_mfa: { findUnique: async ({ where }) => where.user_id === 'admin' ? { enabled_at: new Date(), version: 1 } : null },
   users: { findUnique: async ({ where }) => ['traveler','other','owner','intruder','admin'].includes(where.id) ? { ...actor(where.id), status: 'active' } : null },
   listings: { findUnique: async ({ where }) => where.id === listing.id ? listing : null },
   providers: { findUnique: async () => provider },
@@ -98,9 +99,13 @@ beforeEach(() => {
 });
 after(async () => { await app?.close(); Module._load = originalLoad; });
 const create = (id = 'traveler', extras = {}) => domain.createDateRequest(prisma, actor(id), { listing_id: listing.id, date: tomorrow, num_people: 2, ...extras });
-async function http(path = '', id, body, method = 'GET', verified = true) {
+async function http(path = '', id, body, method = 'GET', verified = true, includeProof = true) {
   const token = id && jwt.sign({ sub: id, email: actor(id).email, email_verified: verified }, process.env.JWT_SECRET, { expiresIn: '5m' });
-  const response = await fetch(`${origin}/tour-date-requests${path}`, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  if (id === 'admin' && includeProof) headers['x-admin-proof'] = jwt.sign({ purpose: 'admin_step_up', credential_version: 1,
+    session_hash: require('crypto').createHash('sha256').update(headers.Authorization).digest('hex') },
+  process.env.JWT_SECRET, { subject: id, audience: 'wadatrip-admin', issuer: 'wadatrip', expiresIn: 300 });
+  const response = await fetch(`${origin}/tour-date-requests${path}`, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) });
   return { status: response.status, data: await response.json() };
 }
 test('anonymous cannot create or read requests over real local HTTP', async () => {
@@ -122,6 +127,11 @@ test('traveler only sees own requests, provider only owns listings, admin has au
   assert.equal((await http('?scope=operator', 'intruder')).data.items.length, 0);
   assert.equal((await http('?scope=operator', 'owner')).data.items.length, 1);
   assert.equal((await http('?scope=operator', 'admin')).data.items.length, 1);
+});
+
+test('an administrator without MFA never receives another travelers request inbox', async () => {
+  await create();
+  assert.equal((await http('?scope=operator', 'admin', undefined, 'GET', true, false)).data.items.length, 0);
 });
 for (const count of [0,-1,1.2,101,'2',null]) test(`invalid inquiry traveler count ${count} is rejected`, async () => {
   await assert.rejects(create('traveler', { num_people: count })); assert.equal(requests.length, 0);

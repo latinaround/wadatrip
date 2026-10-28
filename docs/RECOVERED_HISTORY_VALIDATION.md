@@ -163,3 +163,74 @@ Solo estos diez archivos pertenecen al cierre actual; no se ha ejecutado git add
 Los informes conservan evidencia histórica y distinguen los resultados posteriores. Los IDs de casos son técnicos, necesarios para investigación, no nombres/contactos ni comprobantes de cobro real. El SQL de diagnóstico solo consulta datos y no ejecuta repairs. Los seis SQL recuperados conservan su contenido original, incluso los nombres históricos relativos a verificación; no añaden un flujo documental o AI nuevo.
 
 Fuera del commit: .yarn/install-state.gz, apps/web/src/pages/Account.jsx, package.json, logs, dist/builds, .env y cualquier otro archivo. Mobile permanece fuera. El commit documentaría y preservaría la recuperación: no constituye GO para schema en producción ni para dinero real.
+
+## Seguimiento 2026-09-15: regresión de fixtures tras recuperar el historial
+
+La recuperación quedó committed como `2421c80c4def7a217a7af7af9de340690f4ad116`. Después se comprobó la compatibilidad de las pruebas históricas existentes con esa cadena. Esto es una corrección del harness de integración, no una modificación del core ni de los SQL originales.
+
+**Fallo reproducido antes de corregir:** la prueba histórica `committed SQL alias defect` falló con `column "amount_cents" of relation "bookings" already exists`. El selector de baseline copiaba todos los archivos anteriores a septiembre de 2026, ahora 18, mientras el fixture seguía intentando crear las columnas/tablas que antes faltaban en el checkout de 12 archivos. Las 18 migraciones habían aplicado; falló la preparación redundante del fixture. La DB sintética fallida se conserva y no se hizo reset/resolve.
+
+Corrección:
+
+- El escenario de schema parcial declara explícitamente los 12 archivos que tenía el checkout anterior. Su upgrade ejercita esos archivos más las migraciones actuales de restauración/lifecycle.
+- El escenario recuperado usa los 18 originales y luego la cadena completa de 20. No crea manualmente columnas que esas migraciones ya introdujeron.
+- Los escenarios usan directorios de fixtures distintos. No se eliminó ni reutilizó el directorio del ensayo fallido. La config rechaza etapas desconocidas y continúa limitada al clúster PostgreSQL local marcado para pruebas.
+- El comportamiento por defecto de deploy en pruebas usa todas las migraciones actuales. La selección parcial está limitada al escenario que comprueba recuperación de schema incompleto; no es un procedimiento para producción.
+- Se añadió una prueba de la ruta 18 a 20 con booking.amount_cents NULL, ledger paid de importe conocido y PaymentEvent pendiente. Compara todos los campos originales de booking/ledger, conserva el evento sin procesar y verifica ausencia de efectos en OperatorWallet.
+
+Validación posterior sobre **PostgreSQL real 15.14**, en DB nuevas con datos sintéticos del clúster P05:
+
+| Suite | Resultado |
+|---|---:|
+| postgres-history.test.mjs | 8/8 PASS |
+| postgres-concurrency.test.mjs | 20/20 PASS |
+| postgres-booking-http.test.mjs | 8/8 PASS |
+| Total de la regresión | 36/36 PASS |
+
+La prueba que fallaba pasó después de corregir el fixture. Las pruebas de casos inválidos conservan sus rechazos de duplicados, incompatibilidades, orphans y ocupación excesiva; no se eliminó ninguna aserción para aceptar datos peligrosos.
+
+Los tests de concurrencia/HTTP usan la cadena completa recuperada. HTTP prueba Gateway/Provider Hub y un simulador de procesador exclusivamente en localhost; no constituye un Stripe Test E2E nuevo. Esta evidencia de PostgreSQL 15.14 es adicional al ensayo previo de 20 migraciones y seis core checks en PostgreSQL 17.9, no su sustitución.
+
+Archivos de esta corrección: scripts/postgres-test-target.mjs, scripts/postgres-integration.prisma.config.ts, scripts/postgres-history.test.mjs y este informe. Sin cambios en aplicación, schema, migraciones, archivos protegidos o mobile; sin staging, commit, push ni deploy de esta corrección. Los datos financieros históricos y del operador siguen pendientes de evidencia externa/humana.
+
+### Comprobación adicional del frontend committed
+
+Se extrajo `apps/web` directamente de `git archive HEAD` en `2421c80`, dentro de una carpeta aislada e ignorada bajo `logs`. El build de Vite pasó en 5,80 segundos usando esa fuente, sin copiar archivos `.env` ni cambios del working tree. Se reutilizaron las dependencias locales instaladas mediante una junction; esto no prueba una instalación limpia de dependencias.
+
+El artefacto de prueba usa `VITE_API_BASE_URL=http://127.0.0.1:3015` y no debe desplegarse. No se inició la aplicación ni se contactó una API o Stripe. El primer intento fue bloqueado por el sandbox al iniciar esbuild (`spawn EPERM`); el mismo build pasó con autorización para ejecutar ese subproceso. Vite avisó de un chunk superior a 500 kB, sin errores de compilación. Esta comprobación no sustituye los smoke tests del entorno desplegado ni verifica sus variables efectivas.
+
+### Configuración de Render verificada el 2026-09-15
+
+Este seguimiento actualiza los pendientes de acceso/configuración del handoff anterior; no cambia los resultados históricos del ensayo. Tras renovar el login oficial, se consultó la API de Render sin imprimir credenciales ni conectar a PostgreSQL o Stripe.
+
+- Servicio confirmado: `wadatrip`, `srv-d5hgl1h4tr6s739jjkb0`, runtime Node, rama `main`, Root Directory vacío.
+- Commit live: `8d1d55f65762bdf948c5bb8c6c8a897bf97900aa`, deploy terminado el 2026-08-10. `git ls-remote` confirmó el mismo hash en `main`; el release local `2421c80c4def7a217a7af7af9de340690f4ad116` contiene seis commits posteriores aún no publicados.
+- DB confirmada por metadatos: `wadatrip-db`, `dpg-d38b19ogjchc73ctf8c0-a`, PostgreSQL 17, Oregon, available. El host de `DATABASE_URL` corresponde al target del ensayo. No están configuradas las alternativas LOCAL/REMOTE ni PRISMA_ENV; con la configuración inspeccionada, aplicación y Prisma seleccionan la misma URL. Esto no revalida el contenido actual de la DB.
+- `FF_PROVIDER_HUB` no está activado. La presencia de una URL de Hub no prueba que exista otro proceso activo.
+- Con autorización del usuario, Auto-Deploy quedó `no` / trigger `off`. Se eliminó `yarn prisma:deploy` del Build Command y se limitó la compilación a common, DB, Provider Hub y Gateway, conservando install immutable y Prisma generate. Start continúa `yarn start`; Pre-Deploy permanece vacío. Los cuatro builds locales pasaron; no se ejecutó el build nuevo en Render.
+- La clave Stripe configurada tenía comillas literales alrededor de una clave Test. Para preparar el release autorizado, se retiraron exclusivamente esas comillas; se conservó la misma clave Test y el webhook secret. No se comprobó su validez contra Stripe ni que el webhook secret corresponda al endpoint efectivo.
+- Se prepararon `ENABLE_WADAGENT_PROXY=false` y `ENABLE_OPERATOR_LEADS_PROXY=false`, conservando las demás variables. Son cambios para el próximo despliegue: no acreditan que el proceso actualmente live ya los use.
+- Las lecturas posteriores a los cambios confirmaron la configuración esperada y no mostraron nuevos despliegues. No hubo push, consultas SQL a producción, migraciones, replay de eventos ni Stripe Live.
+
+**Gate pendiente del release:** autorización específica de backup/preflight actual y aplicación de las dos migraciones ensayadas en producción, con una ventana que impida escrituras antiguas. La autorización de deployment no se usó para ignorar la prohibición anterior sobre modificaciones de DB. Antes de publicar los commits debe controlarse también cualquier despliegue automático del frontend asociado a Git; Auto-Deploy Off de Render no controla Vercel. El release queda pendiente de ejecutar, no reportado como completado.
+
+### Release backend ejecutado tras autorización específica
+
+El usuario autorizó después el backup cifrado, la ventana de mantenimiento, las dos migraciones y el despliegue condicionado a las validaciones. Este apartado reemplaza el estado pendiente del apartado anterior para el backend; no autoriza Stripe Live ni certifica el frontend.
+
+- Release: `2421c80c4def7a217a7af7af9de340690f4ad116`, publicado mediante la etiqueta `revenue-core-20260915-2421c80`. No se actualizó `main`, que seguía en `8d1d55f65762bdf948c5bb8c6c8a897bf97900aa`; no se incluyó el working tree ni se creó un commit nuevo.
+- Preflight actual en producción mediante TLS verificado y consultas READ ONLY: 18 migraciones terminadas, checksums conservados; 69 bookings, 1 PaymentRecord, 1 PaymentEvent, 0 availability, 0 bookings para hoy/futuro. Los blockers estructurales del preflight dieron cero. Se preservaron las excepciones históricas conocidas.
+- Backup fresco: pg_dump 17, 71.975 bytes, SHA-256 `97a4adfb8cce0cbab9b0fdb4cf1af0cabe22c93f9286d84570ec40dadd44904d`. Cifrado Windows DPAPI fuera del repositorio con ACL privada; descifrado/restauración verificados en una DB local nueva del contenedor aislado. No se imprimieron datos personales ni credenciales.
+- La copia nueva pasó la migración de 18 a 20 y conservó los valores de todas las columnas originales de las 21 tablas de negocio. Se compararon recuentos y fingerprints, sin exportar valores a los informes.
+- La instalación immutable y el build de common, DB, Provider Hub y Gateway pasaron en Linux, usando el código de Git sin `.env` privados y con un datasource ficticio. No se ejecutaron migraciones durante ese build.
+- Se activó mantenimiento en Render, se verificó HTTP 503 y cero operaciones cliente activas en PostgreSQL, y se comprobó que los datos aún coincidían con el backup. Después se aplicaron únicamente `20260909000000_restore_schema_history` y `20260910000000_payment_lifecycle`, usando Prisma 6.19.1 con TLS obligatorio/estricto y schema explícito del release.
+- Resultado en producción: 20 migraciones terminadas, cero fallidas, los 18 checksums antiguos intactos y las dos nuevas con el checksum del artefacto usado. Los valores originales de las 21 tablas permanecieron idénticos. No se hizo resolve/reset ni reparación de datos de negocio.
+- Deploy Render: `dep-dakqqkek1f9s73cjo5l0`, estado `live`, commit exacto del release; finalizado el `2026-09-15T20:43:20.89525Z`. Build sin migración; Auto-Deploy Off. Mantenimiento retirado después del arranque, con un gate que lo reactivaría si fallaban los smoke tests.
+
+Validación HTTPS pública: **15/15 PASS**. Health 200; bookings anónimas GET/POST/detalle y token inválido 401; checkout/PaymentIntent anónimos 401; providers administrativos/me y admin detail anónimos 401; webhook sin firma y con firma falsa 401; 15 listings públicos y provider detail cumplen allowlists; preflight CORS con Origin `https://www.wadatrip.com` y Authorization devuelve 204. Se hicieron únicamente lecturas y requests que debían rechazarse: cero bookings válidas creadas, cero llamadas al procesador y ningún evento firmado/reprocesado. El acceso SSH agotó el tiempo de conexión, por lo que la evidencia es HTTPS público, no un smoke por loopback/SSH ni una inspección directa de variables del proceso remoto.
+
+Tras los smoke tests se volvieron a comparar las 21 tablas y el postflight: datos originales intactos. Excepciones conservadas: 69 inventory_state legacy NULL, 1 evento pendiente, 1 booking confirmed/completed sin respaldo financiero suficiente y 5 constraints NOT VALID pendientes de validación explícita. No faltan índices/constraints requeridos; occupancy_above_capacity, capacity_cache_mismatch, confirmed_without_held_inventory y event_completion_state_mismatch son cero. Estas excepciones no se reclasificaron como corregidas.
+
+Incidentes del procedimiento, sin cambios de código de negocio: el primer git archive en Windows convirtió finales de línea por core.autocrlf; se preparó el artefacto Linux con `-c core.autocrlf=false`. En él, 16 migraciones antiguas coinciden byte por byte; dos conservan el mismo SQL pero difieren de su checksum histórico por un CRLF mezclado. Se verificó la equivalencia contra los originales locales cuyo hash coincide con la DB, sin cambiar SQL ni checksums almacenados. Además, la comparación textual del postflight Windows/Linux se detuvo por CRLF/LF; una revalidación READ ONLY confirmó todos los mismos valores y permitió continuar sin repetir DDL.
+
+**Backend desplegado y disponible; dinero real sigue NO-GO.** Quedan el release/verificación del frontend, Stripe Test E2E del entorno desplegado y asociación del webhook, validación explícita de las cinco constraints, cierre de los casos históricos y disponibilidad/condiciones/payout reales del piloto. No se modificaron Vercel, DNS, mobile ni datos históricos; Stripe permanece configurado en Test. Los archivos protegidos y la corrección local del harness siguen fuera de commits nuevos.

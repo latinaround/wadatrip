@@ -41,18 +41,23 @@ async function app(controllers){
 }
 before(async()=>{
   provision(dbName); await verify(db,dbName); assert.equal(deploy(dbName).status,0);
-  for(const id of ['traveler-a','traveler-b','operator']) await db.users.create({data:{id,email:`${id}@example.invalid`}});
-  await db.providers.create({data:{id:'http-provider',user_id:'operator',type:'guide',name:'Synthetic',email:'operator@example.invalid',languages:['en'],base_city:'Test',country_code:'ZZ'}});
+  for(const id of ['traveler-a','traveler-b','operator']) await db.users.create({data:{id,name:`Synthetic ${id}`,email:`${id}@example.invalid`}});
+  await db.providers.create({data:{id:'http-provider',user_id:'operator',type:'guide',name:'Synthetic',email:'operator@example.invalid',languages:['en'],base_city:'Test',country_code:'ZZ',status:'verified',stripe_test_account_id:'acct_synthetichttp'}});
   processor=http.createServer(async(req,res)=>{
     try {
       let body=''; for await(const chunk of req) body+=chunk;
       const request=new URL(req.url,'http://127.0.0.1');
+      if(req.method==='GET' && request.pathname==='/v1/accounts/acct_synthetichttp') {
+        res.setHeader('Content-Type','application/json');
+        res.end(JSON.stringify({id:'acct_synthetichttp',livemode:false,metadata:{wadatrip_provider_id:'http-provider'},
+          details_submitted:true,payouts_enabled:true,capabilities:{transfers:'active'},requirements:{}})); return;
+      }
       if(req.method==='POST'&&request.pathname==='/v1/checkout/sessions'){
         const params=new URLSearchParams(body), key=req.headers['idempotency-key']; assert.ok(key);
         checkoutRequests.push({key,params:Object.fromEntries(params)});
         let session=keys.get(key);
         if(!session){
-          session={id:`cs_synthetic_${++serial}`,object:'checkout.session',status:'open',payment_status:'unpaid',
+          session={id:`cs_synthetic_${++serial}`,object:'checkout.session',livemode:false,status:'open',payment_status:'unpaid',
             payment_intent:null,metadata:{booking_id:params.get('metadata[booking_id]'),payment_record_id:params.get('metadata[payment_record_id]')},
             amount_total:Number(params.get('line_items[0][price_data][unit_amount]')),currency:params.get('line_items[0][price_data][currency]'),
             url:'http://127.0.0.1/synthetic-checkout'};
@@ -107,7 +112,7 @@ async function request(base,route,actor,body,extra={}){
 }
 const payload=id=>({listing_id:id,date,num_people:1});
 async function webhook(session,eventId,signature=true){
-  const body=JSON.stringify({id:eventId,type:'checkout.session.completed',data:{object:{id:session.id}}});
+  const body=JSON.stringify({id:eventId,livemode:false,type:'checkout.session.completed',data:{object:{id:session.id,livemode:false}}});
   const headers={'Content-Type':'application/json'};
   if(signature) headers['stripe-signature']=sdk.webhooks.generateTestHeaderString({payload:body,secret:process.env.STRIPE_WEBHOOK_SECRET});
   return fetch(`${gateway}/webhooks/stripe`,{method:'POST',headers,body});
@@ -115,7 +120,7 @@ async function webhook(session,eventId,signature=true){
 
 test('traveler helper sends JWT through real booking/checkout HTTP and stores canonical price',async()=>{
   const id=await listing();const jwtToken=token('traveler-a');
-  const result=await bookTravelerExperience({apiBase:gateway,getSession:()=>({user:{id:'traveler-a'},token:jwtToken,logout:()=>assert.fail('unexpected logout')}),
+  const result=await bookTravelerExperience({apiBase:gateway,getSession:()=>({user:{id:'traveler-a',name:'Synthetic traveler-a'},token:jwtToken,logout:()=>assert.fail('unexpected logout')}),
     booking:{...payload(id),price:1,currency:'EUR',user_id:'traveler-b',role:'admin'}});
   const b=await db.bookings.findUnique({where:{id:result.booking.id}});assert.equal(b.user_id,'traveler-a');assert.equal(b.amount_cents,12000);assert.equal(b.currency,'usd');
   assert.equal(b.status,'payment_pending');assert.equal(result.checkoutUrl,'http://127.0.0.1/synthetic-checkout');
@@ -142,9 +147,21 @@ test('webhook without valid signature cannot create a durable payment event',asy
   assert.equal(await db.paymentEvent.findUnique({where:{id:'evt_unsigned'}}),null);
 });
 
+test('HTTP booking requires the persisted traveler name even when the client supplies one',async()=>{
+  const id=await listing();const before=await db.bookings.count();const calls=checkoutRequests.length;
+  await db.users.update({where:{id:'traveler-a'},data:{name:null}});
+  try {
+    const response=await request(gateway,'/bookings','traveler-a',{...payload(id),name:'Client supplied name'});
+    assert.equal(response.status,400);
+    assert.equal(await db.bookings.count(),before);
+    assert.equal((await db.listing_availability.findFirst({where:{listing_id:id}})).spots_available,1);
+    assert.equal(checkoutRequests.length,calls);
+  } finally { await db.users.update({where:{id:'traveler-a'},data:{name:'Synthetic traveler-a'}}); }
+});
+
 test('free tour completes traveler helper without calling the processor',async()=>{
   const id=await listing(0);const calls=checkoutRequests.length;const jwtToken=token('traveler-a');
-  const result=await bookTravelerExperience({apiBase:gateway,getSession:()=>({user:{id:'traveler-a'},token:jwtToken,logout:()=>{}}),booking:payload(id)});
+  const result=await bookTravelerExperience({apiBase:gateway,getSession:()=>({user:{id:'traveler-a',name:'Synthetic traveler-a'},token:jwtToken,logout:()=>{}}),booking:payload(id)});
   assert.equal(result.booking.status,'confirmed');assert.equal(result.booking.amount_cents,0);assert.equal(result.checkoutUrl,undefined);
   assert.equal(checkoutRequests.length,calls);
 });

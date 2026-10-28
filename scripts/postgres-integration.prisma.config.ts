@@ -12,8 +12,11 @@ if (!database || !/^wadatrip_p05_(repair_[a-z0-9_]+|history_[a-z0-9_]+)$/.test(d
 const url = new URL(`postgresql://127.0.0.1:55435/${database}`);
 url.username = target.user; url.password = target.password;
 process.env.DATABASE_URL = url.toString();
+const stage = process.env.P05_MIGRATION_STAGE;
+if (stage && !['partial_baseline', 'partial_upgrade', 'recovered_baseline'].includes(stage)) {
+  throw new Error('Unknown historical migration stage');
+}
 export default defineConfig({
   schema: '../libs/db/prisma/schema.prisma',
-  migrations: { path: process.env.P05_MIGRATION_STAGE === 'baseline'
-    ? '../logs/p05-baseline-migrations' : '../libs/db/prisma/migrations' },
+  migrations: { path: stage ? `../logs/p05-${stage}-migrations` : '../libs/db/prisma/migrations' },
 });

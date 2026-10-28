@@ -1,0 +1,10 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+const mainFile='apps/gateway/src/main.ts',helper='apps/gateway/src/services/request-security.ts';
+function allowed(origin,env={NODE_ENV:'production'}){
+ if(fs.existsSync(helper)){const module={exports:{}};const code=ts.transpileModule(fs.readFileSync(helper,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;vm.runInNewContext(code,{module,exports:module.exports,URL});return module.exports.allowedWebOrigins(env)(origin);}
+ const source=fs.readFileSync(mainFile,'utf8'),start=source.indexOf('  const allowedOriginPatterns ='),end=source.indexOf('  const corsOptions =',start);assert.ok(start>=0&&end>start);const code=ts.transpileModule(source.slice(start,end)+'\nthis.result=isAllowedOrigin;', {compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText,context={};vm.runInNewContext(code,context);return context.result(origin);
+}
+test('production does not trust an arbitrary Vercel tenant',()=>assert.equal(allowed('https://synthetic-attacker.vercel.app'),false));
+test('canonical Wadatrip origins remain allowed while lookalikes are denied',()=>{for(const value of ['https://wadatrip.com','https://www.wadatrip.com'])assert.equal(allowed(value),true);for(const value of ['https://wadatrip.com.example.invalid','https://wadatrip.com@external.example.invalid','http://www.wadatrip.com'])assert.equal(allowed(value),false);});
+test('explicit HTTPS preview allowlist does not turn into a wildcard',()=>{const env={NODE_ENV:'production',WEB_ALLOWED_ORIGINS:'https://synthetic-owned.vercel.app'};assert.equal(allowed('https://synthetic-owned.vercel.app',env),true);assert.equal(allowed('https://synthetic-other.vercel.app',env),false);});
+test('HTTP request, header and keep-alive timeouts are not deliberately disabled',()=>{const source=fs.readFileSync(mainFile,'utf8');assert.equal(/httpServer\.(?:keepAliveTimeout|headersTimeout|requestTimeout)\s*=\s*0\s*;/.test(source),false);});

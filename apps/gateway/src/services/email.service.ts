@@ -29,7 +29,7 @@ export async function sendTransactionalEmail(options: EmailOptions): Promise<Ema
         'Content-Type': 'application/json',
         ...(isResend && options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
       },
-      ...(options.idempotencyKey ? { signal: AbortSignal.timeout(10000) } : {}),
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify(isResend
         ? { from: options.from, to: [options.to], subject: options.subject, text: options.text }
         : {
@@ -45,8 +45,8 @@ export async function sendTransactionalEmail(options: EmailOptions): Promise<Ema
       return { sent: false, reason: 'email_failed' };
     }
     return { sent: true };
-  } catch (error: any) {
-    console.error(`[${options.logScope}] Email error`, error?.message || error);
+  } catch {
+    console.error(`[${options.logScope}] Email error`, 'provider_request_failed');
     return { sent: false, reason: 'email_error' };
   }
 }

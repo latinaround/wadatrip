@@ -28,6 +28,7 @@ const FlightAlerts = lazy(() => import('./pages/FlightAlerts'));
 const Account = lazy(() => import('./pages/Account'));
 const OperatorToursNew = lazy(() => import('./pages/OperatorToursNew.jsx'));
 const Tours = lazy(() => import('./pages/Tours.jsx'));
+const Community = lazy(() => import('./pages/Community.jsx'));
 const TourDetail = lazy(() => import('./pages/TourDetail.jsx'));
 const GuideProfile = lazy(() => import('./pages/GuideProfile.jsx'));
 const GuideSignupPage = lazy(() => import('./pages/GuideSignupPage.jsx'));
@@ -370,6 +371,8 @@ function App() {
           <Route path="/account" element={<Account />} />
           <Route path="/account/trips" element={<Account />} />
           <Route path="/tours" element={<Tours />} />
+          <Route path="/community" element={<Community />} />
+          <Route path="/community/threads/:id" element={<Community />} />
           <Route path="/tours/:id" element={<TourDetail />} />
           <Route path="/guides/:id" element={<GuideProfile />} />
           <Route path="/register" element={<GuideSignupPage />} />

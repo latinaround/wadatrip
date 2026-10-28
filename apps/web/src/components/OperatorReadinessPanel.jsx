@@ -36,6 +36,9 @@ export default function OperatorReadinessPanel({ provider, listing, availability
     && payoutStatus?.transfers_enabled === true
     && payoutStatus?.payouts_enabled === true;
   const canEditAvailability = Boolean(listing?.id);
+  const paymentMode = payoutStatus?.payment_mode;
+  const environmentLabel = paymentMode === 'test' ? 'Test / Sandbox — no real money'
+    : paymentMode === 'live' ? 'Live payment environment' : 'Payment environment not verified';
   const save = async (event) => {
     event.preventDefault();
     if (!date || !Number.isInteger(Number(spotsTotal)) || Number(spotsTotal) < 1) return;
@@ -46,8 +49,8 @@ export default function OperatorReadinessPanel({ provider, listing, availability
     <section className="page-card" aria-labelledby="operator-readiness-title">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm text-[#00D9FF]">Launch readiness</p>
-          <h2 id="operator-readiness-title" className="text-xl font-semibold text-white">Make this tour bookable safely</h2>
+          <p className="text-sm text-[#00D9FF]">Tour setup</p>
+          <h2 id="operator-readiness-title" className="text-xl font-semibold text-white">Prepare your tour and departure dates</h2>
           <p className="text-sm text-[#a0a0a0]">Complete the operational details and add real dates before sharing the booking link.</p>
         </div>
         <span className="text-sm font-semibold text-[#cad3df]">{ready}/{checks.length} setup checks complete</span>
@@ -60,11 +63,12 @@ export default function OperatorReadinessPanel({ provider, listing, availability
           </div>;
         })}
       </div>
-      <p className="mt-3 text-sm text-[#a0a0a0]">Wadatrip confirms payout readiness with Stripe. Real dates and available spots are also required before travelers can book.</p>
+      <p className="mt-3 text-sm font-semibold text-[#f8c66b]">{environmentLabel}</p>
+      <p className="mt-2 text-sm text-[#a0a0a0]">Completing these setup checks does not enable real payments. Wadatrip must separately approve real sales and operator payouts. Real dates and available spots are also required.</p>
       {provider?.id && onConnectPayout ? (
         <div className="mt-4 rounded-xl border border-[#00D9FF]/20 bg-[#0a0e27]/60 p-4">
           {payoutReady ? (
-            <p className="text-sm font-semibold text-[#8df3d8]">✓ Payout account ready</p>
+            <p className="text-sm font-semibold text-[#8df3d8]">✓ Payment account checks passed</p>
           ) : (
             <Button type="button" disabled={payoutLoading} onClick={onConnectPayout} className="h-11 neon-cta">
               {payoutLoading ? 'Opening Stripe…' : payoutStatus?.linked ? 'Continue payout setup' : 'Connect payout account'}
@@ -72,7 +76,7 @@ export default function OperatorReadinessPanel({ provider, listing, availability
           )}
           <p className="mt-2 text-sm text-[#a0a0a0]">
             {payoutReady
-              ? 'Stripe confirmed that this account can receive payouts.'
+              ? 'These account checks apply only to the payment environment shown above. Test results do not approve real payouts or their schedule.'
               : 'Stripe securely collects identity and bank details. Wadatrip never receives card or bank credentials.'}
           </p>
           {payoutMessage ? <p className="mt-2 text-sm text-[#8df3d8]">{payoutMessage}</p> : null}

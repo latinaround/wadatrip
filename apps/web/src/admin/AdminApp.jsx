@@ -7,6 +7,7 @@ import BookingsPage from './Bookings'
 import DestinationCoversPage from './DestinationCovers'
 import OperatorLeadsPage from './OperatorLeads'
 import AdminRecords from './Records'
+import AdminCommunity from './Community'
 import { Button } from '@/components/ui/button'
 
 function Guard({ children }) {
@@ -25,6 +26,7 @@ function SidebarLayout({ children }) {
         <div className="p-4 font-extrabold text-teal-700">WadaTrip Admin</div>
         <nav className="p-2 space-y-1">
           <Link to="/admin/users" className="block px-3 py-2 rounded hover:bg-gray-100">Usuarios</Link>
+          <Link to="/admin/community" className="block px-3 py-2 rounded hover:bg-gray-100">Community · Reportes</Link>
           <Link to="/admin/date-requests" className="block px-3 py-2 rounded hover:bg-gray-100">Solicitudes de fechas</Link>
           <Link to="/admin/payment-issues" className="block px-3 py-2 rounded hover:bg-gray-100">Incidencias de pagos</Link>
           <Link to="/admin/audit" className="block px-3 py-2 rounded hover:bg-gray-100">Bitácora administrativa</Link>
@@ -52,6 +54,7 @@ export default function AdminApp() {
         <Route path="login" element={<AdminLogin />} />
         {['users', 'date-requests', 'payment-issues', 'audit'].map(view => <Route key={view} path={view} element={<Guard><SidebarLayout><AdminRecords key={view} view={view} /></SidebarLayout></Guard>} />)}
         <Route path="providers" element={<Guard><SidebarLayout><ProvidersPage /></SidebarLayout></Guard>} />
+        <Route path="community" element={<Guard><SidebarLayout><AdminCommunity /></SidebarLayout></Guard>} />
         <Route path="listings" element={<Guard><SidebarLayout><ListingsPage /></SidebarLayout></Guard>} />
         <Route path="operator-leads" element={<Guard><SidebarLayout><OperatorLeadsPage /></SidebarLayout></Guard>} />
         <Route path="destination-covers" element={<Guard><SidebarLayout><DestinationCoversPage /></SidebarLayout></Guard>} />
