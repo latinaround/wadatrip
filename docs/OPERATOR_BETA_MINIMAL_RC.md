@@ -21,6 +21,13 @@ snapshot. Build, packaging and isolated Git checkout are separate from source.
 Manifest, exact file list and deployment evidence are outside deployable source.
 No secrets, backup, installation state or generated output may enter Git.
 
+Follow-up revision: controller-level regression reproduced a bypass on the
+Gateway draft status route despite the shared publication guard. The route now
+checks publication for every actor before any status write. Preparation access
+capabilities also report can_publish=false for administrators. Two additional
+tests exercise a real synthetic session-bound MFA proof, both Gateway/Hub entry
+points, draft creation and status mutation without a database write.
+
 ## Operational configuration
 
 Render: NODE_VERSION=24.22.1; preparation-only=true; cohort cap=5; both member

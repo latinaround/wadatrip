@@ -836,8 +836,8 @@ export class ProvidersController {
       throw new BadRequestException('invalid status');
     }
 
+    if (status === 'published') requireOperatorPublication(user);
     if (owned && status === 'published') {
-      requireOperatorPublication(user);
       const providerStatus = String(provider?.status || '').toLowerCase();
       if (!['approved', 'verified'].includes(providerStatus)) {
         throw new BadRequestException('provider must be approved before publishing');

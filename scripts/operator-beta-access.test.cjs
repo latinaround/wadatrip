@@ -8,6 +8,7 @@ let writes=0, legacyMode=false;
 const provider={id:'provider',user_id:'owner',status:'verified',name:'Synthetic Host',email:'owner@example.invalid',base_city:'Synthetic City',country_code:'BR'};
 const listing={id:'listing',provider_id:'provider',status:'draft',provider,tags:[]};
 const db={users:{findUnique:async({where})=>({id:where.id,email:where.id+'@example.invalid',status:'active',role:'traveler'})},
+ admin_mfa:{findUnique:async()=>({enabled_at:new Date(),version:1})},
  providers:{findUnique:async()=>provider,findFirst:async({where})=>legacyMode?(where.user_id===null?{...provider,user_id:null}:null):(where.user_id==='owner'?provider:null),updateMany:async()=>{writes++;return{count:1}},update:async()=>{writes++;return provider},create:async()=>{writes++;return provider}},
  listings:{findUnique:async()=>listing,create:async({data})=>{writes++;return data},update:async({data})=>{writes++;return data}}};
 const cache={};
@@ -34,6 +35,14 @@ test('editing a public listing requires separate publication access',async()=>{r
 test('direct Hub availability mutation does not bypass the cohort',async()=>{reset();writes=0;await assert.rejects(new Hub().upsertAvailability('listing',{date:'2026-11-30',spots_total:12},req('owner')),forbidden);assert.equal(writes,0)});
 test('invitation alone never allows public publication on either entry point',async()=>{reset();process.env.OPERATOR_BETA_USER_IDS='owner';for(const run of [()=>new Gateway().createListing(req('owner'),{...body,status:'published'}),()=>new Hub().create(req('owner'),{...body,status:'published'})]){writes=0;await assert.rejects(run(),forbidden);assert.equal(writes,0)}});
 test('status endpoint cannot bypass publication permission',async()=>{reset();process.env.OPERATOR_BETA_USER_IDS='owner';writes=0;await assert.rejects(new Gateway().setListingStatus(req('owner'),'listing',{status:'published'}),forbidden);await assert.rejects(new Hub().updateStatus('listing',{status:'published'},req('owner')),forbidden);assert.equal(writes,0)});
+
+test('MFA-approved administrator cannot publish a draft through either status or creation route during preparation',async()=>{
+ reset();process.env.OPERATOR_BETA_PREPARATION_ONLY='true';process.env.ADMIN_USER_IDS='synthetic-admin';
+ const request=req('synthetic-admin');request.headers['x-admin-proof']=jwt.sign({purpose:'admin_step_up',session_hash:require('node:crypto').createHash('sha256').update(request.headers.authorization).digest('hex'),credential_version:1},process.env.JWT_SECRET,{subject:'synthetic-admin',audience:'wadatrip-admin',issuer:'wadatrip',expiresIn:120});
+ try{assert.equal((await security.requireActor(request,db)).admin,true);for(const run of [()=>new Gateway().setListingStatus(request,'listing',{status:'published'}),()=>new Hub().updateStatus('listing',{status:'published'},request),()=>new Gateway().createListing(request,{...body,status:'published'}),()=>new Hub().create(request,{...body,status:'published'})]){writes=0;await assert.rejects(run(),e=>e.getStatus?.()===503);assert.equal(writes,0)}}finally{delete process.env.ADMIN_USER_IDS;reset();}
+});
+
+test('preparation capabilities never advertise publication to an administrator',()=>{reset();process.env.OPERATOR_BETA_PREPARATION_ONLY='true';try{const caps=security.operatorBetaCapabilities({id:'synthetic-admin',verified:true,admin:true});assert.equal(caps.can_prepare,true);assert.equal(caps.can_publish,false);}finally{reset();}});
 test('removing an ID revokes workspace access on the next call',async()=>{reset();const actor={id:'owner',verified:true,admin:false};process.env.OPERATOR_BETA_USER_IDS='owner';security.requireOperatorBetaAccess(actor);delete process.env.OPERATOR_BETA_USER_IDS;assert.throws(()=>security.requireOperatorBetaAccess(actor),forbidden)});
 test('wildcard and oversized cohorts fail closed',()=>{reset();for(const value of ['*',Array.from({length:6},(_,i)=>'operator'+i).join(',')]){process.env.OPERATOR_BETA_USER_IDS=value;assert.throws(()=>security.operatorBetaCapabilities({id:'owner',verified:true,admin:false}),forbidden)}});
 test('publication allowlist must be a subset of enrolled accounts',()=>{reset();process.env.OPERATOR_BETA_PUBLICATION_USER_IDS='owner';assert.throws(()=>security.operatorBetaCapabilities({id:'owner',verified:true,admin:false}),forbidden)});

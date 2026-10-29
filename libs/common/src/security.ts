@@ -66,7 +66,7 @@ export function operatorBetaCapabilities(actor: Pick<Actor, 'id' | 'verified' | 
     || [...members, ...publishers].some(id => !/^[A-Za-z0-9_-]{1,128}$/.test(id))
     || publishers.some(id => !members.includes(id))) throw new ServiceUnavailableException('Operator beta configuration requires review');
   return { invitation_only: true, can_prepare: actor.admin || members.includes(actor.id),
-    can_publish: actor.admin || publishers.includes(actor.id), preparation_only: env.OPERATOR_BETA_PREPARATION_ONLY !== 'false',
+    can_publish: env.OPERATOR_BETA_PREPARATION_ONLY !== 'true' && (actor.admin || publishers.includes(actor.id)), preparation_only: env.OPERATOR_BETA_PREPARATION_ONLY !== 'false',
     image_uploads_enabled: false };
 }
 
