@@ -42,10 +42,9 @@ function toInt(value: any) {
 }
 
 function escapeCsv(value: any) {
-  const text = String(value ?? '');
-  if (/[",\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
+  const raw = String(value ?? '');
+  const text = /^\s*[=+\-@]|^[\t\r\n]/.test(raw) ? "'" + raw : raw;
+  if (/[",\r\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
   return text;
 }
 
@@ -168,7 +167,9 @@ export class OperatorLeadsService {
     const items = await prisma.operator_leads.findMany({
       where,
       orderBy: this.resolveSort(query.sort),
+      take: 501,
     });
+    if (items.length > 500) throw new BadRequestException('Narrow the export filters to 500 records or fewer');
 
     const headers = [
       'name',

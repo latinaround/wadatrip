@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
 import { requireInternalToken, requireAdmin, requireProviderAccess } from '@wadatrip/common/security';
 import { HealthController } from './controllers/health.controller';
@@ -19,6 +19,11 @@ export class ProviderUploadGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     if (req.params.id) await requireProviderAccess(req, getPrisma(), req.params.id);
     else await requireAdmin(req, getPrisma());
+    // Private identity documents require separately reviewed storage/retention and
+    // verification. Reject before Multer writes to disk or buffers the upload.
+    if (process.env.ENABLE_OPERATOR_DOCUMENT_UPLOADS !== 'true') {
+      throw new ServiceUnavailableException('Operator document submission is not enabled. Contact Wadatrip for verification.');
+    }
     return true;
   }
 }

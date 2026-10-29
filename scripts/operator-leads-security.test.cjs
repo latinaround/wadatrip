@@ -1,0 +1,42 @@
+// Real Nest routes/DTOs and authorization; synthetic DB, leads and loopback HTTP only.
+require('reflect-metadata');
+const {test,before,after}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript'),jwt=require('jsonwebtoken'),{createHash}=require('node:crypto');
+const {Module,ValidationPipe}=require('@nestjs/common'),{NestFactory,APP_GUARD}=require('@nestjs/core');
+const axios=require('axios');
+const transportGuard=axios.interceptors.request.use(config=>{assert.equal(new URL(config.url).hostname,'127.0.0.1');assert.equal(config.proxy,false);return config;});
+process.env.JWT_SECRET='synthetic-leads-secret';process.env.INTERNAL_SERVICE_TOKEN='synthetic-leads-internal';process.env.ADMIN_REQUIRE_MFA='false';process.env.ENABLE_OPERATOR_LEADS='true';process.env.ENABLE_OPERATOR_LEAD_SEARCH='false';delete process.env.ADMIN_EMAILS;delete process.env.ADMIN_USER_IDS;
+let mutations=0,app,gateway,base,gatewayBase;
+delete process.env.OUTSCRAPER_API_KEY;
+const rawFetch=global.fetch;global.fetch=(url,init)=>{assert.equal(new URL(url).hostname,'127.0.0.1','No external acquisition in security tests');return rawFetch(url,init);};
+const db={users:{findUnique:async({where})=>({id:where.id,email:where.id+'@example.invalid',role:where.id==='admin'?'admin':'traveler',status:'active'})},admin_mfa:{findUnique:async()=>({enabled_at:new Date(),version:1})},operator_leads:{findMany:async()=>[{name:'=SYNTHETIC()',city:'Synthetic City'}],count:async()=>1}};
+const cache=new Map(),root=path.resolve(process.env.LEADS_SECURITY_SOURCE_ROOT||path.join(__dirname,'..'));function load(file){file=path.resolve(root,file);if(cache.has(file))return cache.get(file).exports;const module={exports:{}};cache.set(file,module);const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true,experimentalDecorators:true,emitDecoratorMetadata:true}}).outputText;vm.runInNewContext(code,{module,exports:module.exports,process,Buffer,URL,Date,Reflect,console,require:name=>{if(name==='@wadatrip/db')return{getPrisma:()=>db};if(name.startsWith('.')){const p=path.resolve(path.dirname(file),name),found=['','.ts','.js'].map(ext=>p+ext).find(fs.existsSync);if(found)return load(found);}return require(name);}});return module.exports;}
+const serviceSource='services/operator-leads/src/controllers/operator-leads.controller.ts';
+const Controller=load(serviceSource).OperatorLeadsController,Service=load('services/operator-leads/src/services/operator-leads.service.ts').OperatorLeadsService;
+const token=id=>jwt.sign({email:id+'@example.invalid',email_verified:true},process.env.JWT_SECRET,{subject:id,expiresIn:300});
+const adminToken=token('admin'),adminProof=jwt.sign({purpose:'admin_step_up',session_hash:createHash('sha256').update('Bearer '+adminToken).digest('hex'),credential_version:1},process.env.JWT_SECRET,{subject:'admin',audience:'wadatrip-admin',issuer:'wadatrip',expiresIn:120});
+const admin={authorization:'Bearer '+adminToken,'x-admin-proof':adminProof},internal={'x-internal-service-token':process.env.INTERNAL_SERVICE_TOKEN};
+async function get(origin,route,headers={},body){const res=await fetch(origin+route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...headers},...(body?{body:JSON.stringify(body)}:{})});return{status:res.status,text:await res.text(),cache:res.headers.get('cache-control')};}
+before(async()=>{
+ const Outscraper=load('services/operator-leads/src/services/outscraper.service.ts').OutscraperService;
+ Outscraper.prototype.searchPlaces=async()=>{mutations++;return[];};
+ const Test=load('services/operator-leads/src/module.ts').AppModule;
+ app=await NestFactory.create(Test,{logger:false});app.useGlobalPipes(new ValidationPipe({whitelist:true,transform:true}));await app.listen(0,'127.0.0.1');base=await app.getUrl();process.env.OPERATOR_LEADS_URL=base;
+ const gatewayFile='apps/gateway/src/controllers/operator-leads.controller.ts';if(fs.existsSync(path.join(root,gatewayFile))){class GatewayTest{}Module({controllers:[load(gatewayFile).OperatorLeadsController]})(GatewayTest);gateway=await NestFactory.create(GatewayTest,{logger:false});gateway.useGlobalPipes(new ValidationPipe({whitelist:true,transform:true}));await gateway.listen(0,'127.0.0.1');gatewayBase=await gateway.getUrl();}
+});
+after(async()=>{await Promise.all([app?.close(),gateway?.close()]);axios.interceptors.request.eject(transportGuard);global.fetch=rawFetch;});
+test('service never exposes leads without internal authentication',async()=>{assert.equal((await get(base,'/operator-leads')).status,403);});
+test('internal authentication alone never grants administrative access',async()=>{assert.equal((await get(base,'/operator-leads',internal)).status,401);});
+test('service requires MFA even if the compatibility flag is false',async()=>{assert.equal((await get(base,'/operator-leads',{...internal,authorization:'Bearer '+adminToken})).status,403);});
+test('a traveler cannot access leads with an internal token',async()=>{assert.equal((await get(base,'/operator-leads',{...internal,authorization:'Bearer '+token('traveler')})).status,403);});
+test('authorized administration can list leads without cache persistence',async()=>{const r=await get(base,'/operator-leads',{...internal,...admin});assert.equal(r.status,200);assert.equal(r.cache,'no-store');});
+test('lead search is separately disabled before any acquisition work occurs',async()=>{const previous=mutations;assert.equal((await get(base,'/operator-leads/search',{...internal,...admin},{city:'Lima',country:'PE'})).status,503);assert.equal(mutations,previous);});
+test('gateway exposes only the authorized controller instead of an unguarded raw proxy',async()=>{assert.ok(gatewayBase,'A guarded Gateway controller is required');assert.equal((await get(gatewayBase,'/operator-leads')).status,401);assert.equal((await get(gatewayBase,'/operator-leads',admin)).status,200);});
+test('direct service export never accepts anonymous callers',async()=>{assert.equal((await get(base,'/operator-leads/export')).status,403);});
+test('CSV export neutralizes formula injection from untrusted operator data',async()=>{const service=new Service({});const csv=await service.exportCsv({});assert.ok(csv.includes("'=SYNTHETIC()"));});
+test('Gateway bootstrap has no raw operator-leads proxy bypass',()=>{const source=fs.readFileSync(path.join(root,'apps/gateway/src/main.ts'),'utf8');assert.equal(/attachProxy\(['"]\/operator-leads/.test(source),false);});
+test('a wrong internal credential never reaches the service data',async()=>{assert.equal((await get(base,'/operator-leads',{...admin,'x-internal-service-token':'synthetic-wrong'})).status,403);});
+test('Gateway admin identity alone cannot replace the required second factor',async()=>{assert.equal((await get(gatewayBase,'/operator-leads',{authorization:'Bearer '+adminToken})).status,403);});
+test('disabling leads stops authorized reads without enabling anonymous access',async()=>{process.env.ENABLE_OPERATOR_LEADS='false';try{assert.equal((await get(gatewayBase,'/operator-leads',admin)).status,503);assert.equal((await get(gatewayBase,'/operator-leads')).status,401);}finally{process.env.ENABLE_OPERATOR_LEADS='true';}});
+test('search input is bounded even after the explicit search flag is enabled',async()=>{process.env.ENABLE_OPERATOR_LEAD_SEARCH='true';try{const previous=mutations;assert.equal((await get(base,'/operator-leads/search',{...internal,...admin},{city:'Lima',country:'PE',queries:Array(6).fill('synthetic')})).status,400);assert.equal(mutations,previous);}finally{process.env.ENABLE_OPERATOR_LEAD_SEARCH='false';}});
+test('exports reject a result set over the bounded review limit',async()=>{const previous=db.operator_leads.findMany;db.operator_leads.findMany=async()=>Array.from({length:501},()=>({name:'Synthetic'}));try{await assert.rejects(new Service({}).exportCsv({}),e=>e.getStatus?.()===400);}finally{db.operator_leads.findMany=previous;}});
+test('CSV quotes embedded line breaks so a field cannot introduce another row',async()=>{const previous=db.operator_leads.findMany;db.operator_leads.findMany=async()=>[{name:'Synthetic\nsecond line'}];try{assert.ok((await new Service({}).exportCsv({})).includes('"Synthetic\nsecond line"'));}finally{db.operator_leads.findMany=previous;}});

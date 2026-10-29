@@ -130,6 +130,8 @@ const prisma = Object.fromEntries(Object.keys(rows).map(model => [model, {
 }]));
 // Replace only DB access. Business logic, JWT verification, guards and Nest routing are real.
 const originalLoad = ModuleLoader._load;
+prisma.admin_mfa = { findUnique: async ({ where }) => ['admin', 'allowlisted'].includes(where.user_id)
+  ? { enabled_at: new Date(), version: 1 } : null };
 require('./helpers/capacity-fixture.cjs').addCapacityFixture(prisma);
 ModuleLoader._load = function(request, parent, main) {
   if (request === '@wadatrip/db') return { getPrisma: () => prisma };
@@ -197,9 +199,14 @@ function token(id, overrides = {}, options = {}) {
   return jwt.sign({ sub: id, email: user?.email, email_verified: true, ...overrides }, process.env.JWT_SECRET,
     { expiresIn: '10m', ...options });
 }
-async function http(base, route, user, { method = 'GET', body, internal = true, bearer } = {}) {
+async function http(base, route, user, { method = 'GET', body, internal = true, bearer, mfa = true } = {}) {
   const headers = {};
   if (user || bearer) headers.Authorization = `Bearer ${bearer || token(user)}`;
+  if (mfa && ['admin', 'allowlisted'].includes(user)) {
+    headers['x-admin-proof'] = jwt.sign({ purpose: 'admin_step_up', credential_version: 1,
+      session_hash: require('crypto').createHash('sha256').update(headers.Authorization).digest('hex') },
+    process.env.JWT_SECRET, { subject: user, audience: 'wadatrip-admin', issuer: 'wadatrip', expiresIn: 300 });
+  }
   if (base === hub && internal) headers['x-internal-service-token'] = process.env.INTERNAL_SERVICE_TOKEN;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const response = await fetch(base + route, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -278,6 +285,12 @@ for (const service of ['gateway', 'hub', 'gateway -> Hub']) {
       } });
       assert.equal(res.status, 201);
       assert.equal(res.body.user_id, 'a');
+    });
+    await t.test('personal scope excludes customer bookings even for an administrator', async () => {
+      const res = await http(base, '/bookings?scope=mine', 'admin');
+      assert.equal(res.status, 200);
+      assert.deepEqual(res.body.items, []); // This synthetic admin has no personal bookings.
+      assert.equal(res.body.total, 0);
     });
     await t.test('legitimate admin can read all bookings and manage another provider', async () => {
       const res = await http(base, '/bookings', 'admin');

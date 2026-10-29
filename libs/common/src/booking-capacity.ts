@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { calculateBookingPrice } from './booking-price';
 import { financialState, hasFinancialRisk } from './financial-state';
 import { bookingTransition, inventoryState } from './booking-transition';
@@ -76,6 +76,9 @@ export async function available(tx: any, listing: any, date: any, people: number
 }
 
 export async function createCapacityBooking(prisma: any, actor: { id: string; name?: string | null }, body: any) {
+  if (process.env.OPERATOR_BETA_PREPARATION_ONLY === 'true') {
+    throw new ServiceUnavailableException({ code: 'BOOKINGS_PAUSED', message: 'New bookings are temporarily unavailable.' });
+  }
   if (!body?.listing_id) throw new BadRequestException('listing_id is required');
   if (!String(actor?.name || '').trim()) throw new BadRequestException('Traveler name is required before booking');
   return prisma.$transaction(async (tx: any) => {

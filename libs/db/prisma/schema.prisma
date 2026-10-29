@@ -32,9 +32,91 @@ model users {
   admin_mfa           admin_mfa?
   admin_audit_log     admin_audit_log[]
   operator_booking_reviews operator_booking_reviews[]
+  community_threads community_threads[]
+  community_replies community_replies[]
+  community_reports community_reports[] @relation("CommunityReporter")
+  community_reviews community_reports[] @relation("CommunityReviewer")
+  community_blocks community_blocks[] @relation("CommunityBlocker")
+  community_blocked_by community_blocks[] @relation("CommunityBlocked")
 
 
   @@index([email])
+}
+
+model community_threads {
+  id String @id @default(cuid())
+  user_id String
+  country_code String @db.VarChar(2)
+  city String @db.VarChar(100)
+  region String @default("") @db.VarChar(100)
+  destination_key String @db.VarChar(64)
+  kind String
+  title String @db.VarChar(140)
+  message String @db.VarChar(2000)
+  commercial Boolean @default(false)
+  status String @default("open")
+  client_request_id String @db.VarChar(36)
+  public_notice_version String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  user users @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  replies community_replies[]
+  reports community_reports[]
+  @@unique([user_id, client_request_id])
+  @@index([destination_key, status, created_at, id])
+  @@index([country_code, status, created_at, id])
+  @@index([user_id, created_at])
+}
+
+model community_replies {
+  id String @id @default(cuid())
+  thread_id String
+  user_id String
+  message String @db.VarChar(2000)
+  commercial Boolean @default(false)
+  status String @default("visible")
+  helpful Boolean @default(false)
+  client_request_id String @db.VarChar(36)
+  public_notice_version String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  user users @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  thread community_threads @relation(fields: [thread_id], references: [id], onDelete: Restrict)
+  reports community_reports[]
+  @@unique([user_id, client_request_id])
+  @@index([thread_id, status, created_at, id])
+  @@index([user_id, created_at])
+}
+
+model community_reports {
+  id String @id @default(cuid())
+  user_id String
+  thread_id String?
+  reply_id String?
+  reason String
+  status String @default("open")
+  resolution String?
+  reviewed_by String?
+  reviewed_at DateTime?
+  created_at DateTime @default(now())
+  user users @relation("CommunityReporter", fields: [user_id], references: [id], onDelete: Restrict)
+  reviewer users? @relation("CommunityReviewer", fields: [reviewed_by], references: [id], onDelete: Restrict)
+  thread community_threads? @relation(fields: [thread_id], references: [id], onDelete: Restrict)
+  reply community_replies? @relation(fields: [reply_id], references: [id], onDelete: Restrict)
+  @@unique([user_id, thread_id])
+  @@unique([user_id, reply_id])
+  @@index([status, created_at, id])
+  @@index([user_id, created_at])
+}
+
+model community_blocks {
+  user_id String
+  blocked_user_id String
+  created_at DateTime @default(now())
+  user users @relation("CommunityBlocker", fields: [user_id], references: [id], onDelete: Restrict)
+  blocked_user users @relation("CommunityBlocked", fields: [blocked_user_id], references: [id], onDelete: Restrict)
+  @@id([user_id, blocked_user_id])
+  @@index([blocked_user_id])
 }
 
 model admin_mfa {
@@ -76,6 +158,15 @@ model push_devices {
 
   @@index([user_id])
 }
+model auth_request_limits {
+  key               String   @id @db.Char(64)
+  window_started_at DateTime @db.Timestamptz(3)
+  attempts          Int
+  expires_at        DateTime @db.Timestamptz(3)
+
+  @@index([expires_at])
+}
+
 model auth_login_codes {
   id         String    @id @default(cuid())
   email      String

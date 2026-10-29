@@ -135,13 +135,13 @@ export class PaymentsController {
     const { provider } = await requireProviderAccess(req, getPrisma(), providerId);
     const mode = stripePaymentMode();
     const accountId = payoutAccountForMode(provider, mode);
-    if (!accountId) return stripeConnectStatus(null);
+    if (!accountId) return { ...stripeConnectStatus(null), payment_mode: mode };
     const account = await requireStripe().accounts.retrieve(accountId);
     const associatedProvider = String(account?.metadata?.wadatrip_provider_id || '');
     if ((mode === 'live' && associatedProvider !== providerId) || (associatedProvider && associatedProvider !== providerId)) {
       throw new ConflictException('Payout account association mismatch');
     }
-    return stripeConnectStatus(account);
+    return { ...stripeConnectStatus(account), payment_mode: mode };
   }
 
   @Post('connect/:providerId/link')

@@ -144,7 +144,7 @@ export class BookingsController {
         const { data } = await axios.post(`${HUB}/bookings`, trustedBody, { headers: serviceHeaders(req) });
         return data;
       } catch (error: any) {
-        if ([400, 401, 403, 404, 409].includes(error?.response?.status)) throw new HttpException(error.response.data, error.response.status);
+        if ([400, 401, 403, 404, 409, 503].includes(error?.response?.status)) throw new HttpException(error.response.data, error.response.status);
         throw error;
       }
     }

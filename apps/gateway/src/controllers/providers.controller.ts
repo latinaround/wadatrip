@@ -12,12 +12,13 @@ import {
   UnauthorizedException,
   ForbiddenException,
   Req,
+  Res,
 } from '@nestjs/common';
 import axios from 'axios';
 import { getPrisma } from '@wadatrip/db';
 import { bookingTerms, policyConfiguration } from '@wadatrip/common/booking-policy';
-import type { Request } from 'express';
-import { requireActor, requireAdmin, requireProviderAccess, requireAlertAccess, findOwnedProvider as resolveOwnedProvider, serviceHeaders } from '@wadatrip/common/security';
+import type { Request, Response } from 'express';
+import { requireActor, requireAdmin, requireProviderAccess, requireAlertAccess, findOwnedProvider as resolveOwnedProvider, serviceHeaders, operatorBetaCapabilities, requireOperatorBetaAccess, requireOperatorPublication } from '@wadatrip/common/security';
 import { publicProviderDetailSelect, publicListingSelect, publicProviderSelect, adminProviderDetailSelect, toPublicProvider, toPublicListing } from '@wadatrip/common/public-data';
 import { lockedListing, occupied } from '@wadatrip/common/booking-capacity';
 
@@ -274,6 +275,7 @@ function buildOwnedProviderData(body: any, user: any, existing: any) {
 }
 
 async function upsertOwnedProvider(prisma: any, user: any, body: any) {
+  requireOperatorBetaAccess(user);
   const existing = await findOwnedProvider(prisma, user);
   const data = buildOwnedProviderData(body, user, existing);
 
@@ -311,11 +313,18 @@ async function authorizeListingMutation(prisma: any, req: Request, body: any, li
   if (!listing) throw new BadRequestException('listing not found');
 
   const { actor, provider } = await requireProviderAccess(req, prisma, listing.provider_id);
+  requireOperatorBetaAccess(actor);
+  if (['published', 'approved'].includes(listing.status)) requireOperatorPublication(actor);
   return { listing, owned: !actor.admin, user: actor, provider };
 }
 
 @Controller()
 export class ProvidersController {
+  @Get('operator/beta-access')
+  async betaAccess(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    return operatorBetaCapabilities(await getAuthenticatedUser(req));
+  }
   @Get('providers')
   async listProviders(@Req() req: Request, @Query() q: Record<string, any>) {
     await requireAdmin(req, getPrisma());
@@ -501,7 +510,8 @@ export class ProvidersController {
 
   @Post('providers/:id/resubmit')
   async resubmit(@Param('id') id: string, @Req() req: Request) {
-    await requireProviderAccess(req, getPrisma(), id);
+    const { actor } = await requireProviderAccess(req, getPrisma(), id);
+    requireOperatorBetaAccess(actor);
     if (ENABLED) {
       const { data } = await axios.post(`${HUB}/providers/${id}/resubmit`, {}, { headers: serviceHeaders(req) });
       return data;
@@ -553,8 +563,10 @@ export class ProvidersController {
     if (!provider) throw new BadRequestException('provider not found');
 
     const { actor: authenticatedUser } = await requireProviderAccess(req, prisma, provider.id);
+    requireOperatorBetaAccess(authenticatedUser);
 
     const requestedStatus = normalizeListingStatus(body?.status, 'draft');
+    if (requestedStatus === 'published') requireOperatorPublication(authenticatedUser);
     const providerApproved = ['approved', 'verified'].includes(String(provider.status || '').toLowerCase());
     const finalStatus = !providerApproved && !authenticatedUser.admin && requestedStatus === 'published'
       ? 'draft'
@@ -818,13 +830,14 @@ export class ProvidersController {
   @Post('listings/:id/status')
   async setListingStatus(@Req() req: Request, @Param('id') id: string, @Body() body: any) {
     const prisma = getPrisma();
-    const { listing, owned, provider } = await authorizeListingMutation(prisma, req, body, id);
+    const { listing, owned, provider, user } = await authorizeListingMutation(prisma, req, body, id);
     const status = String(body?.status || '').toLowerCase();
     if (!['published', 'inactive', 'draft'].includes(status)) {
       throw new BadRequestException('invalid status');
     }
 
     if (owned && status === 'published') {
+      requireOperatorPublication(user);
       const providerStatus = String(provider?.status || '').toLowerCase();
       if (!['approved', 'verified'].includes(providerStatus)) {
         throw new BadRequestException('provider must be approved before publishing');

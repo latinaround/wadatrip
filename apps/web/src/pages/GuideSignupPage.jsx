@@ -1,51 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AppConfig } from '../config/appConfig';
 import { useAuth } from '../context/AuthContext.jsx';
-
-const tokenStorageKey = 'wadatrip_token';
-
-function buildGuideReturnUrl(path, token) {
-  return `${path}#auth_token=${encodeURIComponent(token)}`;
-}
-
-async function guideAuthRequest(path, body) {
-  const baseUrl = AppConfig.api.baseUrl?.replace(/\/$/, '') || '';
-  const timeoutMs = Number(AppConfig.api.timeout) || 10000;
-  const timeoutPromise = new Promise((_, reject) => {
-    window.setTimeout(() => reject(new Error('Request timed out. Please try again.')), timeoutMs);
-  });
-
-  let response;
-  try {
-    response = await Promise.race([
-      fetch(`${baseUrl}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }),
-      timeoutPromise,
-    ]);
-  } catch (err) {
-    throw err;
-  }
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload?.message || `Request failed with status ${response.status}`);
-  }
-  return payload;
-}
+import { safeAuthReturnPath } from '../utils/authReturn.js';
 
 export default function GuideSignupPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { verifyCode } = useAuth();
+  const { login, register, requestCode, verifyCode } = useAuth();
   const isTraveler = searchParams.get('role') === 'traveler';
   const returnTo = useMemo(() => {
-    const next = searchParams.get('next');
-    if (!next || !next.startsWith('/')) return isTraveler ? '/account' : '/operator/tours/new';
-    return next;
+    return safeAuthReturnPath(searchParams.get('next'), isTraveler ? '/account' : '/operator/tours/new');
   }, [isTraveler, searchParams]);
   const initialMode = searchParams.get('mode') === 'login' ? 'login' : 'register';
   const [name, setName] = useState('');
@@ -72,7 +36,7 @@ export default function GuideSignupPage() {
 
       if (authMethod === 'code') {
         if (!codeSent) {
-          const payload = await guideAuthRequest('/auth/request-code', {
+          const payload = await requestCode({
             email: email.trim(),
             name: name.trim() || undefined,
             role: isTraveler ? 'traveler' : 'guide',
@@ -100,33 +64,31 @@ export default function GuideSignupPage() {
         if (!password.trim()) {
           throw new Error('Create a password');
         }
-        const payload = await guideAuthRequest('/auth/register', {
+        const payload = await register({
           email: email.trim(),
           password,
           name: name.trim() || undefined,
           role: isTraveler ? 'traveler' : 'guide',
         });
         if (payload?.token) {
-          window.localStorage.setItem(tokenStorageKey, payload.token);
-          window.location.assign(buildGuideReturnUrl(returnTo, payload.token));
+          navigate(returnTo);
           return;
         }
       } else {
         if (!password.trim()) {
           throw new Error('Enter your password');
         }
-        const payload = await guideAuthRequest('/auth/login', {
+        const payload = await login({
           email: email.trim(),
           password,
         });
         if (payload?.token) {
-          window.localStorage.setItem(tokenStorageKey, payload.token);
-          window.location.assign(buildGuideReturnUrl(returnTo, payload.token));
+          navigate(returnTo);
           return;
         }
       }
 
-      navigate(returnTo);
+      throw new Error('Could not verify your sign-in. Please try again.');
     } catch (err) {
       setError(err?.message || 'Could not continue');
     } finally {

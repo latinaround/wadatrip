@@ -1,0 +1,20 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript'),jwt=require('jsonwebtoken'),{createHash}=require('node:crypto');
+process.env.JWT_SECRET='synthetic-boundary-secret';process.env.ADMIN_EMAILS='';process.env.ADMIN_USER_IDS='';process.env.INTERNAL_SERVICE_TOKEN='synthetic-internal-boundary';
+const cache=new Map();function load(file){file=path.resolve(file);if(cache.has(file))return cache.get(file).exports;const module={exports:{}};cache.set(file,module);const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}}).outputText;vm.runInNewContext(code,{module,exports:module.exports,process,Buffer,require:name=>name.startsWith('.')?load(path.resolve(path.dirname(file),name+'.ts')):require(name)});return module.exports;}
+const security=load('libs/common/src/security.ts');
+function fixture(role='admin'){
+ const user={id:'synthetic-'+role,email:role+'@example.invalid',role,status:'active'},credential={enabled_at:new Date(),version:2};
+ const db={users:{findUnique:async()=>user},admin_mfa:{findUnique:async()=>credential}};
+ const token=()=>jwt.sign({email:user.email,email_verified:true},process.env.JWT_SECRET,{subject:user.id,expiresIn:300});
+ const req={headers:{authorization:'Bearer '+token()}};
+ const proof=(change={})=>jwt.sign({purpose:'admin_step_up',session_hash:createHash('sha256').update(req.headers.authorization).digest('hex'),credential_version:2,...change},process.env.JWT_SECRET,{subject:user.id,audience:'wadatrip-admin',issuer:'wadatrip',expiresIn:120});
+ return{user,credential,db,req,proof};
+}
+test('unsetting the old MFA compatibility switch cannot grant administrative privileges',async()=>{delete process.env.ADMIN_REQUIRE_MFA;const f=fixture();assert.equal((await security.requireActor(f.req,f.db)).admin,false);await assert.rejects(security.requireAdmin(f.req,f.db),e=>e.getStatus?.()===403);});
+test('setting the old MFA compatibility switch false cannot grant administrative privileges',async()=>{process.env.ADMIN_REQUIRE_MFA='false';const f=fixture();await assert.rejects(security.requireAdmin(f.req,f.db),e=>e.getStatus?.()===403);assert.equal((await security.requireActor(f.req,f.db)).admin,false);});
+test('valid session-bound MFA grants admin and records the technical audit actor',async()=>{const f=fixture();f.req.headers['x-admin-proof']=f.proof();assert.equal((await security.requireAdmin(f.req,f.db)).id,f.user.id);assert.equal(f.req.adminAuditActorId,f.user.id);});
+test('an old or revoked authenticator proof cannot grant administrative scope',async()=>{const f=fixture();f.req.headers['x-admin-proof']=f.proof();f.credential.version=3;await assert.rejects(security.requireAdmin(f.req,f.db),e=>e.getStatus?.()===403);});
+test('a proof copied from another primary session is rejected',async()=>{const f=fixture();f.req.headers['x-admin-proof']=f.proof({session_hash:'synthetic-other-session'});await assert.rejects(security.requireAdmin(f.req,f.db),e=>e.getStatus?.()===403);});
+test('normal travelers retain their own authenticated identity without admin MFA',async()=>{const f=fixture('traveler');assert.equal((await security.requireActor(f.req,f.db)).id,f.user.id);await assert.rejects(security.requireAdmin(f.req,f.db),e=>e.getStatus?.()===403);});
+test('admin enrollment eligibility remains available without granting business privileges',async()=>{const f=fixture();assert.equal((await security.requireAdminIdentity(f.req,f.db)).admin,true);assert.equal((await security.requireActor(f.req,f.db)).admin,false);});
+test('internal service authentication rejects missing and incorrect credentials',()=>{for(const headers of [{},{'x-internal-service-token':'bad'}])assert.throws(()=>security.requireInternalToken({headers}),e=>e.getStatus?.()===403);security.requireInternalToken({headers:{'x-internal-service-token':process.env.INTERNAL_SERVICE_TOKEN}});});

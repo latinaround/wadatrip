@@ -10,7 +10,8 @@ import { buildTourCode, buildTourSlug, findListingIdFromSlug, isLikelyListingId 
 import { COUNTRY_OPTIONS, getCitySuggestions, normalizeCountryCode } from '../utils/geoOptions';
 import { getListingShareCopy } from '../utils/listingMode';
 import { useAuth } from '../context/AuthContext.jsx';
-import { uploadImageFile } from '../services/mediaUpload';
+import { uploadImageFile, IMAGE_UPLOADS_ENABLED } from '../services/mediaUpload';
+import OperatorBetaNotice from '../components/OperatorBetaNotice';
 import OperatorReadinessPanel from '../components/OperatorReadinessPanel.jsx';
 import TourDateRequests from '../components/TourDateRequests.jsx';
 import { formatBookingDeparture } from '../utils/accountDisplay.js';
@@ -20,10 +21,6 @@ const tokenStorageKey = 'wadatrip_token';
 
 function readOperatorSessionToken() {
   if (typeof window === 'undefined') return null;
-  const hash = String(window.location.hash || '');
-  if (hash.startsWith('#auth_token=')) {
-    return decodeURIComponent(hash.slice('#auth_token='.length)) || null;
-  }
   return window.localStorage.getItem(tokenStorageKey);
 }
 
@@ -118,6 +115,7 @@ export default function OperatorToursNew() {
   const siteOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const sessionToken = useMemo(() => token || readOperatorSessionToken(), [token]);
   const [accessCode, setAccessCode] = useState('');
+  const [betaAccess, setBetaAccess] = useState(null);
   const [providerForm, setProviderForm] = useState(emptyProvider);
   const [providerStatus, setProviderStatus] = useState(null);
   const [providerMessage, setProviderMessage] = useState(null);
@@ -185,17 +183,6 @@ export default function OperatorToursNew() {
     historical.sort((a, b) => getBookingSortTime(b) - getBookingSortTime(a));
     return { upcomingProviderBookings: upcoming, historicalProviderBookings: historical };
   }, [providerBookings]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const hash = String(window.location.hash || '');
-    if (!hash.startsWith('#auth_token=')) return;
-    const incomingToken = decodeURIComponent(hash.slice('#auth_token='.length));
-    if (!incomingToken) return;
-    window.localStorage.setItem(tokenStorageKey, incomingToken);
-    const cleanUrl = `${window.location.pathname}${window.location.search}`;
-    window.location.replace(cleanUrl);
-  }, []);
 
   const authFetch = useCallback(async (path, init = {}) => {
     const headers = new Headers(init.headers || {});
@@ -716,7 +703,7 @@ export default function OperatorToursNew() {
         booking_cutoff_hours: tourForm.booking_cutoff_hours === '' ? undefined : Number(tourForm.booking_cutoff_hours),
         operational_contact: tourForm.operational_contact.trim() || undefined,
         tags: buildTagsPayload(),
-        status: tourForm.publish_now ? 'published' : 'draft',
+        status: tourForm.publish_now && betaAccess?.can_publish ? 'published' : 'draft',
         cover_image_url: coverImageUrl || undefined,
       };
 
@@ -977,6 +964,7 @@ export default function OperatorToursNew() {
   return (
     <div className="page-shell">
       <div className="page-container flex w-full flex-col gap-10">
+        <OperatorBetaNotice apiBase={apiBase} sessionToken={sessionToken} onAccess={setBetaAccess} />
         <header className="space-y-4 text-center">
           {isAuthenticatedMode ? (
             <div className="flex justify-start">
@@ -1356,10 +1344,11 @@ export default function OperatorToursNew() {
                   htmlFor="provider-photo-file"
                   className="flex h-12 cursor-pointer items-center justify-center rounded-md border border-[#00D9FF]/40 px-4 text-sm font-semibold text-[#00D9FF] transition hover:bg-[#00D9FF]/10 hover:text-white"
                 >
-                  {providerPhotoUploading ? 'Uploading...' : 'Upload photo'}
+                  {IMAGE_UPLOADS_ENABLED ? (providerPhotoUploading ? 'Uploading...' : 'Upload photo') : 'Device uploads paused'}
                 </label>
                 <input
                   id="provider-photo-file"
+                  disabled={!IMAGE_UPLOADS_ENABLED}
                   type="file"
                   accept="image/*"
                   className="hidden"
@@ -1857,10 +1846,11 @@ export default function OperatorToursNew() {
                   htmlFor="tour-cover-file"
                   className="flex h-12 cursor-pointer items-center justify-center rounded-md border border-[#00D9FF]/40 px-4 text-sm font-semibold text-[#00D9FF] transition hover:bg-[#00D9FF]/10 hover:text-white"
                 >
-                  {tourCoverUploading ? 'Uploading...' : 'Upload cover'}
+                  {IMAGE_UPLOADS_ENABLED ? (tourCoverUploading ? 'Uploading...' : 'Upload cover') : 'Device uploads paused'}
                 </label>
                 <input
                   id="tour-cover-file"
+                  disabled={!IMAGE_UPLOADS_ENABLED}
                   type="file"
                   accept="image/*"
                   className="hidden"
@@ -1908,7 +1898,8 @@ export default function OperatorToursNew() {
                 <input
                   id="tour-publish-now"
                   type="checkbox"
-                  checked={tourForm.publish_now}
+                  checked={Boolean(tourForm.publish_now && betaAccess?.can_publish)}
+                  disabled={!betaAccess?.can_publish}
                   onChange={(event) => handleTourChange('publish_now', event.target.checked)}
                 />
                 <label htmlFor="tour-publish-now">
@@ -1932,7 +1923,9 @@ export default function OperatorToursNew() {
                   : t('operator.publishing_label', 'Publishing...')
                 : editingId
                   ? t('operator.update_button', 'Update tour')
-                  : isFreeTour
+                  : !betaAccess?.can_publish
+                    ? 'Save draft tour'
+                    : isFreeTour
                     ? 'Publish free tour'
                     : t('operator.publish_button', 'Publish tour')}
             </Button>

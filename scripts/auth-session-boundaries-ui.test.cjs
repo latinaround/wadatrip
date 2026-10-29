@@ -128,10 +128,10 @@ async function main() {
       assert.equal(await page.evaluate(() => localStorage.getItem('wadatrip_token')), token('traveler'));
       assert.equal(await page.getByRole('heading', { name: 'Hi, Synthetic traveler', exact: true }).count(), 1);
     }, { delayedUpdate: true });
-    await check('A legacy sign-in return URL cannot restore the session after logout and reload', async ({ page, signedOut }) => {
+    await check('A retired sign-in fragment cannot establish or restore a session', async ({ page, signedOut, calls }) => {
       await page.goto(`${origin}/account?return_test=synthetic#auth_token=${encodeURIComponent(token('owner'))}`);
-      await page.getByRole('heading', { name: 'Hi, Synthetic owner', exact: true }).waitFor();
-      await page.getByRole('button', { name: 'Log out', exact: true }).click(); await signedOut();
+      await signedOut();
+      assert.equal(calls.filter(call => call.path === '/auth/me').length, 0);
       await page.reload(); await signedOut();
       assert.equal(new URL(page.url()).hash, '');
       assert.equal(new URL(page.url()).searchParams.get('return_test'), 'synthetic');

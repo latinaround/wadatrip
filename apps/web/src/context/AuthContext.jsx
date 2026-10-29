@@ -5,11 +5,6 @@ const tokenStorageKey = 'wadatrip_token';
 
 function readInitialToken() {
   if (typeof window === 'undefined') return null;
-  const hash = String(window.location.hash || '');
-  if (hash.startsWith('#auth_token=')) {
-    try { return decodeURIComponent(hash.slice('#auth_token='.length)) || null; }
-    catch { return null; }
-  }
   return window.localStorage.getItem(tokenStorageKey);
 }
 
@@ -134,7 +129,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const requests = profileRequest;
-    // Consume the legacy return fragment once; reload after logout must not reuse it.
+    // Retire legacy credential fragments without ever accepting their contents.
     if (window.location.hash.startsWith('#auth_token=')) {
       window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`);
     }

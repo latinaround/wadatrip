@@ -15,6 +15,7 @@ export function requireNewPaymentAccess(providerId: string, env: NodeJS.ProcessE
   const mode = stripePaymentMode(env);
   if (env.PAYMENTS_ACCEPT_NEW === 'false') throw new ServiceUnavailableException('Online payments are temporarily unavailable');
   if (mode === 'live') {
+    if (env.OPERATOR_BETA_PREPARATION_ONLY !== 'false') throw new ServiceUnavailableException('Operator beta does not accept real payments');
     const providers = String(env.PAYMENTS_LIVE_PROVIDER_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
     if (env.PAYMENTS_LIVE_ENABLED !== 'true' || env.PAYMENTS_ACCEPT_NEW !== 'true' || !providers.includes(providerId)) {
       throw new ServiceUnavailableException('Real payments have not been enabled for this operator');
