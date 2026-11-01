@@ -1,3 +1,4 @@
+import {sessionFetch} from '../lib/web-request';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
@@ -16,13 +17,6 @@ import OperatorReadinessPanel from '../components/OperatorReadinessPanel.jsx';
 import TourDateRequests from '../components/TourDateRequests.jsx';
 import { formatBookingDeparture } from '../utils/accountDisplay.js';
 import OperatorBookingInbox from '../components/OperatorBookingInbox.jsx';
-
-const tokenStorageKey = 'wadatrip_token';
-
-function readOperatorSessionToken() {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(tokenStorageKey);
-}
 
 const emptyProvider = {
   type: 'operator',
@@ -110,10 +104,10 @@ function ProviderBookingCard({ booking }) {
 export default function OperatorToursNew() {
   const location = useLocation();
   const { t } = useTranslation();
-  const { user, token, logout } = useAuth();
+  const { user, sessionKey: authSessionKey, logout } = useAuth();
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const siteOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-  const sessionToken = useMemo(() => token || readOperatorSessionToken(), [token]);
+  const sessionKey = authSessionKey;
   const [accessCode, setAccessCode] = useState('');
   const [betaAccess, setBetaAccess] = useState(null);
   const [providerForm, setProviderForm] = useState(emptyProvider);
@@ -159,7 +153,7 @@ export default function OperatorToursNew() {
   useEffect(() => {
     if (new URLSearchParams(location.search).get('panel') === 'operations') setActivePanel('operations');
   }, [location.key, location.search]);
-  const isAuthenticatedMode = Boolean(sessionToken);
+  const isAuthenticatedMode = Boolean(sessionKey);
   const ownedProviderId = providerStatus?.id ? String(providerStatus.id) : '';
   const providerApprovalStatus = String(providerStatus?.status || providerStatus?.verification_status || '').toLowerCase();
   const providerApproved = ['approved', 'verified'].includes(providerApprovalStatus);
@@ -189,14 +183,12 @@ export default function OperatorToursNew() {
     if (!headers.has('Content-Type') && init.method && init.method !== 'GET') {
       headers.set('Content-Type', 'application/json');
     }
-    if (sessionToken) {
-      headers.set('Authorization', `Bearer ${sessionToken}`);
-    }
+    
     if (accessCodeTrimmed) {
       headers.set('x-operator-access-code', accessCodeTrimmed);
     }
 
-    const response = await fetch(`${apiBase}${path}`, {
+    const response = await sessionFetch(`${apiBase}${path}`, {
       credentials: 'include',
       ...init,
       headers,
@@ -209,7 +201,7 @@ export default function OperatorToursNew() {
       throw error;
     }
     return payload;
-  }, [accessCodeTrimmed, apiBase, sessionToken]);
+  }, [accessCodeTrimmed, apiBase, sessionKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -248,7 +240,7 @@ export default function OperatorToursNew() {
   }, [user?.email, user?.name]);
 
   const loadOwnedProvider = useCallback(async () => {
-    if (!sessionToken) {
+    if (!sessionKey) {
       setProviderStatus(null);
       setProviderForm((prev) => ({
         ...prev,
@@ -279,14 +271,14 @@ export default function OperatorToursNew() {
     } finally {
       setLoadingOwnedProvider(false);
     }
-  }, [applyProviderProfile, authFetch, logout, sessionToken, user?.email, user?.name]);
+  }, [applyProviderProfile, authFetch, logout, sessionKey, user?.email, user?.name]);
 
   useEffect(() => {
     loadOwnedProvider();
   }, [loadOwnedProvider]);
 
   const loadOwnedListings = useCallback(async () => {
-    if (!sessionToken) {
+    if (!sessionKey) {
       setOwnedListings([]);
       return [];
     }
@@ -304,14 +296,14 @@ export default function OperatorToursNew() {
     } finally {
       setLoadingOwnedListings(false);
     }
-  }, [authFetch, logout, sessionToken]);
+  }, [authFetch, logout, sessionKey]);
 
   useEffect(() => {
     loadOwnedListings();
   }, [loadOwnedListings]);
 
   const loadProviderBookings = useCallback(async () => {
-    if (!sessionToken || !ownedProviderId) {
+    if (!sessionKey || !ownedProviderId) {
       setProviderBookings([]);
       return [];
     }
@@ -330,14 +322,14 @@ export default function OperatorToursNew() {
     } finally {
       setProviderBookingsLoading(false);
     }
-  }, [authFetch, logout, ownedProviderId, sessionToken]);
+  }, [authFetch, logout, ownedProviderId, sessionKey]);
 
   useEffect(() => {
     loadProviderBookings();
   }, [loadProviderBookings]);
 
   const loadPayoutStatus = useCallback(async (providerId) => {
-    if (!providerId || !sessionToken) {
+    if (!providerId || !sessionKey) {
       setPayoutStatus({ linked: false, ready: false });
       return null;
     }
@@ -351,7 +343,7 @@ export default function OperatorToursNew() {
       setPayoutMessage(error?.message || 'Could not verify payout status.');
       return null;
     }
-  }, [authFetch, logout, providerStatus?.stripe_account_id, sessionToken]);
+  }, [authFetch, logout, providerStatus?.stripe_account_id, sessionKey]);
 
   useEffect(() => {
     if (!ownedProviderId) return;
@@ -409,7 +401,7 @@ export default function OperatorToursNew() {
   };
 
   const loadAvailability = useCallback(async (listingId) => {
-    if (!listingId || !sessionToken) { setAvailabilityItems([]); return []; }
+    if (!listingId || !sessionKey) { setAvailabilityItems([]); return []; }
     setAvailabilityLoading(true); setAvailabilityMessage(null);
     try {
       const data = await authFetch(`/listings/${encodeURIComponent(listingId)}/availability/manage`, { method: 'GET' });
@@ -421,7 +413,7 @@ export default function OperatorToursNew() {
       setAvailabilityMessage(error?.message || 'Could not load availability.');
       return [];
     } finally { setAvailabilityLoading(false); }
-  }, [authFetch, logout, sessionToken]);
+  }, [authFetch, logout, sessionKey]);
 
   const saveAvailability = useCallback(async ({ date, spotsTotal }) => {
     const listingId = editingId || createdTour?.id;
@@ -823,7 +815,7 @@ export default function OperatorToursNew() {
     if (isLikelyListingId(slugOrId)) return slugOrId;
 
     const sources = [];
-    if (sessionToken) {
+    if (sessionKey) {
       try {
         const owned = await authFetch('/providers/me/listings?limit=200', { method: 'GET' });
         sources.push(...(Array.isArray(owned?.items) ? owned.items : []));
@@ -840,19 +832,19 @@ export default function OperatorToursNew() {
   };
 
   useEffect(() => {
-    if (pendingEditId && (accessCodeTrimmed || sessionToken)) {
-      handleLoadTourById(pendingEditId);
+    if (pendingEditId && (accessCodeTrimmed || sessionKey)) {
+      handleLoadTourById(pendingEditId, { openEditor: true });
       setPendingEditId(null);
     }
-  }, [pendingEditId, accessCodeTrimmed, sessionToken]);
+  }, [pendingEditId, accessCodeTrimmed, sessionKey]);
 
   useEffect(() => {
-    if (!sessionToken || editingId || pendingEditId || loadingTourId || autoLoadAttempted) return;
+    if (!sessionKey || editingId || pendingEditId || loadingTourId || autoLoadAttempted) return;
     if (ownedListings.length === 1) {
       setAutoLoadAttempted(true);
       handleLoadTourById(ownedListings[0].id, { scroll: false });
     }
-  }, [autoLoadAttempted, editingId, loadingTourId, ownedListings, pendingEditId, sessionToken]);
+  }, [autoLoadAttempted, editingId, loadingTourId, ownedListings, pendingEditId, sessionKey]);
 
   const handleLoadTour = async (event) => {
     event.preventDefault();
@@ -964,7 +956,7 @@ export default function OperatorToursNew() {
   return (
     <div className="page-shell">
       <div className="page-container flex w-full flex-col gap-10">
-        <OperatorBetaNotice apiBase={apiBase} sessionToken={sessionToken} onAccess={setBetaAccess} />
+        <OperatorBetaNotice apiBase={apiBase} sessionKey={sessionKey} onAccess={setBetaAccess} />
         <header className="space-y-4 text-center">
           {isAuthenticatedMode ? (
             <div className="flex justify-start">
@@ -1022,8 +1014,8 @@ export default function OperatorToursNew() {
           </nav>
         ) : null}
 
-        {user && token && ownedProviderId && activePanel === 'operations' ? <OperatorBookingInbox key={user.id} /> : null}
-        {user && token && activePanel === 'operations' ? <TourDateRequests apiBase={apiBase} operator /> : null}
+        {user && sessionKey && ownedProviderId && activePanel === 'operations' ? <OperatorBookingInbox key={user.id} /> : null}
+        {user && sessionKey && activePanel === 'operations' ? <TourDateRequests apiBase={apiBase} operator /> : null}
 
         {isAuthenticatedMode && ownedProviderId && activePanel === 'operations' ? (
           <section className="page-card">

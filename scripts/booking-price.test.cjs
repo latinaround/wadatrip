@@ -1,3 +1,4 @@
+const registryFixture=require('./session-fixture.cjs');registryFixture.install();
 // Build common, gateway and Provider Hub first. All DB, mail and Stripe IO is simulated.
 // node --test --test-isolation=none scripts/booking-price.test.cjs
 const { test, beforeEach, after } = require('node:test');
@@ -57,7 +58,7 @@ class FakeStripe {
 const originalLoad = Module._load;
 require('./helpers/capacity-fixture.cjs').addCapacityFixture(prisma);
 Module._load = function(request, ...args) {
-  if (request === '@wadatrip/db') return { getPrisma: () => prisma };
+  if (request === '@wadatrip/db') return { getPrisma:()=>registryFixture.enable(prisma) };
   if (request === '@prisma/client') throw new Error('Real DB forbidden');
   if (request === 'stripe') return FakeStripe;
   return originalLoad.call(this, request, ...args);

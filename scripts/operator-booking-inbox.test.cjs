@@ -1,3 +1,4 @@
+const registryFixture=require('./session-fixture.cjs');registryFixture.install();
 // Real Nest routes + JWT, synthetic Prisma only. No Stripe, remote DB, email, or .env.
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
@@ -52,7 +53,7 @@ const prisma = {
 };
 const originalLoad = ModuleLoader._load;
 ModuleLoader._load = function(name, parent, main) {
-  if (name === '@wadatrip/db') return { getPrisma: () => prisma };
+  if (name === '@wadatrip/db') return { getPrisma:()=>registryFixture.enable(prisma) };
   if (name === '@prisma/client' || name === 'stripe') throw new Error('External financial/database client forbidden');
   return originalLoad.call(this, name, parent, main);
 };

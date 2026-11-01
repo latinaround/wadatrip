@@ -1,3 +1,4 @@
+import {sessionFetch} from '../lib/web-request';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -32,13 +33,13 @@ export default function BookingCancellationPanel({ booking, onChanged }) {
   }
   const request = async () => {
     if (!reviewing || !canCancel || inFlight.current) return;
-    const token = auth.token, actor = auth.user?.id;
-    const current = () => session.current.token === token && session.current.user?.id === actor;
+    const sessionKey = auth.sessionKey, actor = auth.user?.id;
+    const current = () => session.current.sessionKey === sessionKey && session.current.user?.id === actor;
     inFlight.current = true; setBusy(true); setError('');
     try {
-      if (!token || !actor) throw new Error(t('cancellation.sign_in'));
-      const response = await fetch(`${AppConfig.api.baseUrl.replace(/\/$/, '')}/bookings/${encodeURIComponent(booking.id)}/cancel`, {
-        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      if (!sessionKey || !actor) throw new Error(t('cancellation.sign_in'));
+      const response = await sessionFetch(`${AppConfig.api.baseUrl.replace(/\/$/, '')}/bookings/${encodeURIComponent(booking.id)}/cancel`, {
+        method: 'POST', headers: { },
       });
       if (!current()) return;
       if (response.status === 401) { session.current.logout(); return; }

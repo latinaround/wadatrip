@@ -1,3 +1,4 @@
+const registryFixture=require('./session-fixture.cjs');registryFixture.install();
 // Run after building common, gateway and Provider Hub:
 // node --test --test-isolation=none scripts/security-p0.test.cjs
 // Real Nest HTTP routes, synthetic Prisma data, no external services or .env loading.
@@ -134,7 +135,7 @@ prisma.admin_mfa = { findUnique: async ({ where }) => ['admin', 'allowlisted'].i
   ? { enabled_at: new Date(), version: 1 } : null };
 require('./helpers/capacity-fixture.cjs').addCapacityFixture(prisma);
 ModuleLoader._load = function(request, parent, main) {
-  if (request === '@wadatrip/db') return { getPrisma: () => prisma };
+  if (request === '@wadatrip/db') return { getPrisma:()=>registryFixture.enable(prisma) };
   if (request === '@prisma/client') throw new Error('Real Prisma must never load in security HTTP tests');
   return originalLoad.call(this, request, parent, main);
 };

@@ -7,6 +7,7 @@ import { BookingsController } from './controllers/bookings.controller';
 import { ProvidersController } from './controllers/providers.controller';
 import { AlertsController } from './controllers/alerts.controller';
 import { AuthController } from './controllers/auth.controller';
+import { WebAuthController } from './controllers/web-auth.controller';
 import { DestinationCoversController } from './controllers/destination-covers.controller';
 import { PricingController } from './controllers/pricing.controller';
 import { WebhooksController } from './controllers/webhooks.controller';
@@ -37,6 +38,7 @@ import { OperatorLeadsController } from './controllers/operator-leads.controller
     ProvidersController,
     AlertsController,
     AuthController,
+    WebAuthController,
     DestinationCoversController,
     PricingController,
     WebhooksController,

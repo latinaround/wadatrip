@@ -1,3 +1,4 @@
+const {createUiCookieSession}=require('./helpers/ui-cookie-session.cjs');
 // Local frontend only. All API and Stripe navigation are intercepted with synthetic data.
 const assert = require('node:assert/strict');
 const { chromium } = require('../logs/p06-browser/node_modules/playwright-core');
@@ -13,13 +14,14 @@ async function main() {
  let passed = 0; const failures = [];
  async function check(name, fn, options = {}) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'en-US' });
-  if (!options.anonymous) await context.addInitScript(value => localStorage.setItem('wadatrip_token', value), token);
+  const cookies=createUiCookieSession(()=>({id:"synthetic-resume-user",name:"Synthetic Traveler",email:"synthetic@example.invalid"}),options.anonymous?null:"synthetic-resume-user");
   const calls = [], errors = []; let release;
   const barrier = new Promise(resolve => { release = resolve; });
   await context.route('**/*', async route => {
    const r = route.request(), url = new URL(r.url());
    if (url.href === target) return route.fulfill({ contentType: 'text/html', body: '<h1>Synthetic intercepted checkout</h1>' });
    if (!['fetch', 'xhr'].includes(r.resourceType())) return url.origin === origin ? route.continue() : route.abort();
+   if(await cookies.bootstrap(route))return;cookies.validate(r);
    assert.ok(['127.0.0.1', 'localhost'].includes(url.hostname), 'External API forbidden');
    calls.push({ path: url.pathname, method: r.method(), auth: r.headers().authorization, body: r.postData() });
    let status = 200, body = { items: [] };
@@ -31,7 +33,9 @@ async function main() {
     status = options.checkoutStatus || 200;
     body = status === 200 ? { url: target } : { message: status === 401 ? 'Synthetic session expired' : 'Synthetic checkout expired' };
    }
-   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+        if(url.pathname==='/auth/web/logout')body={ok:true};
+
+   return cookies.finish(route,status,body);
   });
   const page = await context.newPage(); page.setDefaultTimeout(2200); page.on('pageerror', error => errors.push(error.message));
   try {
@@ -53,7 +57,7 @@ async function main() {
    await page.screenshot({ path: 'logs/traveler-checkout-resume-mobile.png', fullPage: true });
    await button(page).click(); await page.waitForURL(target);
    const posts = calls.filter(c => c.path.endsWith('/checkout'));
-   assert.equal(posts.length, 1); assert.equal(posts[0].auth, `Bearer ${token}`);
+   assert.equal(posts.length, 1); assert.equal(posts[0].auth, undefined);
    assert.equal(posts[0].path, `/payments/bookings/${booking.id}/checkout`); assert.equal(posts[0].body, null);
   });
   for (const [label, changes] of [
@@ -78,7 +82,7 @@ async function main() {
    assert.equal(new URL(page.url()).origin, origin); assert.equal(calls.filter(c => c.path.endsWith('/checkout')).length, 1);
   }, { checkoutStatus: 409 });
   await check('checkout 401 clears the session through existing auth', async (page, calls) => {
-   await button(page).click(); await page.waitForFunction(() => !localStorage.getItem('wadatrip_token'));
+   await button(page).click(); await page.getByRole('button',{name:'Sign in',exact:true}).waitFor();
    assert.equal(await button(page).count(), 0); assert.equal(new URL(page.url()).origin, origin);
    assert.equal(calls.filter(c => c.path.endsWith('/checkout')).length, 1);
   }, { checkoutStatus: 401 });

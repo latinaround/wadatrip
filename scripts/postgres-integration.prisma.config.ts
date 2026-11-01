@@ -13,7 +13,7 @@ const url = new URL(`postgresql://127.0.0.1:55435/${database}`);
 url.username = target.user; url.password = target.password;
 process.env.DATABASE_URL = url.toString();
 const stage = process.env.P05_MIGRATION_STAGE;
-if (stage && !['partial_baseline', 'partial_upgrade', 'recovered_baseline'].includes(stage)) {
+if (stage && !['partial_baseline', 'partial_upgrade', 'recovered_baseline', 'sec1_baseline'].includes(stage)) {
   throw new Error('Unknown historical migration stage');
 }
 export default defineConfig({

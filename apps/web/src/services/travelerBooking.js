@@ -8,11 +8,11 @@ function sessionError() {
 // AuthContext owns the session. Never read storage or accept a caller-selected actor.
 function travelerRequest({ apiBase, getSession }) {
   const session = getSession();
-  if (session.loading || !session.user?.id || !session.token) throw sessionError();
+  if (session.loading || !session.user?.id || !session.sessionKey) throw sessionError();
 
   const assertSession = () => {
     const current = getSession();
-    if (current.loading || !current.user || current.user.id !== session.user.id || current.token !== session.token) {
+    if (current.loading || !current.user || current.user.id !== session.user.id || current.sessionKey !== session.sessionKey) {
       throw sessionError();
     }
     return current;
@@ -20,11 +20,11 @@ function travelerRequest({ apiBase, getSession }) {
 
   async function post(path, body) {
     assertSession();
-    const response = await fetch(`${apiBase}${path}`, {
+    let response;try{response = await session.request(`${apiBase}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token}` },
+      headers: { 'Content-Type': 'application/json', },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
+    });}catch(error){const current=assertSession();if(error.status===401){current.logout();throw sessionError();}throw error;}
     // A late response from a previous session must not log out a different traveler.
     const current = assertSession();
     if (response.status === 401) {

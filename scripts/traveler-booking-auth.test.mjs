@@ -1,15 +1,18 @@
 // Run after building common and gateway. Synthetic sessions, mocked HTTP/DB, no external calls.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import {createCookieFixture} from './helpers/web-cookie-fixture.mjs';
 import Module, { createRequire } from 'node:module';
 import { bookTravelerExperience, SIGN_IN_REQUIRED, TRAVELER_NAME_REQUIRED } from '../apps/web/src/services/travelerBooking.js';
 
 function fixture(t, responses = []) {
   const calls = [];
   let logouts = 0;
+  const cookieRequest=awaitCookieRequest();
+  function awaitCookieRequest(){return createCookieFixture((...args)=>globalThis.fetch(...args));}
   let session = {
-    user: { id: 'traveler-a', name: 'Synthetic Traveler' }, token: 'synthetic-traveler-token', loading: false,
-    logout() { logouts++; session = { ...session, user: null, token: null }; },
+    user: { id: 'traveler-a', name: 'Synthetic Traveler' }, sessionKey: 'a'.repeat(64)+':1', request: cookieRequest, loading: false,
+    logout() { logouts++; session = { ...session, user: null, sessionKey: null }; },
   };
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     assert.equal(new URL(url).hostname, '127.0.0.1');
@@ -33,7 +36,7 @@ const booked = () => ({ status: 201, data: { id: 'booking-a' } });
 const checkedOut = () => ({ data: { url: 'http://127.0.0.1:3015/synthetic-checkout' } });
 const requiresSignIn = error => error.status === 401 && error.message === SIGN_IN_REQUIRED;
 
-test('authenticated traveler sends Bearer on booking and successful booking checkout', async t => {
+test('authenticated traveler sends cookie session on booking and successful booking checkout', async t => {
   const f = fixture(t, [booked(), checkedOut()]);
   const result = await f.run();
   assert.equal(f.calls.length, 2);
@@ -41,7 +44,7 @@ test('authenticated traveler sends Bearer on booking and successful booking chec
   assert.equal(f.calls[1].url, 'http://127.0.0.1:3015/payments/bookings/booking-a/checkout');
   for (const call of f.calls) {
     assert.equal(call.method, 'POST');
-    assert.equal(call.headers.Authorization, 'Bearer synthetic-traveler-token');
+    assert.equal(new Headers(call.headers).has('Authorization'),false);assert.equal(call.credentials,'include');assert.equal(new Headers(call.headers).get('X-CSRF-Token'),'c'.repeat(64));
   }
   assert.equal(result.checkoutUrl, 'http://127.0.0.1:3015/synthetic-checkout');
   assert.equal(f.logouts(), 0);
@@ -50,9 +53,9 @@ test('authenticated traveler sends Bearer on booking and successful booking chec
 test('anonymous, incomplete or still-loading session never sends booking or checkout', async t => {
   const f = fixture(t);
   for (const changes of [
-    { user: null, token: null }, { user: null }, { token: null }, { loading: true },
+    { user: null, sessionKey: null }, { user: null }, { sessionKey: null }, { loading: true },
   ]) {
-    f.setSession({ user: { id: 'traveler-a' }, token: 'synthetic-token', loading: false, ...changes });
+    f.setSession({ user: { id: 'traveler-a' }, sessionKey: 'synthetic-sessionKey', loading: false, ...changes });
     await assert.rejects(f.run(), requiresSignIn);
   }
   assert.equal(f.calls.length, 0);
@@ -70,7 +73,7 @@ test('booking 401 invalidates the existing session and never executes checkout',
   await assert.rejects(f.run(), requiresSignIn);
   assert.equal(f.calls.length, 1);
   assert.equal(f.logouts(), 1);
-  assert.equal(f.getSession().token, null);
+  assert.equal(f.getSession().sessionKey, null);
 });
 
 test('checkout 401 invalidates the session and never returns a redirect or retries', async t => {
@@ -78,7 +81,7 @@ test('checkout 401 invalidates the session and never returns a redirect or retri
   await assert.rejects(f.run(), requiresSignIn);
   assert.equal(f.calls.length, 2);
   assert.equal(f.logouts(), 1);
-  assert.equal(f.getSession().token, null);
+  assert.equal(f.getSession().sessionKey, null);
 });
 
 test('booking payload excludes user_id, email, role and other client-selected identity', async t => {
@@ -99,11 +102,11 @@ test('ordinary booking failure also prevents checkout without logging the travel
   assert.equal(f.logouts(), 0);
 });
 
-test('free tour still requires Bearer but never starts checkout', async t => {
+test('free tour still requires cookie session but never starts checkout', async t => {
   const f = fixture(t, [{ status: 201, data: { id: 'booking-a', amount_cents: 0 } }]);
   const result = await f.run();
   assert.equal(f.calls.length, 1);
-  assert.equal(f.calls[0].headers.Authorization, 'Bearer synthetic-traveler-token');
+  assert.equal(new Headers(f.calls[0].headers).has('Authorization'),false);assert.equal(f.calls[0].credentials,'include');assert.equal(new Headers(f.calls[0].headers).get('X-CSRF-Token'),'c'.repeat(64));
   assert.equal(result.booking.id, 'booking-a');
   assert.equal(result.checkoutUrl, undefined);
 });
@@ -123,7 +126,7 @@ test('logout while booking is in flight stops checkout', async t => {
 
 test('late 401 for traveler A cannot log out traveler B', async t => {
   const f = fixture(t, [{ status: 401, data: {}, beforeReply: () => f.setSession({
-    ...f.getSession(), user: { id: 'traveler-b' }, token: 'synthetic-token-b',
+    ...f.getSession(), user: { id: 'traveler-b' }, sessionKey: 'synthetic-sessionKey-b',
   }) }]);
   await assert.rejects(f.run(), requiresSignIn);
   assert.equal(f.calls.length, 1);
@@ -139,6 +142,7 @@ test('changing session before checkout returns prevents handing its URL to anoth
 
 test('free tour creates durable notifications from authenticated booking identity without synchronous email', async t => {
   const require = createRequire(import.meta.url);
+const registryFixture=require('./session-fixture.cjs');registryFixture.install();
   const overrides = {
     NODE_ENV: 'test', FF_PROVIDER_HUB: 'false', JWT_SECRET: 'synthetic-free-tour-test-key',
     ADMIN_EMAILS: '', ADMIN_USER_IDS: '',
@@ -161,7 +165,7 @@ test('free tour creates durable notifications from authenticated booking identit
   const originalLoad = Module._load;
   const { bookingNotifications } = require('./helpers/capacity-fixture.cjs').addCapacityFixture(prisma);
   t.mock.method(Module, '_load', function (request, ...args) {
-    if (request === '@wadatrip/db') return { getPrisma: () => prisma };
+    if (request === '@wadatrip/db') return { getPrisma: () => registryFixture.enable(prisma) };
     if (request === '@prisma/client') throw new Error('Real database access forbidden in this test');
     return originalLoad.call(this, request, ...args);
   });

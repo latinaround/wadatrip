@@ -1,3 +1,4 @@
+const registryFixture=require('./session-fixture.cjs');registryFixture.install();
 // Synthetic JWT, mocked DB/processor. No external requests or real credentials.
 const { test, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -27,7 +28,7 @@ class FakeStripe {
 }
 const originalLoad = Module._load;
 Module._load = function(name, ...args) {
-  if (name === '@wadatrip/db') return { getPrisma: () => prisma };
+  if (name === '@wadatrip/db') return { getPrisma:()=>registryFixture.enable(prisma) };
   if (name === 'stripe') return FakeStripe;
   return originalLoad.call(this, name, ...args);
 };

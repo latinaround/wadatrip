@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Post, Query, Req, Res, BadRequestException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { getPrisma } from '@wadatrip/db';
-import { getJwtSecret, getClaimsFromAuth, requireAdminIdentity } from '@wadatrip/common/security';
+import { getJwtSecret, requireAdminIdentity } from '@wadatrip/common/security';
 import { hasAdminProof } from '@wadatrip/common/admin-proof';
+import { currentSession, databaseNow } from '@wadatrip/common/sessions';
 import { setupAdminMfa, verifyAdminMfa } from '../services/admin-mfa.service';
 import { readAdminUsers } from '../services/admin-user-data.service';
+import { controlProxyDiagnostic } from '../services/proxy-diagnostic.service';
 
 export const adminUserSelect = { id: true, name: true, email: true, role: true, status: true, created_at: true, last_login_at: true,
   _count: { select: { bookings: true, tour_date_requests: true } }, provider_profile: { select: { id: true, status: true } } };
@@ -43,14 +45,20 @@ export class AdminController {
   }
   @Post('mfa/setup')
   async setup(@Req() req: any, @Res({ passthrough: true }) res: any) {
-    const actor = await this.identity(req, res), claims = getClaimsFromAuth(req);
-    if (typeof claims?.iat !== 'number' || Date.now() / 1000 - claims.iat > 10 * 60) {
+    const actor = await this.identity(req, res), session = currentSession(req);
+    if (!session.authenticated_at || +(await databaseNow(getPrisma())) - +session.authenticated_at > 10 * 60000) {
       throw new ForbiddenException({ message: 'Inicia sesión de nuevo antes de configurar tu autenticador.', code: 'ADMIN_PRIMARY_REAUTH_REQUIRED' });
     }
-    return setupAdminMfa(getPrisma(), actor);
+    return setupAdminMfa(getPrisma(), actor, req);
   }
   @Post('mfa/verify')
-  async verify(@Req() req: any, @Body() body: any, @Res({ passthrough: true }) res: any) { return verifyAdminMfa(getPrisma(), await this.identity(req, res), req, body?.code); }
+  async verify(@Req() req: any, @Body() body: any, @Res({ passthrough: true }) res: any) {
+    if (body && Object.prototype.hasOwnProperty.call(body, 'proxy_diagnostic')) {
+      res.setHeader('Cache-Control', 'no-store');
+      return controlProxyDiagnostic(req, body.proxy_diagnostic);
+    }
+    return verifyAdminMfa(getPrisma(), await this.identity(req, res), req, body?.code);
+  }
 
   private async read(prisma: any, actor: any, delegate: string, query: any, where: any, select: any, action: string) {
     const { page, limit, skip } = adminPagination(query);

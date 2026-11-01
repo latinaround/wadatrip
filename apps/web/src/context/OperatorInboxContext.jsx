@@ -1,3 +1,4 @@
+import {sessionFetch} from '../lib/web-request';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthContext.jsx';
 import { AppConfig } from '../config/appConfig';
@@ -6,24 +7,24 @@ const Context = createContext({ data: null, error: false, refresh: async () => {
 const base = (AppConfig.api.baseUrl || '').replace(/\/$/, '');
 
 export function OperatorInboxProvider({ children }) {
-  const { user, token, logout } = useAuth();
+  const { user, sessionKey, logout } = useAuth();
   const userId = user?.id;
   const auth = useRef();
-  auth.current = { userId, token };
+  auth.current = { userId, sessionKey };
   const requests = useRef(new Set());
   const sequence = useRef(0);
   const [snapshot, setSnapshot] = useState(null);
-  const current = useCallback(identity => auth.current.userId === identity.userId && auth.current.token === identity.token, []);
+  const current = useCallback(identity => auth.current.userId === identity.userId && auth.current.sessionKey === identity.sessionKey, []);
 
   const request = useCallback(async (path, method = 'GET') => {
-    const identity = { userId, token };
-    if (!userId || !token) throw new Error('Sign in required');
+    const identity = { userId, sessionKey };
+    if (!userId || !sessionKey) throw new Error('Sign in required');
     const controller = new AbortController();
     requests.current.add(controller);
     const timeout = window.setTimeout(() => controller.abort(), 12000);
     try {
-      const response = await fetch(`${base}/operator/booking-inbox${path}`, {
-        method, headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, signal: controller.signal,
+      const response = await sessionFetch(`${base}/operator/booking-inbox${path}`, {
+        method, headers: { Accept: 'application/json' }, signal: controller.signal,
       });
       if (!current(identity)) throw new Error('Session changed');
       if (response.status === 401) logout();
@@ -33,11 +34,11 @@ export function OperatorInboxProvider({ children }) {
       window.clearTimeout(timeout);
       requests.current.delete(controller);
     }
-  }, [userId, token, logout, current]);
+  }, [userId, sessionKey, logout, current]);
 
   const refresh = useCallback(async () => {
-    const identity = { userId, token };
-    if (!userId || !token) return;
+    const identity = { userId, sessionKey };
+    if (!userId || !sessionKey) return;
     const order = ++sequence.current;
     try {
       const data = await request('');
@@ -45,7 +46,7 @@ export function OperatorInboxProvider({ children }) {
     } catch {
       if (current(identity) && order === sequence.current) setSnapshot({ ...identity, data: null, error: true });
     }
-  }, [userId, token, request, current]);
+  }, [userId, sessionKey, request, current]);
 
   const review = useCallback(async id => {
     await request(`/${encodeURIComponent(id)}/review`, 'POST');

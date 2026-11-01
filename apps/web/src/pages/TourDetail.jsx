@@ -139,7 +139,7 @@ export default function TourDetail() {
   const auth = useAuth();
   const sessionRef = useRef(auth);
   sessionRef.current = auth;
-  const { user, token, loading: authLoading } = auth;
+  const { user, sessionKey, loading: authLoading } = auth;
   const [authOpen, setAuthOpen] = useState(false);
   const apiBase = useMemo(() => normalizeBaseUrl(AppConfig.api.baseUrl), []);
   const [tour, setTour] = useState(null);
@@ -155,7 +155,7 @@ export default function TourDetail() {
   const [profileSaving, setProfileSaving] = useState(false);
   const bookingButtonRef = useRef(null);
   const focusAfterNameSave = useRef(false);
-  const needsTravelerName = Boolean(user && token && !String(user.name || '').trim());
+  const needsTravelerName = Boolean(user && sessionKey && !String(user.name || '').trim());
   const [shareMessage, setShareMessage] = useState(null);
   const [bookingForm, setBookingForm] = useState({
     num_people: 1,
@@ -171,11 +171,11 @@ export default function TourDetail() {
   }, [user?.id, user?.name]);
 
   useEffect(() => {
-    if (focusAfterNameSave.current && !profileSaving && user && token && !needsTravelerName) {
+    if (focusAfterNameSave.current && !profileSaving && user && sessionKey && !needsTravelerName) {
       focusAfterNameSave.current = false;
       bookingButtonRef.current?.focus();
     }
-  }, [profileSaving, user, token, needsTravelerName]);
+  }, [profileSaving, user, sessionKey, needsTravelerName]);
 
   useEffect(() => {
     let mounted = true;
@@ -321,7 +321,7 @@ export default function TourDetail() {
 
   const handleBooking = async () => {
     if (!currentHost) return;
-    if (!user || !token) {
+    if (!user || !sessionKey) {
       setAuthOpen(true);
       return;
     }
@@ -528,7 +528,7 @@ export default function TourDetail() {
               {currentTerms.terms.bookings_open === false ? <p role="alert">Reservations have closed for this departure.</p> : null}
               {currentTerms.terms.version ? <label className="flex items-start gap-2"><input type="checkbox" checked={policyAccepted} onChange={event => setPolicyAccepted(event.target.checked)} />I have read and accept this cancellation policy.</label> : null}
             </div> : null}
-            {!authLoading && (!user || !token) && !bookingError && <p className="mt-4 text-sm text-[#526173]">{SIGN_IN_REQUIRED}</p>}
+            {!authLoading && (!user || !sessionKey) && !bookingError && <p className="mt-4 text-sm text-[#526173]">{SIGN_IN_REQUIRED}</p>}
             {!authLoading && needsTravelerName ? (
               <div className="mt-4 rounded-2xl border border-[#e7c89d] bg-[#fff8eb] p-4">
                 <p className="font-semibold text-[#172033]">Add your name before booking</p>
@@ -558,7 +558,7 @@ export default function TourDetail() {
               </div>
             )}
             <Button ref={bookingButtonRef} type="button" className="mt-5 h-12 w-full rounded-2xl bg-[#0f172a] text-sm font-black uppercase tracking-[0.16em] text-white hover:scale-[1.01] hover:bg-[#167c7d]" onClick={needsTravelerName ? handleSaveTravelerName : handleBooking} disabled={bookingLoading || authLoading || profileSaving || (needsTravelerName && !travelerName.trim())}>
-              {authLoading ? 'Checking session...' : profileSaving ? 'Saving name...' : bookingLoading ? 'Processing...' : !user || !token ? 'Sign in to book' : needsTravelerName ? 'Save name and continue' : getListingBookingCta(currentHost)}
+              {authLoading ? 'Checking session...' : profileSaving ? 'Saving name...' : bookingLoading ? 'Processing...' : !user || !sessionKey ? 'Sign in to book' : needsTravelerName ? 'Save name and continue' : getListingBookingCta(currentHost)}
             </Button>
             <Button
               variant="outline"

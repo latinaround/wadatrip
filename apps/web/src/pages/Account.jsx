@@ -1,3 +1,4 @@
+import {sessionFetch} from '../lib/web-request';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -169,7 +170,7 @@ const Account = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const isTripsView = location.pathname.replace(/\/+$/, '') === '/account/trips';
-  const { user, token, logout, refreshProfile } = useAuth();
+  const { user, sessionKey, logout, refreshProfile } = useAuth();
   const [itineraries, setItineraries] = useState([]);
   const [itinerariesLoading, setItinerariesLoading] = useState(true);
   const [itinerariesError, setItinerariesError] = useState(null);
@@ -194,12 +195,11 @@ const Account = () => {
   }, [isTripsView]);
 
   const fetchJson = useCallback(async (path, init = {}) => {
-    if (!token) throw new Error('User is not authenticated');
+    if (!sessionKey) throw new Error('User is not authenticated');
     const headers = new Headers(init.headers || {});
     headers.set('Accept', 'application/json');
     headers.set('Content-Type', 'application/json');
-    headers.set('Authorization', `Bearer ${token}`);
-    const response = await fetch(`${apiBase}${path}`, {
+    const response = await sessionFetch(`${apiBase}${path}`, {
       method: 'GET',
       credentials: 'include',
       ...init,
@@ -221,7 +221,7 @@ const Account = () => {
       throw error;
     }
     return data;
-  }, [token]);
+  }, [sessionKey]);
 
   const fetchFirstAvailable = useCallback(async (paths) => {
     let lastError = null;
@@ -241,7 +241,7 @@ const Account = () => {
   }, [fetchJson]);
 
   const loadItineraries = useCallback(async () => {
-    if (!token) return;
+    if (!sessionKey) return;
     setItinerariesLoading(true);
     setItinerariesError(null);
     try {
@@ -254,10 +254,10 @@ const Account = () => {
     } finally {
       setItinerariesLoading(false);
     }
-  }, [fetchJson, logout, token]);
+  }, [fetchJson, logout, sessionKey]);
 
   const loadBookings = useCallback(async () => {
-    if (!token) return;
+    if (!sessionKey) return;
     setBookingsLoading(true);
     setBookingsError(null);
     try {
@@ -274,10 +274,10 @@ const Account = () => {
     } finally {
       setBookingsLoading(false);
     }
-  }, [fetchFirstAvailable, logout, token]);
+  }, [fetchFirstAvailable, logout, sessionKey]);
 
   const loadPayments = useCallback(async () => {
-    if (!token) return;
+    if (!sessionKey) return;
     setPaymentsLoading(true);
     setPaymentsError(null);
     try {
@@ -295,10 +295,10 @@ const Account = () => {
     } finally {
       setPaymentsLoading(false);
     }
-  }, [fetchFirstAvailable, logout, token]);
+  }, [fetchFirstAvailable, logout, sessionKey]);
 
   const loadGuideProfile = useCallback(async () => {
-    if (!token || !user) return;
+    if (!sessionKey || !user) return;
     setGuideLoading(true);
     setGuideMessage(null);
     try {
@@ -316,7 +316,7 @@ const Account = () => {
     } finally {
       setGuideLoading(false);
     }
-  }, [fetchJson, logout, token, user]);
+  }, [fetchJson, logout, sessionKey, user]);
 
   useEffect(() => {
     if (!user) {
@@ -330,7 +330,7 @@ const Account = () => {
   }, [user]);
 
   useEffect(() => {
-    if (!token) {
+    if (!sessionKey) {
       setItineraries([]);
       setBookings([]);
       setPayments([]);
@@ -346,7 +346,7 @@ const Account = () => {
     loadBookings();
     loadPayments();
     loadGuideProfile();
-  }, [token, loadItineraries, loadBookings, loadPayments, loadGuideProfile]);
+  }, [sessionKey, loadItineraries, loadBookings, loadPayments, loadGuideProfile]);
 
   const activity = useMemo(() => separateTestActivity(bookings, payments), [bookings, payments]);
   const bookingHistory = partitionBookingHistory(activity.bookings);

@@ -1,3 +1,4 @@
+const {createUiCookieSession}=require('./helpers/ui-cookie-session.cjs');
 // Local frontend only. Every API response is synthetic and external resources are blocked.
 const assert = require('node:assert/strict');
 const { chromium } = require('../logs/p06-browser/node_modules/playwright-core');
@@ -10,7 +11,8 @@ async function main() {
   const failures = [];
   async function check(name, fn, options = {}) {
     const context = await browser.newContext({ viewport: options.mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, locale: 'en-US' });
-    await context.addInitScript(token => { if (!localStorage.getItem('wadatrip_token')) localStorage.setItem('wadatrip_token', token); localStorage.setItem('i18nextLng', 'en'); }, options.traveler ? 'synthetic-traveler' : 'synthetic-owner-a');
+    await context.addInitScript(()=>localStorage.setItem('i18nextLng','en'));
+    const cookies=createUiCookieSession(id=>({id,name:'Synthetic Account',email:'synthetic@example.test',role:'traveler'}),options.traveler?'synthetic-traveler':'synthetic-owner-a');
     const receipts = new Set(), calls = [], errors = [];
     const state = { fail: false, expire: false, failReview: false, extra: false };
     function inbox(owner) {
@@ -23,7 +25,7 @@ async function main() {
     await context.route('**/*', async route => {
       const request = route.request(), url = new URL(request.url());
       if (!['fetch', 'xhr'].includes(request.resourceType())) return url.origin === origin ? route.continue() : route.abort();
-      const owner = (request.headers().authorization || '').replace('Bearer ', '');
+      if(await cookies.bootstrap(route))return;const owner=cookies.validate(request);
       calls.push({ path: url.pathname, method: request.method(), owner });
       let body = { items: [] }, status = 200;
       const provider = { id: `provider-${owner}`, name: 'Synthetic Host', type: 'operator', status: 'verified', user_id: owner, listings: [] };
@@ -39,7 +41,9 @@ async function main() {
         if (state.failReview) { status = 503; body = { message: 'Synthetic unavailable' }; }
         else { receipts.add(`${owner}:${id}`); body = { booking_id: id, reviewed_at: '2026-10-20T23:00:00Z' }; }
       }
-      return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+        if(url.pathname==='/auth/web/logout')body={ok:true};
+
+      return cookies.finish(route,status,body);
     });
     const page = await context.newPage(); page.setDefaultTimeout(5000); page.on('pageerror', e => errors.push(e.message));
     const openDashboard = async () => {
@@ -48,9 +52,9 @@ async function main() {
       await page.getByRole('heading', { name: 'Reservations to review · 2', exact: true }).waitFor();
     };
     try {
-      await fn({ page, context, receipts, calls, state, openDashboard });
+      await fn({ page, context, receipts, calls, state, openDashboard, cookies });
       assert.deepEqual(errors, []);
-      assert.ok(calls.filter(call => call.method !== 'GET').every(call => call.method === 'POST' && /^\/operator\/booking-inbox\/[^/]+\/review$/.test(call.path)), 'No financial, email or inventory mutation');
+      assert.ok(calls.filter(call => call.method !== 'GET').every(call => call.method === 'POST' && (call.path==='/auth/web/logout' || /^\/operator\/booking-inbox\/[^/]+\/review$/.test(call.path))), 'Only explicit review and server logout writes; no financial, email or inventory mutation');
       passed++; console.log(`PASS: ${name}`);
     } catch (error) { failures.push(name); console.error(`FAIL: ${name}: ${error.message.split('\n')[0]}`); }
     finally { await context.close(); }
@@ -122,9 +126,9 @@ async function main() {
       await page.getByRole('button', { name: 'Become a host', exact: true }).waitFor();
       assert.equal(await page.getByRole('link', { name: /Operator dashboard/ }).count(), 0);
     }, { traveler: true });
-    await check('Account switch never shows the prior owner inbox', async ({ page, openDashboard }) => {
+    await check('Account switch never shows the prior owner inbox', async ({ page, openDashboard, cookies }) => {
       await openDashboard();
-      await page.evaluate(() => localStorage.setItem('wadatrip_token', 'synthetic-owner-b'));
+      cookies.select('synthetic-owner-b');
       await page.reload();
       await page.getByRole('heading', { name: 'Synthetic reservation owner-b-only', exact: true }).waitFor();
       assert.equal(await page.getByRole('heading', { name: 'Synthetic reservation live-one', exact: true }).count(), 0);

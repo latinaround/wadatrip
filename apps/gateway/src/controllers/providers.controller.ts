@@ -180,8 +180,8 @@ async function loadProviderWithRelations(prisma: any, id: string) {
   });
 }
 
-async function findOwnedProvider(prisma: any, user: any) {
-  const provider = await resolveOwnedProvider(prisma, user);
+async function findOwnedProvider(prisma: any, user: any, claim = false) {
+  const provider = await resolveOwnedProvider(prisma, user, claim);
   return provider ? loadProviderWithRelations(prisma, provider.id) : null;
 }
 
@@ -276,7 +276,7 @@ function buildOwnedProviderData(body: any, user: any, existing: any) {
 
 async function upsertOwnedProvider(prisma: any, user: any, body: any) {
   requireOperatorBetaAccess(user);
-  const existing = await findOwnedProvider(prisma, user);
+  const existing = await findOwnedProvider(prisma, user, true);
   const data = buildOwnedProviderData(body, user, existing);
 
   if (existing) {

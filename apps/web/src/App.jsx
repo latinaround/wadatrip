@@ -1,3 +1,4 @@
+import {sessionFetch} from './lib/web-request';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -98,7 +99,7 @@ function RouteFallback() {
 }
 
 function App() {
-  const { user, token, logout } = useAuth();
+  const { user, sessionKey, logout } = useAuth();
   const { t } = useTranslation();
   const apiBase = useMemo(() => (AppConfig.api.baseUrl || '').replace(/\/$/, ''), []);
   const location = useLocation();
@@ -145,11 +146,10 @@ function App() {
     setSearchError(null);
 
     try {
-      const response = await fetch(`${apiBase}/itineraries/generate`, {
+      const response = await sessionFetch(`${apiBase}/itineraries/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -182,11 +182,10 @@ function App() {
 
   const createPaymentIntent = async (itineraryId, scenario, amountCents, currency) => {
     try {
-      const response = await fetch(`${apiBase}/payments/create-intent`, {
+      const response = await sessionFetch(`${apiBase}/payments/create-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           amount: amountCents,
@@ -229,7 +228,7 @@ function App() {
   };
 
   const handleSelectScenario = ({ scenario, itineraryId, itineraryMeta }) => {
-    if (!token) {
+    if (!sessionKey) {
       setAuthDialogState({ open: true, mode: 'login', intent: 'traveler' });
       return;
     }

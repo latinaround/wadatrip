@@ -10,7 +10,8 @@ import { createProxyMiddleware, Options } from 'http-proxy-middleware';
 import cors from 'cors';
 import { allowedWebOrigins } from './services/request-security';
 import {verifyBetaRuntime} from './services/beta-runtime.service';
-import {logAuthProxyProbe} from './services/auth-rate-limit.service';
+import {webPolicy} from '@wadatrip/common/web-security';
+import {browserCors,responseSecurity,safeLog} from './services/browser-security';
 import { createWriteStream, existsSync, mkdirSync, WriteStream } from 'fs';
 import { join } from 'path';
 import type { ClientRequest, IncomingMessage } from 'http';
@@ -37,33 +38,32 @@ class GatewayLogger extends ConsoleLogger {
   private write(level: string, message: any, context?: string, trace?: string) {
     const timestamp = new Date().toISOString();
     const contextLabel = context ? ` [${context}]` : '';
-    let line = `${timestamp} ${level}${contextLabel} ${message}`;
-    if (trace) line += `\n${trace}`;
+    let line = `${timestamp} ${level}${contextLabel} ${safeLog(message)}`;
     this.stream.write(`${line}\n`);
   }
 
   log(message: any, context?: string) {
-    super.log(message, context);
+    super.log(safeLog(message), context);
     this.write('LOG', message, context);
   }
 
   warn(message: any, context?: string) {
-    super.warn(message, context);
+    super.warn(safeLog(message), context);
     this.write('WARN', message, context);
   }
 
   error(message: any, trace?: string, context?: string) {
-    super.error(message, trace, context);
+    super.error(safeLog(message), undefined, context);
     this.write('ERROR', message, context, trace);
   }
 
   debug(message: any, context?: string) {
-    super.debug(message, context);
+    super.debug(safeLog(message), context);
     this.write('DEBUG', message, context);
   }
 
   verbose(message: any, context?: string) {
-    super.verbose(message, context);
+    super.verbose(safeLog(message), context);
     this.write('VERBOSE', message, context);
   }
 }
@@ -71,6 +71,7 @@ class GatewayLogger extends ConsoleLogger {
 EventEmitter.defaultMaxListeners = 20;
 
 async function bootstrap() {
+  webPolicy();
   if(process.env.NODE_ENV==='production' && process.env.OPERATOR_BETA_PREPARATION_ONLY==='true') await verifyBetaRuntime();
   // 📁 Configurar carpeta de logs
   const logsDir = join(process.cwd(), 'logs');
@@ -79,18 +80,7 @@ async function bootstrap() {
   const logger = new GatewayLogger(logStream);
 
   const isAllowedOrigin = allowedWebOrigins(process.env);
-  const corsOptions = {
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      if (!origin || isAllowedOrigin(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS blocked for origin: ${origin}`));
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Operator-Access-Code', 'X-Admin-Proof'],
-  };
+  const corsOptions=browserCors();
 
   // 🚀 Crear instancia Nest
   const app = await NestFactory.create(AppModule, {
@@ -98,6 +88,7 @@ async function bootstrap() {
     logger,
   });
 
+  app.use(responseSecurity);
   app.enableCors(corsOptions);
 
   app.useLogger(logger);
@@ -107,7 +98,6 @@ async function bootstrap() {
 
   // Fast health response without touching other modules.
   server.get('/health', (_req: Request, res: Response) => {
-    logAuthProxyProbe(_req);
     res.status(200).json({ status: 'ok' });
   });
 
@@ -119,20 +109,6 @@ async function bootstrap() {
   });
 
 
-  // ✅ Middleware adicional para CORS manual
-  server.use((req: Request, res: Response, next: NextFunction) => {
-  const origin = req.headers.origin;
-  if (origin && isAllowedOrigin(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Operator-Access-Code, X-Admin-Proof');
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-  next();
-});
 
 
   /**
@@ -141,19 +117,7 @@ async function bootstrap() {
   const attachProxy = (path: string, target: string, label: string) => {
     const normalizedTarget = target.replace(/\/$/, '');
 
-    const sendPreflight = (req: Request, res: Response) => {
-      const origin = req.headers.origin ?? '*';
-      const requestedHeaders = req.headers['access-control-request-headers'] ?? 'Content-Type, Authorization';
-      const requestedMethod = req.headers['access-control-request-method'] ?? 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
-
-      if (origin && isAllowedOrigin(origin)) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-      }
-      res.setHeader('Access-Control-Allow-Headers', requestedHeaders);
-      res.setHeader('Access-Control-Allow-Methods', requestedMethod);
-      res.status(204).end();
-    };
+    const sendPreflight = cors(corsOptions);
 
     const options: ProxyOptionsPatched = {
       target: normalizedTarget,
@@ -166,6 +130,8 @@ async function bootstrap() {
       pathRewrite: {},
 
       onProxyReq: (proxyReq, req, _res) => {
+        proxyReq.removeHeader("Cookie");
+        proxyReq.removeHeader("X-Wada-Session-Credential");
         const destination = `${normalizedTarget}${req.originalUrl}`;
         logger.log(`[Gateway Proxy] ${label}: ${req.method} ${req.originalUrl} -> ${destination}`, 'Proxy');
 
@@ -238,11 +204,12 @@ async function bootstrap() {
 
 
   // ⚡ Webhook Stripe sin parseo JSON
-  server.use('/webhooks/stripe', express.raw({ type: '*/*' }));
+  server.use('/webhooks/stripe', express.raw({ type: '*/*', inflate:false }));
+  server.use('/auth',express.json({limit:'16kb',inflate:false}));
 
   // ✅ Body parser para rutas no-proxied
-  const jsonParser = express.json({ limit: '5mb' });
-  const urlParser = express.urlencoded({ extended: true, limit: '5mb' });
+  const jsonParser = express.json({ limit: '5mb',inflate:false });
+  const urlParser = express.urlencoded({ extended: true, limit: '5mb',inflate:false });
   server.use((req: any, res: any, next: any) => {
     if (proxyPrefixes.some((prefix) => req.url?.startsWith(prefix))) {
       return next();

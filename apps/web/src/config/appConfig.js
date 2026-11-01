@@ -1,4 +1,4 @@
-// Configuración integrada del proyecto Wadatrip
+// Configuraciï¿½n integrada del proyecto Wadatrip
 // Combina funcionalidades del proyecto React original y las mejoras del proyecto Flutter
 
 const envApiBaseUrl =
@@ -6,7 +6,7 @@ const envApiBaseUrl =
   (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL);
 
 export const AppConfig = {
-  // Información básica de la aplicación
+  // Informaciï¿½n bï¿½sica de la aplicaciï¿½n
   app: {
     name: 'WADATRIP',
     version: '2.0.0',
@@ -21,7 +21,7 @@ export const AppConfig = {
     retryAttempts: 3
   },
 
-  // Configuración de notificaciones
+  // Configuraciï¿½n de notificaciones
   notifications: {
     enabled: true,
     defaultDuration: 5000,
@@ -33,7 +33,7 @@ export const AppConfig = {
     }
   },
 
-  // Configuración de validación
+  // Configuraciï¿½n de validaciï¿½n
   validation: {
     email: {
       pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -62,7 +62,7 @@ export const AppConfig = {
     }
   },
 
-  // Configuración de búsqueda
+  // Configuraciï¿½n de bï¿½squeda
   search: {
     debounceDelay: 300,
     maxResults: 50,
@@ -72,7 +72,7 @@ export const AppConfig = {
     }
   },
 
-  // Configuración de localización
+  // Configuraciï¿½n de localizaciï¿½n
   localization: {
     defaultLanguage: 'es',
     supportedLanguages: ['es', 'en', 'fr', 'de'],
@@ -81,18 +81,18 @@ export const AppConfig = {
     timezone: 'America/New_York'
   },
 
-  // Configuración de almacenamiento
+  // Configuraciï¿½n de almacenamiento
   storage: {
     prefix: 'wadatrip_',
     encryption: false,
     expiration: {
-      userPreferences: 30 * 24 * 60 * 60 * 1000, // 30 días
-      searchHistory: 7 * 24 * 60 * 60 * 1000,    // 7 días
-      flightAlerts: 90 * 24 * 60 * 60 * 1000     // 90 días
+      userPreferences: 30 * 24 * 60 * 60 * 1000, // 30 dï¿½as
+      searchHistory: 7 * 24 * 60 * 60 * 1000,    // 7 dï¿½as
+      flightAlerts: 90 * 24 * 60 * 60 * 1000     // 90 dï¿½as
     }
   },
 
-  // Configuración de características
+  // Configuraciï¿½n de caracterï¿½sticas
   features: {
     flightAlerts: {
       enabled: true,
@@ -116,7 +116,7 @@ export const AppConfig = {
     }
   },
 
-  // Configuración de UI/UX
+  // Configuraciï¿½n de UI/UX
   ui: {
     theme: {
       default: 'light',
@@ -136,10 +136,8 @@ export const AppConfig = {
     }
   },
 
-  // Configuración de seguridad
+  // Configuraciï¿½n de seguridad
   security: {
-    csrfProtection: true,
-    sanitizeInputs: true,
     rateLimit: {
       enabled: true,
       maxRequests: 100,

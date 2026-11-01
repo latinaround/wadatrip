@@ -28,7 +28,7 @@ export default function TourDateRequests({ apiBase, listingId, operator = false,
   const [choices, setChoices] = useState({});
   const [revision, setRevision] = useState(0);
   const today = new Date().toISOString().slice(0, 10);
-  const context = `${auth.user?.id || ''}:${auth.token || ''}:${listingId || ''}:${operator}`;
+  const context = `${auth.user?.id || ''}:${auth.sessionKey || ''}:${listingId || ''}:${operator}`;
   const contextRef = useRef(context); contextRef.current = context;
   const text = key => t(`date_requests.${key}`);
   const displayDate = value => new Intl.DateTimeFormat(i18n.resolvedLanguage || 'en', { dateStyle: 'medium' }).format(dayOf(value));
@@ -48,14 +48,14 @@ export default function TourDateRequests({ apiBase, listingId, operator = false,
 
   useEffect(() => {
     let active = true;
-    if (!enabled || auth.loading || !auth.user || !auth.token) return;
+    if (!enabled || auth.loading || !auth.user || !auth.sessionKey) return;
     setLoading(true);
     const params = new URLSearchParams({ scope: operator ? 'operator' : 'mine', ...(listingId ? { listing_id: listingId } : {}) });
     api({ path: `?${params}` }).then(data => { if (active) setItems(data.items || []); })
       .catch(err => { if (active) setError(err.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [api, enabled, auth.loading, auth.user?.id, auth.token, listingId, operator, revision]);
+  }, [api, enabled, auth.loading, auth.user?.id, auth.sessionKey, listingId, operator, revision]);
 
   const act = async options => {
     const currentContext = context;
@@ -91,7 +91,7 @@ export default function TourDateRequests({ apiBase, listingId, operator = false,
   const content = <>
     {operator && <h2 className="font-semibold">{text('inbox')}</h2>}
     <p className="text-sm">{text(operator ? 'operator_help' : 'help')}</p>
-    {!operator && (!auth.user || !auth.token ? <Button type="button" disabled={auth.loading} onClick={onSignIn}>{text('sign_in')}</Button> :
+    {!operator && (!auth.user || !auth.sessionKey ? <Button type="button" disabled={auth.loading} onClick={onSignIn}>{text('sign_in')}</Button> :
       <form className="space-y-3" onSubmit={event => { event.preventDefault(); void act({ method: 'POST', body: { listing_id: listingId, date, num_people: Number(people) } }); }}>
         <label className="block text-sm" htmlFor="request-date">{text('date')}</label>
         <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -109,7 +109,7 @@ export default function TourDateRequests({ apiBase, listingId, operator = false,
       </form>)}
     {error && <p role="alert" className="text-sm text-[#d15371]">{error}</p>}
     {notice && <p role="status" className="text-sm">{notice}</p>}
-    {auth.user && auth.token && <>
+    {auth.user && auth.sessionKey && <>
       <Button type="button" variant="outline" disabled={busy || loading} onClick={() => { setError(''); setRevision(value => value + 1); onAvailabilityChange?.(); }}>{text('refresh')}</Button>
       {loading ? <p>{text('loading')}</p> : !items.length ? <p>{text('empty')}</p> : items.map(item => <article key={item.id} className="space-y-2 rounded-xl border p-3">
         <h3 className="font-semibold">{item.listing?.title}</h3>

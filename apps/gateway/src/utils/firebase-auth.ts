@@ -23,7 +23,7 @@ async function getCertificates() {
   }
 }
 
-export type FirebaseIdentity = { uid: string; email: string; name: string | null };
+export type FirebaseIdentity = { uid: string; email: string; name: string | null; authenticatedAt?: Date | null };
 
 export async function verifyFirebaseIdToken(idToken: string): Promise<FirebaseIdentity> {
   const projectId = String(process.env.FIREBASE_PROJECT_ID || '').trim();
@@ -45,7 +45,8 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<FirebaseId
     if (!uid || uid.length > 128 || !email || payload.email_verified !== true) {
       throw new UnauthorizedException('firebase account email is not verified');
     }
-    return { uid, email, name: payload.name ? String(payload.name) : null };
+    return { uid, email, name: payload.name ? String(payload.name) : null,
+      authenticatedAt: Number.isFinite(Number(payload.auth_time)) && Number(payload.auth_time) > 0 ? new Date(Number(payload.auth_time) * 1000) : null };
   } catch (error) {
     if (error instanceof UnauthorizedException) throw error;
     throw new UnauthorizedException('firebase token is invalid');

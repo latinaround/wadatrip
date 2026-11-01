@@ -1,34 +1,15 @@
 import { ForbiddenException, NotFoundException, UnauthorizedException, ServiceUnavailableException } from '@nestjs/common';
-import jwt from 'jsonwebtoken';
 import { timingSafeEqual } from 'crypto';
 import { hasAdminProof } from './admin-proof';
-
-export function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET;
-  if (!secret) throw new UnauthorizedException('JWT authentication is not configured');
-  return secret;
-}
-
-export function getClaimsFromAuth(req: any): jwt.JwtPayload | null {
-  const authorization = String(req?.headers?.authorization || '');
-  if (!authorization.startsWith('Bearer ')) return null;
-  try {
-    const claims = jwt.verify(authorization.slice(7).trim(), getJwtSecret(), { algorithms: ['HS256'] });
-    return typeof claims === 'object' && typeof claims.sub === 'string' && claims.sub.length > 0
-      && claims.purpose !== 'admin_step_up' && claims.aud !== 'wadatrip-admin'
-      && typeof claims.exp === 'number' ? claims : null;
-  } catch { return null; }
-}
+import { getJwtSecret, resolveSession, sessionForwarding } from './sessions';
+export { getJwtSecret, getClaimsFromAuth } from './sessions';
 
 export type Actor = { id: string; email: string; name: string | null; role: string; verified: boolean; admin: boolean };
 
 async function actorIdentity(req: any, prisma: any): Promise<Actor> {
-  const claims = getClaimsFromAuth(req);
-  if (!claims?.sub) throw new UnauthorizedException('not authenticated');
-  const user = await prisma.users.findUnique({ where: { id: claims.sub } });
-  if (!user || user.status !== 'active') throw new UnauthorizedException('account is inactive or missing');
+  const { user, session } = await resolveSession(prisma, req);
   const email = String(user.email).trim().toLowerCase();
-  const verified = claims.email_verified === true && claims.email === email;
+  const verified = Boolean(session.email_verified_at);
   const ids = String(process.env.ADMIN_USER_IDS || '').split(',').map(v => v.trim()).filter(Boolean);
   const emails = String(process.env.ADMIN_EMAILS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
   return { id: user.id, email, name: user.name, role: user.role, verified,
@@ -103,6 +84,7 @@ export function serviceHeaders(req?: any): Record<string, string> {
   const token = process.env.INTERNAL_SERVICE_TOKEN;
   if (!token) throw new ForbiddenException('internal service authentication is not configured');
   return { 'x-internal-service-token': token,
+    ...sessionForwarding(req),
     ...(req?.headers?.['x-admin-proof'] ? { 'x-admin-proof': String(req.headers['x-admin-proof']) } : {}),
     ...(req?.headers?.authorization ? { Authorization: String(req.headers.authorization) } : {}) };
 }
@@ -116,12 +98,12 @@ export async function requireProviderAccess(req: any, prisma: any, providerId: s
 }
 
 // Claim only an unowned legacy record after proof of email ownership. Never transfer an existing tenant.
-export async function findOwnedProvider(prisma: any, actor: Actor) {
+export async function findOwnedProvider(prisma: any, actor: Actor, claim = false) {
   requireVerified(actor);
   const owned = await prisma.providers.findFirst({ where: { user_id: actor.id } });
   if (owned) return owned;
   // A read must not turn a legacy email match into a new beta enrollment.
-  if (!operatorBetaCapabilities(actor).can_prepare) return null;
+  if (!claim || !operatorBetaCapabilities(actor).can_prepare) return null;
   const legacy = await prisma.providers.findFirst({ where: { email: actor.email, user_id: null } });
   if (!legacy) return null;
   const result = await prisma.providers.updateMany({

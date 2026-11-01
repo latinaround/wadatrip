@@ -13,8 +13,8 @@ export default function AdminLogin() {
   const [open, setOpen] = useState(false), [code, setCode] = useState(''), [setup, setSetup] = useState(null)
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const [setupExpired, setSetupExpired] = useState(false)
-  const currentSetup = setup?.ownerId === admin.user?.id && setup?.sessionToken === auth.token ? setup : null
-  useEffect(() => { setSetup(null); setCode(''); setSetupExpired(false) }, [admin.user?.id, auth.token])
+  const currentSetup = setup?.ownerId === admin.user?.id && setup?.sessionKey === auth.sessionKey ? setup : null
+  useEffect(() => { setSetup(null); setCode(''); setSetupExpired(false) }, [admin.user?.id, auth.sessionKey])
   useEffect(() => {
     if (!currentSetup) return
     const timer = window.setTimeout(() => { setSetup(null); setCode(''); setSetupExpired(true); setError(expiredMessage) }, Math.max(0, Date.parse(currentSetup.expires_at) - Date.now()))
@@ -36,9 +36,9 @@ export default function AdminLogin() {
     </> : <>
       <h2 className="font-semibold">Verificación con app autenticadora</h2>
       {!admin.enrolled && !currentSetup && <button className="rounded border p-2" disabled={busy} onClick={() => act(async () => {
-        const ownerId = admin.user.id, sessionToken = auth.token
+        const ownerId = admin.user.id, sessionKey = auth.sessionKey
         const result = await apiFetch('/admin/mfa/setup', { method: 'POST' })
-        setSetup({ ...result, ownerId, sessionToken }); setSetupExpired(false); setCode('')
+        setSetup({ ...result, ownerId, sessionKey }); setSetupExpired(false); setCode('')
       })}>{setupExpired ? 'Reiniciar configuración' : 'Configurar segundo factor'}</button>}
       {currentSetup && <div className="space-y-2 rounded border p-3">
         <p>Añade una cuenta manualmente en tu app autenticadora: nombre «Wadatrip», clave de configuración y códigos basados en tiempo.</p>

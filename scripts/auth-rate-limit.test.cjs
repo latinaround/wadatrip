@@ -1,12 +1,17 @@
 // Actual controller/service sources, synthetic PostgreSQL contract and email only.
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript');
-process.env.JWT_SECRET='synthetic-rate-limit-key';process.env.NODE_ENV='test';delete process.env.AUTH_CODE_PREVIEW;
+process.env.JWT_SECRET='synthetic-rate-limit-key';process.env.AUTH_RATE_LIMIT_SECRET='synthetic-persistent-rate-and-otp-key-for-tests';process.env.NODE_ENV='test';delete process.env.AUTH_CODE_PREVIEW;
 const root=path.resolve(__dirname,'..');
 function fixture(options={}){
  let rows=new Map(),serial=Promise.resolve(),clock=new Date('2026-10-26T12:00:00Z'),failure=false,sent=0,created=0;
- const db={users:{findUnique:async()=>options.existing?{id:'synthetic-existing'}:null},auth_login_codes:{create:async()=>({id:'synthetic-code-'+ ++created}),delete:async()=>{}},
+ const codes=[];
+ const db={users:{findUnique:async()=>options.existing?{id:'synthetic-existing'}:null},auth_login_codes:{
+  findFirst:async({where})=>codes.filter(c=>c.email===where.email).sort((a,b)=>+b.created_at-+a.created_at)[0]||null,
+  create:async({data})=>{created++;const row={...data,attempts:0,used_at:null};codes.push(row);return row;},
+  updateMany:async({where,data})=>{const matches=codes.filter(c=>(!where.email||c.email===where.email)&&(!where.id||c.id===where.id)&&c.used_at===null);for(const c of matches)Object.assign(c,data);return{count:matches.length};},
+ },
   $transaction(fn){const next=serial.then(async()=>{if(failure)throw Error('synthetic DB unavailable');const previous=structuredClone(rows);try{return await fn(db);}catch(e){rows=previous;throw e;}});serial=next.catch(()=>{});return next;},
-  $queryRaw:async(parts,...values)=>{const sql=parts.join('?');if(sql.includes('CURRENT_TIMESTAMP'))return[{now:clock}];assert.ok(sql.includes('INSERT INTO "auth_request_limits"'));const[key,now,expires,cutoff]=values,limit=values.at(-1),old=rows.get(key);if(old&&+old.window_started_at>+cutoff&&old.attempts>=limit)return[];rows.set(key,{window_started_at:!old||+old.window_started_at<=+cutoff?now:old.window_started_at,attempts:!old||+old.window_started_at<=+cutoff?1:old.attempts+1,expires_at:expires});return[{key}];},
+  $queryRaw:async(parts,...values)=>{const sql=parts.join('?');if(sql.includes('CURRENT_TIMESTAMP')||sql.includes('clock_timestamp'))return[{now:clock}];if(sql.includes('pg_advisory_xact_lock'))return[{locked:1}];assert.ok(sql.includes('INSERT INTO "auth_request_limits"'));const[key,now,expires,cutoff]=values,limit=values.at(-1),old=rows.get(key);if(old&&+old.window_started_at>+cutoff&&old.attempts>=limit)return[];rows.set(key,{window_started_at:!old||+old.window_started_at<=+cutoff?now:old.window_started_at,attempts:!old||+old.window_started_at<=+cutoff?1:old.attempts+1,expires_at:expires});return[{key}];},
   $executeRaw:async()=>0,
  };
  const cache=new Map();function load(relative){const file=path.resolve(root,relative);if(cache.has(file))return cache.get(file).exports;const module={exports:{}};cache.set(file,module);const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,experimentalDecorators:true,emitDecoratorMetadata:true,esModuleInterop:true}}).outputText;

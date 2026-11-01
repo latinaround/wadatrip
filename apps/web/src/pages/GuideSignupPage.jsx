@@ -56,7 +56,7 @@ export default function GuideSignupPage() {
           name: name.trim() || undefined,
           role: isTraveler ? 'traveler' : 'guide',
         });
-        if (payload?.token) {
+        if (payload?.user) {
           navigate(returnTo);
           return;
         }
@@ -70,7 +70,7 @@ export default function GuideSignupPage() {
           name: name.trim() || undefined,
           role: isTraveler ? 'traveler' : 'guide',
         });
-        if (payload?.token) {
+        if (payload?.user) {
           navigate(returnTo);
           return;
         }
@@ -82,7 +82,7 @@ export default function GuideSignupPage() {
           email: email.trim(),
           password,
         });
-        if (payload?.token) {
+        if (payload?.user) {
           navigate(returnTo);
           return;
         }

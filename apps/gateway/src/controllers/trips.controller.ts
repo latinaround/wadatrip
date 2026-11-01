@@ -1,18 +1,16 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Req, UnauthorizedException } from '@nestjs/common';
-import { getUserIdFromAuth } from '../utils/auth';
+import { BadRequestException, Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { requireActor } from '@wadatrip/common/security';
 import { getPrisma } from '@wadatrip/db';
 
 @Controller('trips')
 export class TripsController {
-  private userId(req: any) {
-    const userId = getUserIdFromAuth(req);
-    if (!userId) throw new UnauthorizedException('not authenticated');
-    return userId;
+  private async userId(req: any) {
+    return (await requireActor(req, getPrisma())).id;
   }
 
   @Get()
   async list(@Req() req: any) {
-    const userId = this.userId(req);
+    const userId = await this.userId(req);
     const prisma = getPrisma();
     const items = await prisma.trips.findMany({
       where: { user_id: userId },
@@ -34,7 +32,7 @@ export class TripsController {
       throw new BadRequestException('budget must be a number');
     }
 
-    const userId = this.userId(req);
+    const userId = await this.userId(req);
     const prisma = getPrisma();
     return prisma.trips.create({
       data: {
@@ -54,7 +52,7 @@ export class TripsController {
 
   @Get(':id')
   async get(@Param('id') id: string, @Req() req: any) {
-    const userId = this.userId(req);
+    const userId = await this.userId(req);
     const prisma = getPrisma();
     const trip = await prisma.trips.findFirst({
       where: { id, user_id: userId },
@@ -71,7 +69,7 @@ export class TripsController {
   async saveExperience(@Param('id') tripId: string, @Body() body: any, @Req() req: any) {
     if (!body?.listing_id) throw new BadRequestException('listing_id is required');
 
-    const userId = this.userId(req);
+    const userId = await this.userId(req);
     const prisma = getPrisma();
     const trip = await prisma.trips.findFirst({ where: { id: tripId, user_id: userId } });
     if (!trip) throw new BadRequestException('trip not found');

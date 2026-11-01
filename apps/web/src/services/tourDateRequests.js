@@ -4,12 +4,12 @@ export async function dateRequestApi({ apiBase, getSession, path = '', method = 
   const invalid = () => Object.assign(new Error('Please sign in again to manage date requests.'), { status: 401 });
   const assertSession = () => {
     const current = getSession();
-    if (current.loading || !current.user || !current.token || current.user.id !== session.user?.id || current.token !== session.token) throw invalid();
+    if (current.loading || !current.user || !current.sessionKey || current.user.id !== session.user?.id || current.sessionKey !== session.sessionKey) throw invalid();
     return current;
   };
   assertSession();
-  const response = await fetch(`${apiBase}/tour-date-requests${path}`, {
-    method, headers: { Authorization: `Bearer ${session.token}`, 'Content-Type': 'application/json' },
+  const response = await session.request(`${apiBase}/tour-date-requests${path}`, {
+    method, headers: { 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(10000),
     ...(body ? { body: JSON.stringify(body) } : {}),
   });

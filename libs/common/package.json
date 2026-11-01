@@ -33,6 +33,14 @@
       "types": "./dist/security.d.ts",
       "default": "./dist/security.js"
     },
+    "./sessions": {
+      "types": "./dist/sessions.d.ts",
+      "default": "./dist/sessions.js"
+    },
+    "./web-security": {
+      "types": "./dist/web-security.d.ts",
+      "default": "./dist/web-security.js"
+    },
     "./payment-lifecycle": {
       "types": "./dist/payment-lifecycle.d.ts",
       "default": "./dist/payment-lifecycle.js"

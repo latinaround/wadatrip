@@ -112,5 +112,5 @@ function readSession(file, name, stored) {
   vm.runInNewContext(helper[0] + '; this.value=' + name + '();', context);
   return context.value;
 }
-test('AuthContext never accepts a credential supplied in a URL fragment', () => assert.equal(readSession('apps/web/src/context/AuthContext.jsx', 'readInitialToken', null), null));
-test('operator page cannot replace a stored session with a fragment credential', () => assert.equal(readSession('apps/web/src/pages/OperatorToursNew.jsx', 'readOperatorSessionToken', 'synthetic-stored'), 'synthetic-stored'));
+test('AuthContext retires URL/storage credentials without accepting them',()=>{const source=fs.readFileSync(path.join(root,'apps/web/src/context/AuthContext.jsx'),'utf8');assert.doesNotMatch(source,/getItem|setItem|payload\.token/);assert.match(source,/removeItem/);assert.match(source,/replaceState/);});
+test('operator page has no independent credential reader',()=>{const source=fs.readFileSync(path.join(root,'apps/web/src/pages/OperatorToursNew.jsx'),'utf8');assert.doesNotMatch(source,/localStorage|sessionStorage|Bearer/);assert.match(source,/sessionFetch/);});

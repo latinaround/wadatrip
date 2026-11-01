@@ -3,6 +3,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEq
 import jwt from 'jsonwebtoken';
 import { adminSessionHash } from '@wadatrip/common/admin-proof';
 import { getJwtSecret } from '@wadatrip/common/security';
+import { resolveSession, databaseNow } from '@wadatrip/common/sessions';
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 export function base32(bytes: Buffer) {
@@ -38,13 +39,16 @@ export function decryptSecret(encoded: string, userId: string) {
   } catch { throw new ServiceUnavailableException('Admin second factor requires recovery'); }
 }
 
-export async function setupAdminMfa(prisma: any, actor: any) {
+export async function setupAdminMfa(prisma: any, actor: any, req: any) {
   encryptionKey();
   return prisma.$transaction(async (tx: any) => {
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${actor.id} FOR NO KEY UPDATE`;
+    const primary = await resolveSession(tx, req, { touch: false });
+    if (primary.user.id !== actor.id) throw new ForbiddenException('Session changed');
+    const now = await databaseNow(tx);
+    if (!primary.session.authenticated_at || +now - +primary.session.authenticated_at > 600000) throw new ForbiddenException('Fresh primary authentication is required');
     const current = await tx.admin_mfa.findUnique({ where: { user_id: actor.id } });
     if (current?.enabled_at) throw new ConflictException('Second factor is already enabled');
-    const now = new Date();
     if (current?.locked_until && current.locked_until > now) throw new ForbiddenException('Too many attempts. Try again in 15 minutes');
     // Resume the same enrollment rather than permitting unlimited counter resets.
     const secret = current && current.setup_expires_at > now ? decryptSecret(current.secret_encrypted, actor.id) : randomBytes(20);
@@ -60,6 +64,7 @@ export async function verifyAdminMfa(prisma: any, actor: any, req: any, code: un
   if (typeof code !== 'string' || !/^\d{6}$/.test(code)) throw new BadRequestException('Enter the six-digit authenticator code');
   const outcome = await prisma.$transaction(async (tx: any) => {
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${actor.id} FOR NO KEY UPDATE`;
+    if ((await resolveSession(tx, req, { touch: false })).user.id !== actor.id) throw new ForbiddenException('Session changed');
     const record = await tx.admin_mfa.findUnique({ where: { user_id: actor.id } });
     if (!record) return { error: 'Set up your authenticator first' };
     if (record.locked_until && record.locked_until > now) return { error: 'Too many attempts. Try again in 15 minutes' };

@@ -19,6 +19,9 @@ model users {
   created_at    DateTime  @default(now())
   role          String    @default("traveler")
   status        String    @default("active")
+  auth_epoch    Int       @default(0)
+  reauth_after  DateTime? @db.Timestamptz(3)
+  auth_sessions auth_sessions[]
 
   itineraries         itineraries[]
   alert_subscriptions alert_subscriptions[]
@@ -41,6 +44,27 @@ model users {
 
 
   @@index([email])
+}
+
+model auth_sessions {
+  id String @id @default(uuid())
+  kind String @db.VarChar(16)
+  user_id String?
+  credential_hash String? @unique @db.VarChar(64)
+  flow_hash String? @unique @db.VarChar(64)
+  generation Int @default(0)
+  user_epoch Int @default(0)
+  auth_method String? @db.VarChar(16)
+  email_verified_at DateTime? @db.Timestamptz(3)
+  authenticated_at DateTime? @db.Timestamptz(3)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  last_seen_at DateTime @default(now()) @db.Timestamptz(3)
+  expires_at DateTime @db.Timestamptz(3)
+  revoked_at DateTime? @db.Timestamptz(3)
+  revocation_reason String? @db.VarChar(32)
+  user users? @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  @@index([user_id, revoked_at])
+  @@index([expires_at])
 }
 
 model community_threads {

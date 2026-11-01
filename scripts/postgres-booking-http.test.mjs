@@ -30,7 +30,8 @@ process.env.JWT_SECRET=randomBytes(32).toString('hex');
 process.env.INTERNAL_SERVICE_TOKEN=randomBytes(32).toString('hex');
 process.env.STRIPE_SECRET_KEY=`sk_test_${randomBytes(24).toString('hex')}`;
 process.env.STRIPE_WEBHOOK_SECRET=`whsec_${randomBytes(24).toString('hex')}`;
-const token=id=>jwt.sign({sub:id,email:`${id}@example.invalid`,email_verified:true},process.env.JWT_SECRET,{expiresIn:'10m'});
+const registeredTokens=new Map();
+const token=id=>{assert.ok(registeredTokens.has(id),'Fixture credential must be registered');return registeredTokens.get(id);};
 const load=(service,file)=>require(path.resolve(service,'dist',service,'src',file));
 async function app(controllers){
   class TestModule {} Module({controllers})(TestModule);
@@ -42,6 +43,8 @@ async function app(controllers){
 before(async()=>{
   provision(dbName); await verify(db,dbName); assert.equal(deploy(dbName).status,0);
   for(const id of ['traveler-a','traveler-b','operator']) await db.users.create({data:{id,name:`Synthetic ${id}`,email:`${id}@example.invalid`}});
+  const {sessionTransaction,createBearerSession}=require('@wadatrip/common/sessions');
+  for(const id of ['traveler-a','traveler-b','operator'])registeredTokens.set(id,(await sessionTransaction(db,tx=>createBearerSession(tx,id,'email_code',true,new Date()))).token);
   await db.providers.create({data:{id:'http-provider',user_id:'operator',type:'guide',name:'Synthetic',email:'operator@example.invalid',languages:['en'],base_city:'Test',country_code:'ZZ',status:'verified',stripe_test_account_id:'acct_synthetichttp'}});
   processor=http.createServer(async(req,res)=>{
     try {
@@ -135,7 +138,7 @@ test('preparation beta blocks direct and proxied HTTP reservations without consu
 
 test('traveler helper sends JWT through real booking/checkout HTTP and stores canonical price',async()=>{
   const id=await listing();const jwtToken=token('traveler-a');
-  const result=await bookTravelerExperience({apiBase:gateway,getSession:()=>({user:{id:'traveler-a',name:'Synthetic traveler-a'},token:jwtToken,logout:()=>assert.fail('unexpected logout')}),
+  const result=await bookTravelerExperience({apiBase:gateway,getSession:()=>({user:{id:'traveler-a',name:'Synthetic traveler-a'},sessionKey:'synthetic-native-test-adapter',request:(url,init)=>fetch(url,{...init,headers:{...init.headers,Authorization:'Bearer '+jwtToken}}),logout:()=>assert.fail('unexpected logout')}),
     booking:{...payload(id),price:1,currency:'EUR',user_id:'traveler-b',role:'admin'}});
   const b=await db.bookings.findUnique({where:{id:result.booking.id}});assert.equal(b.user_id,'traveler-a');assert.equal(b.amount_cents,12000);assert.equal(b.currency,'usd');
   assert.equal(b.status,'payment_pending');assert.equal(result.checkoutUrl,'http://127.0.0.1/synthetic-checkout');
@@ -176,7 +179,7 @@ test('HTTP booking requires the persisted traveler name even when the client sup
 
 test('free tour completes traveler helper without calling the processor',async()=>{
   const id=await listing(0);const calls=checkoutRequests.length;const jwtToken=token('traveler-a');
-  const result=await bookTravelerExperience({apiBase:gateway,getSession:()=>({user:{id:'traveler-a',name:'Synthetic traveler-a'},token:jwtToken,logout:()=>{}}),booking:payload(id)});
+  const result=await bookTravelerExperience({apiBase:gateway,getSession:()=>({user:{id:'traveler-a',name:'Synthetic traveler-a'},sessionKey:'synthetic-native-test-adapter',request:(url,init)=>fetch(url,{...init,headers:{...init.headers,Authorization:'Bearer '+jwtToken}}),logout:()=>{}}),booking:payload(id)});
   assert.equal(result.booking.status,'confirmed');assert.equal(result.booking.amount_cents,0);assert.equal(result.checkoutUrl,undefined);
   assert.equal(checkoutRequests.length,calls);
 });

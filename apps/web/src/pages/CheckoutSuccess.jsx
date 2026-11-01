@@ -1,3 +1,4 @@
+import {sessionFetch} from '../lib/web-request';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -26,40 +27,40 @@ export default function CheckoutSuccess() {
     const request = resumeRequest.current;
     setResumeBusy(false); setResumeError('');
     return () => { request.epoch++; request.inFlight = false; };
-  }, [auth.user?.id, auth.token, bookingId]);
+  }, [auth.user?.id, auth.sessionKey, bookingId]);
   useEffect(() => {
     let disposed = false;
     setResult(null); setError('');
-    if (auth.loading || !auth.user?.id || !auth.token || !bookingId) return;
-    const token = auth.token, actor = auth.user.id;
-    const current = () => !disposed && session.current.token === token && session.current.user?.id === actor;
+    if (auth.loading || !auth.user?.id || !auth.sessionKey || !bookingId) return;
+    const sessionKey = auth.sessionKey, actor = auth.user.id;
+    const current = () => !disposed && session.current.sessionKey === sessionKey && session.current.user?.id === actor;
     const base = AppConfig.api.baseUrl.replace(/\/$/, '');
     (async () => {
       // Outages must not turn a redirect into a false confirmation.
-      const reconcile = await fetch(`${base}/payments/bookings/${encodeURIComponent(bookingId)}/reconcile`, {
-        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      const reconcile = await sessionFetch(`${base}/payments/bookings/${encodeURIComponent(bookingId)}/reconcile`, {
+        method: 'POST', headers: { },
       }).catch(() => null);
       if (!current()) return;
       if (reconcile?.status === 401) { session.current.logout(); setAuthOpen(true); return; }
-      const response = await fetch(`${base}/bookings/${encodeURIComponent(bookingId)}`, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await sessionFetch(`${base}/bookings/${encodeURIComponent(bookingId)}`, { headers: { } });
       if (!current()) return;
       if (response.status === 401) { session.current.logout(); setAuthOpen(true); return; }
       if (!response.ok) throw new Error('Unable to verify this booking. No confirmation is available.');
       const booking = await response.json();
-      if (current()) setResult({ actor, token, bookingId, booking });
+      if (current()) setResult({ actor, sessionKey, bookingId, booking });
     })().catch(err => { if (current()) setError(err.message); });
     return () => { disposed = true; };
-  }, [auth.user?.id, auth.token, auth.loading, bookingId, refresh]);
-  const booking = result?.actor === auth.user?.id && result?.token === auth.token && result?.bookingId === bookingId ? result.booking : null;
+  }, [auth.user?.id, auth.sessionKey, auth.loading, bookingId, refresh]);
+  const booking = result?.actor === auth.user?.id && result?.sessionKey === auth.sessionKey && result?.bookingId === bookingId ? result.booking : null;
   const message = bookingStatusMessage(booking);
-  const canContinue = Boolean(auth.user && auth.token && canResumeTravelerCheckout(booking));
+  const canContinue = Boolean(auth.user && auth.sessionKey && canResumeTravelerCheckout(booking));
   const continuePayment = async () => {
     const request = resumeRequest.current;
     if (!canContinue || request.inFlight) return;
-    const epoch = request.epoch, actor = auth.user.id, token = auth.token, pageUrl = window.location.href;
+    const epoch = request.epoch, actor = auth.user.id, sessionKey = auth.sessionKey, pageUrl = window.location.href;
     // Router navigation can change the URL before a lazy destination commits/unmounts this page.
     const current = () => request.epoch === epoch && window.location.href === pageUrl
-      && session.current.user?.id === actor && session.current.token === token;
+      && session.current.user?.id === actor && session.current.sessionKey === sessionKey;
     request.inFlight = true; setResumeBusy(true); setResumeError('');
     try {
       const url = await resumeTravelerCheckout({ apiBase: AppConfig.api.baseUrl.replace(/\/$/, ''),

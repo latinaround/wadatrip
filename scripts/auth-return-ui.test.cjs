@@ -1,3 +1,4 @@
+const {createUiCookieSession}=require('./helpers/ui-cookie-session.cjs');
 // Full localhost application; every API/external request is synthetic or blocked.
 const assert = require('node:assert/strict');
 const { chromium } = require('../logs/p06-browser/node_modules/playwright-core');
@@ -11,27 +12,30 @@ async function main() {
   let passed = 0;
   async function check(name, run, { stored = false } = {}) {
     const context = await browser.newContext();
-    const calls = [], navigations = [];
+    const calls = [], navigations = [];const cookies=createUiCookieSession(()=>user,stored?user.id:null);
     try {
-      if (stored) await context.addInitScript(value => localStorage.setItem('wadatrip_token', value), token);
+
       await context.route('**/*', async route => {
         const request = route.request(), url = new URL(request.url());
         if (!['fetch', 'xhr'].includes(request.resourceType())) {
           if (request.isNavigationRequest()) navigations.push(url.origin);
           return url.origin === origin ? route.continue() : route.abort();
         }
+        if(await cookies.bootstrap(route))return;cookies.validate(request);
         calls.push({ path: url.pathname, method: request.method(), bearer: request.headers().authorization });
         let status = 200, body = { items: [] };
-        if (url.pathname === '/auth/request-code') body = { ok: true, channel: 'email', expires_in_minutes: 10 };
-        if (['/auth/login', '/auth/register', '/auth/verify-code'].includes(url.pathname)) body = { token, user };
+        if (url.pathname === '/auth/web/request-code') body = { ok: true, channel: 'email', expires_in_minutes: 10 };
+        if (['/auth/web/login', '/auth/web/register', '/auth/web/verify-code'].includes(url.pathname)) body = { token, user };
         if (url.pathname === '/auth/me') {
-          status = request.headers().authorization === `Bearer ${token}` ? 200 : 401;
+          status = cookies.identity() ? 200 : 401;
           body = status === 200 ? user : { message: 'Synthetic unauthenticated' };
         }
         if (url.pathname === '/providers/me') { status = 404; body = { message: 'No synthetic host profile' }; }
         if (url.pathname === '/operator/booking-inbox') body = { is_operator: false, groups: {} };
         if (url.pathname === '/bookings/synthetic-return-booking') body = { id: 'synthetic-return-booking', status: 'cancelled', payment_status: 'failed' };
-        await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+        if(url.pathname==='/auth/web/logout')body={ok:true};
+
+        await cookies.finish(route,status,body);
       });
       const page = await context.newPage(); page.setDefaultTimeout(7000);
       await run(page, calls);
@@ -53,8 +57,8 @@ async function main() {
       await page.waitForURL(url => url.pathname === '/account');
       await page.getByRole('heading', { name: 'Hi, ' + user.name, exact: true }).waitFor();
       assert.equal(new URL(page.url()).hash, '');
-      assert.equal(calls.filter(c => c.path === '/auth/login').length, 1);
-      assert.ok(calls.some(c => c.path === '/auth/me' && c.bearer === `Bearer ${token}`));
+      assert.equal(calls.filter(c => c.path === '/auth/web/login').length, 1);
+      assert.ok(calls.some(c => c.path === '/auth/me' && c.bearer === undefined));
       await page.reload();
       await page.getByRole('heading', { name: 'Hi, ' + user.name, exact: true }).waitFor();
       await page.getByRole('button', { name: 'Log out', exact: true }).click();
@@ -65,7 +69,7 @@ async function main() {
       await enterPassword(page);
       await page.waitForURL(url => url.pathname === '/account/trips');
       await page.getByRole('heading', { name: 'My trips', exact: true }).waitFor();
-      assert.equal(calls.filter(c => c.path === '/auth/register').length, 1);
+      assert.equal(calls.filter(c => c.path === '/auth/web/register').length, 1);
       assert.equal(new URL(page.url()).hash, '');
     });
     await check('code sign-in preserves a booking return and uses the same session', async (page, calls) => {
@@ -76,7 +80,7 @@ async function main() {
       await page.locator('form button[type=submit]').click();
       await page.waitForURL(url => url.pathname === '/checkout/success');
       await page.getByRole('heading', { name: 'Booking cancelled', exact: true }).waitFor();
-      assert.ok(calls.some(c => c.path === '/bookings/synthetic-return-booking' && c.bearer === `Bearer ${token}`));
+      assert.ok(calls.some(c => c.path === '/bookings/synthetic-return-booking' && c.bearer === undefined));
     });
     await check('a fragment alone never signs in an account', async (page, calls) => {
       await page.goto(origin + '/account#auth_token=synthetic-injected');
@@ -88,8 +92,8 @@ async function main() {
     await check('a fragment cannot switch a valid stored account', async (page, calls) => {
       await page.goto(origin + '/account#auth_token=synthetic-injected');
       await page.getByRole('heading', { name: 'Hi, ' + user.name, exact: true }).waitFor();
-      assert.ok(calls.filter(c => c.path === '/auth/me').every(c => c.bearer === `Bearer ${token}`));
-      assert.equal(await page.evaluate(() => localStorage.getItem('wadatrip_token')), token);
+      assert.ok(calls.filter(c => c.path === '/auth/me').every(c => c.bearer === undefined));
+      assert.equal(await page.evaluate(() => localStorage.getItem('wadatrip_token')), null);
       assert.equal(new URL(page.url()).hash, '');
     }, { stored: true });
     await check('operator route ignores malformed credential fragments without a crash', async (page, calls) => {

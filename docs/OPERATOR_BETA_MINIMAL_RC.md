@@ -1,14 +1,14 @@
-# Operator Beta operational release — 29 October 2026
+# Operator Beta operational notes — SEC cutover supersession, 31 October 2026
 
 ## Current authority and scope
 
-The owner authorized implementation, scoped cleanup, commits, branch publication,
-protected production backup/restore rehearsal and coordinated Render/Vercel
-deployment. This supersedes the historical approval language below. External
-admission, new spending, domain/mail changes, data deletion and Live payments
-remain outside that authority. Keep both operator allowlists empty for acceptance.
+Current authority is LOCAL preparation/testing only. No commit, push, deployment,
+production configuration, migration or invitation is authorized. Earlier approvals
+in this historical record do not authorize the coordinated SEC cutover. Follow
+PROXY_DIAGNOSTIC_SECURITY.md and the derivative's DEPLOYMENT-CHECKLIST.md after
+separate approval. Keep both operator allowlists empty and new money/publication off.
 
-The earlier source has 58 actual differences; two unchanged paths were
+The historical pre-SEC source had 58 actual differences; two unchanged paths were
 unnecessarily declared. The operational manifest declares actual differences.
 Additional fixes close publication for administrators during preparation,
 check actual native Node/Prisma/database readiness at production startup and
@@ -39,25 +39,25 @@ configuration. Startup validates these gates and executes a bounded read-only
 Prisma transaction checking prerequisite tables and unfinished migrations. Its
 safe log reports actual Node/Prisma versions, database major and Render commit.
 Build, predeploy and startup run no migrations. Keep financial recovery/webhooks
-available; do not enable global maintenance.
+available after cutover; use the separately approved bounded maintenance procedure
+to prevent mixed signature-only and revocable-session generations during cutover.
 
-Vercel Production: VITE_API_BASE_URL=https://wadatrip.onrender.com,
+Vercel Production for coordinated SEC-1/2/3: VITE_API_BASE_URL=https://api.wadatrip.com,
 VITE_WADAAGENT_ENABLED=false, VITE_ADMIN_DEV_BYPASS=false. Use real production
 variables for deployment, never the synthetic localhost build. Keep www and the
-existing apex redirect. The absent api.wadatrip.com DNS entry is independent.
+existing apex redirect. The API custom domain was verified in the subsequent domain
+stage; reconfirm DNS/TLS at cutover without changing domains or email configuration.
 
 AUTH_TRUSTED_PROXY_HOPS=0 defaults to the verified socket peer. It cannot trust
 forged forwarding prefixes, but can share a proxy bucket across users. Nonzero
 depth requires Render built-in runtime identifiers, a private app socket peer
 and observation of the actual right-counted forwarding chain. Never enable
 blanket Express trust or accept the arbitrary first X-Forwarded-For address.
-Temporarily AUTH_PROXY_DIAGNOSTICS=true allows at most six labelled GET /health
-diagnostics per process. Only chain depth and keyed candidate fingerprints are
-logged; no raw address, mail, contents or secret. Compare baseline against one
-and two malicious left prefixes; choose the baseline depth only if that entry
-remains stable and represents the client boundary. Disable diagnostics afterward.
-If inconclusive, keep depth zero and external admission blocked. Do not raise
-quotas to conceal shared proxy buckets.
+The old public GET /health diagnostic is removed. Follow PROXY_DIAGNOSTIC_SECURITY.md
+for approved-admin cookie/CSRF/MFA commands on the existing POST MFA route, absolute
+expiry, six samples and temporary Render settings cleanup. Preserve the explicit
+reviewed hop count; if inconclusive, restore maintenance and keep external admission
+blocked. Do not guess a different count or raise quotas to conceal shared proxy buckets.
 
 ## Backup and exact rollback references
 
@@ -67,14 +67,16 @@ outside Git. Encrypt complete rollback configuration there too. Decrypt/checksum
 then restore into cached PostgreSQL 17 on an internal Docker network with no host
 ports or volumes, tmpfs only. Check all 29 migration records, schema contracts,
 table counts and transaction rollback; preserve historical CRLF/LF evidence.
-No production migration is pending. A changed migration set closes deployment
+The additive 20261030000000_auth_sessions migration is pending for the SEC cutover.
+A changed migration set closes deployment
 until its exact delta is inspected/rehearsed; never reset, db push or resolve.
 
 Pre-release backend: commit c3031e9ca83cd1393cf43d6c9f9b3b95872daf8a,
 deployment dep-dbh92tqfngtc73avk5dg. Pre-release frontend:
-dpl_HLYSJYVi6Xj67mVLsvbXBwyNrrmZ. Re-read these before deployment. Roll back
-the exact deployment, or explicitly deploy that backend commit and promote that
-frontend ID in the same project. Keep all admission/publication/payment gates
+dpl_HLYSJYVi6Xj67mVLsvbXBwyNrrmZ. These are HISTORICAL references, not permitted
+rollback targets after SEC-2. Never restore a signature-only backend or JWT web
+frontend. Recover to the integrated SEC registry floor or deny-all maintenance;
+retain auth_sessions, revoked rows, generations and user epochs. Keep all gates
 closed. Recheck www/apex, bundle API target and protected routes. Do not restore
 a database over newer activity as application rollback: that requires a separate
 incident decision and approval. DPAPI recovery requires the same Windows user/
@@ -87,7 +89,7 @@ before committing only the isolated branch. Record its remote immutable commit.
 Keep auto-deploy off. Deploy Render by exact commit; inspect live status and native
 runtime probe, then HTTP/CORS/gates and read-only DB checks. Prepare Vercel with
 production variables and --skip-domain; inspect packaging/build before promotion.
-No further owner approval is needed for these already authorized steps.
+Every production operation above requires separate current owner approval.
 
 Local tests cover security/session/MFA/admin boundaries, immutable installation,
 Prisma validation/generation, backend/web builds, real synthetic PostgreSQL full

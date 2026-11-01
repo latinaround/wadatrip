@@ -2,29 +2,33 @@ import { Body, Controller, Get, Patch, Post, Req, BadRequestException, Unauthori
 import { getPrisma } from '@wadatrip/db';
 import axios from 'axios';
 import bcrypt from 'bcryptjs';
-import * as jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { getJwtSecret, requireActor } from '@wadatrip/common/security';
+import { requireActor } from '@wadatrip/common/security';
+import { bearerCredential, createBearerSession, databaseNow, flowContext, lockAuthAccount, revokeAllSessions, revokeSession, sessionTransaction } from '@wadatrip/common/sessions';
 import { safeUser as sanitizeUser } from '@wadatrip/common/public-data';
 import { verifyFirebaseIdToken } from '../utils/firebase-auth';
 import { sendTransactionalEmail } from '../services/email.service';
 import { isEmail } from 'class-validator';
-import { reserveAuthCodeRequest } from '../services/auth-rate-limit.service';
+import { reserveAuthAttempt, reserveAuthCodeRequest } from '../services/auth-rate-limit.service';
+import { consumeAuthCode, issueAuthCode, retireUndeliveredCode } from '../services/auth-otp.service';
+import { webCookies } from '@wadatrip/common/web-security';
+import { webAuthContext, webCredential } from '../services/web-auth.service';
 
-const TOKEN_TTL_SECONDS = Number(process.env.JWT_TTL_SECONDS) || 60 * 60 * 24 * 7;
 const EMAIL_FROM = process.env.EMAIL_FROM || '';
-const AUTH_CODE_TTL_MINUTES = Number(process.env.AUTH_CODE_TTL_MINUTES) || 10;
-const AUTH_CODE_MAX_ATTEMPTS = Number(process.env.AUTH_CODE_MAX_ATTEMPTS) || 5;
+const AUTH_CODE_TTL_MINUTES = Number(process.env.AUTH_CODE_TTL_MINUTES ?? 10);
+const AUTH_CODE_MAX_ATTEMPTS = Number(process.env.AUTH_CODE_MAX_ATTEMPTS ?? 5);
 const AUTH_CODE_PREVIEW = process.env.NODE_ENV === 'test' && process.env.AUTH_CODE_PREVIEW === 'true';
 
-function signToken(user: any, emailVerified = false) {
-  if (user.status !== 'active') throw new UnauthorizedException('account is inactive');
-  const secret = getJwtSecret() as jwt.Secret;
-  return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, email_verified: emailVerified },
-    secret,
-    { expiresIn: TOKEN_TTL_SECONDS, jwtid: crypto.randomUUID() },
-  );
+function authFlow(req: any) {
+  req?.res?.setHeader?.('Cache-Control', 'no-store');
+  const context=webAuthContext(req);if(context)return context.flow;
+  if(req?.headers?.origin!==undefined||webCookies(req).any||flowContext(req))throw new UnauthorizedException('Use browser cookie authentication');
+  return null;
+}
+const publicCredential = (value: any) => ({ ...value, user: sanitizeUser(value.user) });
+async function issueCredential(tx:any,req:any,userId:string,method:any,verified:boolean,proofAt:Date|null) {
+  return webAuthContext(req)?webCredential(tx,req,{id:userId},method,verified,proofAt)
+    :publicCredential(await createBearerSession(tx,userId,method,verified,proofAt,null,bearerCredential(req)));
 }
 
 function normalizeRole(value: any) {
@@ -35,8 +39,17 @@ function generateLoginCode() {
   return String(crypto.randomInt(100000, 1000000));
 }
 
-function hashLoginCode(code: string) {
-  return crypto.createHash('sha256').update(code).digest('hex');
+function canonicalEmail(value: unknown) {
+  const email = typeof value === 'string' ? value.normalize('NFC').trim().toLowerCase() : '';
+  if (email.length > 254 || !isEmail(email)) throw new BadRequestException('A valid email is required');
+  return email;
+}
+
+function codeConfiguration() {
+  if (!Number.isSafeInteger(AUTH_CODE_TTL_MINUTES) || AUTH_CODE_TTL_MINUTES < 1 || AUTH_CODE_TTL_MINUTES > 30
+    || !Number.isSafeInteger(AUTH_CODE_MAX_ATTEMPTS) || AUTH_CODE_MAX_ATTEMPTS < 1 || AUTH_CODE_MAX_ATTEMPTS > 5) {
+    throw new ServiceUnavailableException('Email sign-in protection is not configured correctly');
+  }
 }
 
 async function sendAuthCodeEmail(opts: { to: string; code: string; role: string }) {
@@ -101,38 +114,44 @@ async function verifyGoogleIdToken(idToken: string) {
   return {
     email,
     name: payload.name ? String(payload.name) : null,
+    authenticatedAt: Number.isFinite(Number(payload.auth_time)) && Number(payload.auth_time) > 0 ? new Date(Number(payload.auth_time) * 1000) : null,
   };
 }
 
 @Controller('auth')
 export class AuthController {
+  @Post('flow')
+  async flow(@Req() req: any) {
+    throw new UnauthorizedException('Legacy browser flow is retired');
+  }
+  @Post('logout')
+  async logout(@Req() req: any) {
+    authFlow(req);
+    req?.res?.setHeader?.('Cache-Control', 'no-store');
+    return revokeSession(getPrisma(), req, flowContext(req));
+  }
+  @Post('logout-all')
+  async logoutAll(@Req() req: any) {
+    authFlow(req);
+    req?.res?.setHeader?.('Cache-Control', 'no-store');
+    return revokeAllSessions(getPrisma(), req);
+  }
   @Post('request-code')
   async requestCode(@Body() body: any, @Req() req: any) {
-    const email = typeof body?.email === 'string' ? body.email.normalize('NFC').trim().toLowerCase() : '';
+    authFlow(req);
+    req?.res?.setHeader?.('Cache-Control', 'no-store');
+    const email = canonicalEmail(body?.email);
     const role = normalizeRole(body?.role);
-    if (email.length > 254 || !isEmail(email)) {
-      throw new BadRequestException('A valid email is required');
-    }
+    codeConfiguration();
 
     const prisma = getPrisma();
     await reserveAuthCodeRequest(prisma, email, req);
-    const existingUser = await prisma.users.findUnique({ where: { email } });
     const code = generateLoginCode();
-    const expiresAt = new Date(Date.now() + AUTH_CODE_TTL_MINUTES * 60 * 1000);
-
-    const loginCode = await prisma.auth_login_codes.create({
-      data: {
-        email,
-        code_hash: hashLoginCode(code),
-        role,
-        expires_at: expiresAt,
-        user_id: existingUser?.id || null,
-      },
-    });
+    const loginCode = await issueAuthCode(prisma, email, role, code, AUTH_CODE_TTL_MINUTES);
 
     const emailResult = await sendAuthCodeEmail({ to: email, code, role });
     if (!emailResult.sent && !AUTH_CODE_PREVIEW) {
-      await prisma.auth_login_codes.delete({ where: { id: loginCode.id } }).catch(() => null);
+      await retireUndeliveredCode(prisma, email, loginCode.id);
       throw new ServiceUnavailableException(authCodeDeliveryMessage(emailResult.reason || ''));
     }
     return {
@@ -145,100 +164,43 @@ export class AuthController {
   }
 
   @Post('verify-code')
-  async verifyCode(@Body() body: any) {
-    const email = String(body?.email || '').trim().toLowerCase();
+  async verifyCode(@Body() body: any, @Req() req: any) {
+    authFlow(req);
+    const email = canonicalEmail(body?.email);
     const code = String(body?.code || '').trim();
-    const role = normalizeRole(body?.role);
     const name = body?.name ? String(body.name).trim() : null;
-    if (!email || !code) {
-      throw new BadRequestException('email and code are required');
+    if (!/^\d{6}$/.test(code) || (name && name.length > 120)) {
+      throw new BadRequestException('A six-digit code and a name of at most 120 characters are required');
     }
-
+    codeConfiguration();
     const prisma = getPrisma();
-    const loginCode = await prisma.auth_login_codes.findFirst({
-      where: {
-        email,
-        used_at: null,
-      },
-      orderBy: { created_at: 'desc' },
-    });
-
-    if (!loginCode) {
-      throw new UnauthorizedException('code is invalid');
-    }
-    if (loginCode.expires_at.getTime() < Date.now()) {
-      throw new UnauthorizedException('code expired');
-    }
-    if (loginCode.attempts >= AUTH_CODE_MAX_ATTEMPTS) {
-      throw new UnauthorizedException('too many attempts');
-    }
-
-    const attempt = await prisma.auth_login_codes.updateMany({
-      where: { id: loginCode.id, used_at: null, attempts: { lt: AUTH_CODE_MAX_ATTEMPTS }, expires_at: { gt: new Date() } },
-      data: { attempts: { increment: 1 } },
-    });
-    if (attempt.count !== 1) throw new UnauthorizedException('code is invalid');
-    const matches = loginCode.code_hash === hashLoginCode(code);
-    if (!matches) {
-      throw new UnauthorizedException('code is invalid');
-    }
-
-    const consumed = await prisma.auth_login_codes.updateMany({
-      where: { id: loginCode.id, used_at: null, expires_at: { gt: new Date() } },
-      data: { used_at: new Date() },
-    });
-    if (consumed.count !== 1) throw new UnauthorizedException('code is invalid');
-
-    let user = await prisma.users.findUnique({ where: { email } });
-    if (!user) {
-      user = await prisma.users.create({
-        data: {
-          email,
-          name,
-          role,
-          status: 'active',
-          last_login_at: new Date(),
-        },
-      });
-    } else {
-      user = await prisma.users.update({
-        where: { id: user.id },
-        data: {
-          name: user.name || name || undefined,
-          last_login_at: new Date(),
-        },
-      });
-    }
-
-    await prisma.auth_login_codes.update({
-      where: { id: loginCode.id },
-      data: {
-        used_at: new Date(),
-        user_id: user.id,
-      },
-    });
-
-    const token = signToken(user, true);
-    return { token, user: sanitizeUser(user) };
+    await reserveAuthAttempt(prisma, 'verify', email, req);
+    return consumeAuthCode(prisma, email, code, name, AUTH_CODE_MAX_ATTEMPTS,
+      async (user, tx, proofAt) => issueCredential(tx,req,user.id,'email_code',true,proofAt));
   }
 
   @Post('register')
-  async register(@Body() body: any) {
-    const email = String(body?.email || '').toLowerCase();
+  async register(@Body() body: any, @Req() req: any) {
+    authFlow(req);
+    const email = canonicalEmail(body?.email);
     const password = String(body?.password || '');
     const name = body?.name ? String(body.name) : null;
-    if (!email || !password) {
+    if (!password || password.length > 4096 || (name && name.length > 120)) {
       throw new BadRequestException('email and password are required');
     }
 
     const prisma = getPrisma();
+    await reserveAuthAttempt(prisma, 'register', email, req);
     const exists = await prisma.users.findUnique({ where: { email } });
     if (exists) {
       throw new BadRequestException('email already registered');
     }
 
     const password_hash = await bcrypt.hash(password, 10);
-    const user = await prisma.users.create({
+    return sessionTransaction(prisma, async tx => {
+    await lockAuthAccount(tx, email);
+    const now = await databaseNow(tx);
+    const user = await tx.users.create({
       data: {
         email,
         name,
@@ -248,21 +210,24 @@ export class AuthController {
       },
     });
 
-    const token = signToken(user);
-    return { token, user: sanitizeUser(user) };
+    return issueCredential(tx,req,user.id,'password',false,now);
+    });
   }
 
   @Post('login')
-  async login(@Body() body: any) {
-    const email = String(body?.email || '').toLowerCase();
+  async login(@Body() body: any, @Req() req: any) {
+    authFlow(req);
+    const email = canonicalEmail(body?.email);
     const password = String(body?.password || '');
-    if (!email || !password) {
+    if (!password || password.length > 4096) {
       throw new BadRequestException('email and password are required');
     }
 
     const prisma = getPrisma();
+    await reserveAuthAttempt(prisma, 'login', email, req);
+    const started = await databaseNow(prisma);
     const user = await prisma.users.findUnique({ where: { email } });
-    if (!user || !user.password_hash) {
+    if (!user || user.status !== 'active' || !user.password_hash) {
       throw new UnauthorizedException('invalid credentials');
     }
 
@@ -271,23 +236,20 @@ export class AuthController {
       throw new UnauthorizedException('invalid credentials');
     }
 
-    await prisma.users.update({
-      where: { id: user.id },
-      data: { last_login_at: new Date() },
-    });
-
-    const token = signToken(user);
-    return { token, user: sanitizeUser(user) };
+    return sessionTransaction(prisma, async tx => issueCredential(tx,req,user.id,'password',false,started));
   }
 
   @Post('google')
-  async google(@Body() body: any) {
+  async google(@Body() body: any, @Req() req: any) {
+    authFlow(req);
     const idToken = String(body?.idToken || body?.id_token || '').trim();
-    if (!idToken) {
+    if (!idToken || idToken.length > 8192) {
       throw new BadRequestException('google id token is required');
     }
 
-    let googleUser: { email: string; name: string | null };
+    const prisma = getPrisma();
+    await reserveAuthAttempt(prisma, 'federated', null, req);
+    let googleUser: { email: string; name: string | null; authenticatedAt: Date | null };
     try {
       googleUser = await verifyGoogleIdToken(idToken);
     } catch (error: any) {
@@ -297,11 +259,12 @@ export class AuthController {
       throw new UnauthorizedException('google token is invalid');
     }
 
-    const prisma = getPrisma();
-    let user = await prisma.users.findUnique({ where: { email: googleUser.email } });
+    return sessionTransaction(prisma, async tx => {
+    await lockAuthAccount(tx, googleUser.email);
+    let user = await tx.users.findUnique({ where: { email: googleUser.email } });
 
     if (!user) {
-      user = await prisma.users.create({
+      user = await tx.users.create({
         data: {
           email: googleUser.email,
           name: googleUser.name,
@@ -311,7 +274,8 @@ export class AuthController {
         },
       });
     } else {
-      user = await prisma.users.update({
+      if (user.status !== 'active') throw new UnauthorizedException('account is inactive');
+      user = await tx.users.update({
         where: { id: user.id },
         data: {
           name: user.name || googleUser.name || undefined,
@@ -320,33 +284,39 @@ export class AuthController {
       });
     }
 
-    const token = signToken(user, true);
-    return { token, user: sanitizeUser(user) };
+    return issueCredential(tx,req,user.id,'google',true,googleUser.authenticatedAt);
+    });
   }
 
   @Post('firebase')
-  async firebase(@Body() body: any) {
+  async firebase(@Body() body: any, @Req() req: any) {
+    authFlow(req);
     const idToken = String(body?.idToken || body?.id_token || '').trim();
-    if (!idToken) throw new BadRequestException('firebase id token is required');
-    const identity = await verifyFirebaseIdToken(idToken);
+    if (!idToken || idToken.length > 8192) throw new BadRequestException('firebase id token is required');
     const prisma = getPrisma();
-    let user = await prisma.users.findFirst({
+    await reserveAuthAttempt(prisma, 'federated', null, req);
+    const identity = await verifyFirebaseIdToken(idToken);
+    return sessionTransaction(prisma, async tx => {
+    await lockAuthAccount(tx, identity.email);
+    let user = await tx.users.findFirst({
       where: { OR: [{ firebase_uid: identity.uid }, { email: identity.email }] },
     });
     if (!user) {
-      user = await prisma.users.create({
+      user = await tx.users.create({
         data: { email: identity.email, firebase_uid: identity.uid, name: identity.name, role: 'traveler', status: 'active', last_login_at: new Date() },
       });
     } else {
+      if (user.status !== 'active') throw new UnauthorizedException('account is inactive');
       if (user.email !== identity.email || (user.firebase_uid && user.firebase_uid !== identity.uid)) {
         throw new UnauthorizedException('identity conflicts with existing account');
       }
-      user = await prisma.users.update({
+      user = await tx.users.update({
         where: { id: user.id },
         data: { firebase_uid: identity.uid, name: user.name || identity.name || undefined, last_login_at: new Date() },
       });
     }
-    return { token: signToken(user, true), user: sanitizeUser(user) };
+    return issueCredential(tx,req,user.id,'firebase',true,identity.authenticatedAt || null);
+    });
   }
   @Get('me')
   async me(@Req() req: any) {

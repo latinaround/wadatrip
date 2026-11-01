@@ -1,3 +1,4 @@
+const registryFixture=require('./session-fixture.cjs');registryFixture.install();
 // Synthetic users/secrets only. All HTTP stays on loopback; no database/email/Stripe.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -21,12 +22,13 @@ const db = { $queryRaw: async () => [{ id: sourceUser.id }],
 };
 let tail = Promise.resolve(); db.$transaction = fn => { const result = tail.then(() => fn(db)); tail = result.catch(() => {}); return result };
 const originalLoad = Module._load;
-Module._load = function(name, ...args) { if (name === '@wadatrip/db') return { getPrisma: () => db }; return originalLoad.call(this, name, ...args) };
+Module._load = function(name, ...args) { if (name === '@wadatrip/db') return { getPrisma:()=>registryFixture.enable(db) }; return originalLoad.call(this, name, ...args) };
 const { AdminController, adminPagination, adminIssueSelect } = require('../apps/gateway/dist/apps/gateway/src/controllers/admin.controller.js');
 const { totp, encryptSecret, decryptSecret, setupAdminMfa, verifyAdminMfa } = require('../apps/gateway/dist/apps/gateway/src/services/admin-mfa.service.js');
 Module._load = originalLoad;
 const { requireActor, requireAdminIdentity, serviceHeaders } = require('@wadatrip/common/security');
-const { hasAdminProof, adminSessionHash } = require('@wadatrip/common/admin-proof');
+const { hasAdminProof } = require('@wadatrip/common/admin-proof');
+const adminSessionHash=registryFixture.binding;
 let app, origin;
 const token = (extra = {}) => jwt.sign({ email: sourceUser.email, email_verified: true, ...extra }, process.env.JWT_SECRET, { subject: sourceUser.id, expiresIn: 3600 });
 const request = authorization => ({ headers: { authorization: `Bearer ${authorization}` } });
@@ -133,28 +135,31 @@ test('internal provider requests forward both existing identity and second-facto
 });
 test('two primary sign-ins in the same second issue distinct session identities', async () => {
   const bcrypt=require('bcryptjs');const hash=await bcrypt.hash('synthetic-password-only',4);
-  const find=db.users.findUnique,update=db.users.update,load=Module._load,clock=Date.now;
+  const find=db.users.findUnique,update=db.users.update,query=db.$queryRaw,execute=db.$executeRaw,load=Module._load,clock=Date.now;
   try {
     db.users.findUnique=async()=>({...sourceUser,password_hash:hash});db.users.update=async()=>sourceUser;
-    Module._load=function(name,...args){if(name==='@wadatrip/db')return {getPrisma:()=>db};return load.call(this,name,...args)};
+    // Quota SQL is covered by real PostgreSQL suites; this fixture isolates JTI uniqueness.
+    db.$queryRaw=async(parts,...values)=>parts.join('?').includes('CURRENT_TIMESTAMP')?[{now:new Date()}]:parts.join('?').includes('INSERT INTO "auth_request_limits"')?[{key:values[0]}]:query(parts,...values);
+    db.$executeRaw=async()=>0;
+    Module._load=function(name,...args){if(name==='@wadatrip/db')return {getPrisma:()=>registryFixture.enable(db)};return load.call(this,name,...args)};
     const {AuthController}=require('../apps/gateway/dist/apps/gateway/src/controllers/auth.controller.js');Module._load=load;
     const timestamp=Date.now();Date.now=()=>timestamp;const controller=new AuthController();
-    const a=await controller.login({email:sourceUser.email,password:'synthetic-password-only'}),b=await controller.login({email:sourceUser.email,password:'synthetic-password-only'});
+    const a=await controller.login({email:sourceUser.email,password:'synthetic-password-only'},{socket:{remoteAddress:'127.0.0.1'}}),b=await controller.login({email:sourceUser.email,password:'synthetic-password-only'},{socket:{remoteAddress:'127.0.0.1'}});
     const one=jwt.decode(a.token),two=jwt.decode(b.token);assert.equal(one.iat,two.iat);assert.ok(one.jti);assert.notEqual(one.jti,two.jti);assert.notEqual(a.token,b.token);
-  }finally{db.users.findUnique=find;db.users.update=update;Module._load=load;Date.now=clock}
+  }finally{db.users.findUnique=find;db.users.update=update;db.$queryRaw=query;db.$executeRaw=execute;Module._load=load;Date.now=clock}
 });
 test('expired unfinished setup has a structured recovery error and never issues proof', async()=>{
  const saved=credential;credential=null;
  try{
-  await setupAdminMfa(db,actor());credential.setup_expires_at=new Date(Date.now()-1);
+  await setupAdminMfa(db,actor(),request(token()));credential.setup_expires_at=new Date(Date.now()-1);
   const r=await http('/admin/mfa/verify',token(),null,{code:code()});assert.equal(r.status,403);assert.equal(r.body.code,'ADMIN_MFA_SETUP_EXPIRED');assert.equal(r.body.proof,undefined);assert.equal(credential.enabled_at,null);
  }finally{credential=saved}
 });
 test('restarting expired unfinished enrollment changes the key without resetting failures', async()=>{
  const saved=credential;credential=null;
  try{
-  const previous=await setupAdminMfa(db,actor());credential.setup_expires_at=new Date(Date.now()-1);credential.failures=2;
-  const next=await setupAdminMfa(db,actor());assert.notEqual(next.secret,previous.secret);assert.ok(new Date(next.expires_at)>new Date());assert.equal(credential.failures,2);assert.equal(credential.enabled_at,null);
+  const previous=await setupAdminMfa(db,actor(),request(token()));credential.setup_expires_at=new Date(Date.now()-1);credential.failures=2;
+  const next=await setupAdminMfa(db,actor(),request(token()));assert.notEqual(next.secret,previous.secret);assert.ok(new Date(next.expires_at)>new Date());assert.equal(credential.failures,2);assert.equal(credential.enabled_at,null);
   await assert.rejects(verifyAdminMfa(db,actor(),request(token()),'123456',new Date(+credential.setup_expires_at+1)));
   const accepted=await verifyAdminMfa(db,actor(),request(token()),code());assert.ok(accepted.proof);assert.ok(credential.enabled_at);
  }finally{credential=saved}
@@ -162,7 +167,7 @@ test('restarting expired unfinished enrollment changes the key without resetting
 test('enabled authenticator remains valid after its original setup deadline', async()=>{
  const saved=credential;credential=null;
  try{
-  await setupAdminMfa(db,actor());credential.enabled_at=new Date();credential.setup_expires_at=new Date(Date.now()-1);
+  await setupAdminMfa(db,actor(),request(token()));credential.enabled_at=new Date();credential.setup_expires_at=new Date(Date.now()-1);
   const accepted=await verifyAdminMfa(db,actor(),request(token()),code());assert.ok(accepted.proof);
  }finally{credential=saved}
 });

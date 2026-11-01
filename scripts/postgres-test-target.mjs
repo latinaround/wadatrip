@@ -65,15 +65,15 @@ export function deploy(name, baseline = false) {
   const environment = Object.fromEntries(Object.entries(process.env)
     .filter(([key]) => !/DATABASE|STRIPE|PRISMA_ENV|NODE_OPTIONS|DOTENV|P05_/.test(key)));
   environment.P05_DATABASE = name;
-  if (baseline !== false && baseline !== true && baseline !== 'recovered') throw new Error('Unknown historical schema scenario');
+  if (baseline !== false && baseline !== true && baseline !== 'recovered' && baseline !== 'sec1') throw new Error('Unknown historical schema scenario');
   if (baseline === true) partialSchemaTargets.add(name);
   if (baseline === 'recovered' && partialSchemaTargets.has(name)) throw new Error('Cannot mix historical schema scenarios');
   if (baseline || partialSchemaTargets.has(name)) {
     const source = 'libs/db/prisma/migrations';
     const current = fs.readdirSync(source).filter(n => /^\d+$/.test(n.split('_')[0]) && fs.existsSync(`${source}/${n}/migration.sql`));
-    const stage = partialSchemaTargets.has(name)
+    const stage = baseline === 'sec1' ? 'sec1_baseline' : partialSchemaTargets.has(name)
       ? (baseline ? 'partial_baseline' : 'partial_upgrade') : 'recovered_baseline';
-    const names = stage === 'recovered_baseline' ? current.filter(n => n < '20260909000000')
+    const names = stage === 'sec1_baseline' ? current.filter(n => n < '20261030000000') : stage === 'recovered_baseline' ? current.filter(n => n < '20260909000000')
       : [...partialSchemaMigrations, ...(stage === 'partial_upgrade' ? current.filter(n => n >= '20260909000000') : [])];
     const destination = `logs/p05-${stage}-migrations`;
     fs.mkdirSync(destination, { recursive: true });

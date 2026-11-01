@@ -1,3 +1,4 @@
+const registryFixture=require('./session-fixture.cjs');registryFixture.install();
 // Actual controllers, synthetic verified identities. No network, cloud or database.
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript'),path=require('node:path'),jwt=require('jsonwebtoken');
 require('reflect-metadata');
@@ -11,10 +12,11 @@ const db={users:{findUnique:async({where})=>({id:where.id,email:where.id+'@examp
  admin_mfa:{findUnique:async()=>({enabled_at:new Date(),version:1})},
  providers:{findUnique:async()=>provider,findFirst:async({where})=>legacyMode?(where.user_id===null?{...provider,user_id:null}:null):(where.user_id==='owner'?provider:null),updateMany:async()=>{writes++;return{count:1}},update:async()=>{writes++;return provider},create:async()=>{writes++;return provider}},
  listings:{findUnique:async()=>listing,create:async({data})=>{writes++;return data},update:async({data})=>{writes++;return data}}};
+registryFixture.enable(db);
 const cache={};
 function load(file){const abs=path.resolve(file);if(cache[abs])return cache[abs].exports;const m={exports:{}};cache[abs]=m;
  const code=ts.transpileModule(fs.readFileSync(abs,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true,experimentalDecorators:true}}).outputText;
- const req=n=>n==='@wadatrip/db'?{getPrisma:()=>db}:n==='@wadatrip/common/security'?load('libs/common/src/security.ts'):n.startsWith('.')?load(path.resolve(path.dirname(abs),n+'.ts')):n==='axios'?{get(){throw Error('External HTTP forbidden')}}:require(n);
+ const req=n=>n==='@wadatrip/db'?{getPrisma:()=>registryFixture.enable(db)}:n==='@wadatrip/common/security'?load('libs/common/src/security.ts'):n.startsWith('.')?load(path.resolve(path.dirname(abs),n+'.ts')):n==='axios'?{get(){throw Error('External HTTP forbidden')}}:require(n);
  vm.runInNewContext(code,{module:m,exports:m.exports,require:req,process,Buffer,URL,Reflect,console});return m.exports;}
 const security=load('libs/common/src/security.ts');
 const Gateway=load('apps/gateway/src/controllers/providers.controller.ts').ProvidersController;
@@ -24,7 +26,7 @@ const body={provider_id:'provider',title:'Synthetic Tour',category:'tour',city:'
 const forbidden=e=>[403,503].includes(e.getStatus?.());
 test('uninvited verified account cannot create a provider',async()=>{reset();writes=0;await assert.rejects(new Gateway().createProvider(req('new'),{name:'Synthetic',base_city:'City',country_code:'ZA'}),forbidden);assert.equal(writes,0)});
 test('reading a profile cannot enroll an uninvited legacy account as a side effect',async()=>{reset();writes=0;legacyMode=true;try{assert.equal(await security.findOwnedProvider(db,{id:'owner',email:provider.email,verified:true,admin:false}),null);assert.equal(writes,0);}finally{legacyMode=false;}});
-test('verified invited legacy account can still claim only an unowned matching profile',async()=>{reset();process.env.OPERATOR_BETA_USER_IDS='owner';writes=0;legacyMode=true;try{assert.equal((await security.findOwnedProvider(db,{id:'owner',email:provider.email,verified:true,admin:false})).user_id,'owner');assert.equal(writes,1);}finally{legacyMode=false;}});
+test('verified invited legacy account is not claimed by a read, but an explicit enrollment may claim it',async()=>{reset();process.env.OPERATOR_BETA_USER_IDS='owner';writes=0;legacyMode=true;try{assert.equal(await security.findOwnedProvider(db,{id:'owner',email:provider.email,verified:true,admin:false}),null);assert.equal(writes,0);assert.equal((await security.findOwnedProvider(db,{id:'owner',email:provider.email,verified:true,admin:false},true)).user_id,'owner');assert.equal(writes,1);}finally{legacyMode=false;}});
 test('existing operator profile remains readable after cohort access is revoked',async()=>{reset();assert.equal((await security.findOwnedProvider(db,{id:'owner',email:provider.email,verified:true,admin:false})).id,provider.id)});
 test('uninvited existing owner cannot bypass the cohort through provider update',async()=>{reset();writes=0;await assert.rejects(new Gateway().upsertMyProvider(req('owner'),{name:'Synthetic'}),forbidden);assert.equal(writes,0)});
 test('Gateway rejects uninvited draft creation before writing',async()=>{reset();writes=0;await assert.rejects(new Gateway().createListing(req('owner'),body),forbidden);assert.equal(writes,0)});

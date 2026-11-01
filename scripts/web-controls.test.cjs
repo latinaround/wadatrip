@@ -1,3 +1,4 @@
+const {createUiCookieSession}=require('./helpers/ui-cookie-session.cjs');
 // Every API response is synthetic. No emails, bookings, payments or account
 // changes are sent to production. Only application assets reach the target.
 const assert = require('node:assert/strict');
@@ -16,7 +17,7 @@ async function main() {
   const date = departure.slice(0, 10);
   const alternateDate = new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10);
   const terms = { version: 'synthetic-policy-v1', departure_at: departure, booking_closes_at: departure, timezone: 'America/Lima', meeting_point: 'Synthetic meeting point', cancellation_policy: 'Synthetic policy', bookings_open: true };
-  const calls = [];
+  const calls = [];const cookies=createUiCookieSession(()=>user);
   const errors = [];
   let passed = 0;
   const failures = [];
@@ -25,6 +26,7 @@ async function main() {
       const request = route.request(), url = new URL(request.url());
       if (url.origin === origin && url.pathname === '/synthetic-checkout') return route.fulfill({ contentType: 'text/html', body: '<h1>Synthetic checkout</h1>' });
       if (!['fetch', 'xhr'].includes(request.resourceType())) return url.origin === origin ? route.continue() : route.abort();
+      if(await cookies.bootstrap(route))return;cookies.validate(request);
       calls.push({ path: url.pathname, date: url.searchParams.get('date'), method: request.method(), authorization: request.headers().authorization, contentType: request.headers()['content-type'], body: request.postDataJSON() });
       let body = [];
       if (url.pathname === '/auth/me') body = user;
@@ -42,7 +44,9 @@ async function main() {
       if (url.pathname === '/bookings' && request.method() === 'POST') body = { id: 'synthetic-booking', amount_cents: request.postDataJSON().listing_id === freeListing.id ? 0 : 12000 };
       if (url.pathname === '/payments/bookings/synthetic-booking/checkout') body = { url: `${origin}/synthetic-checkout` };
       if (url.pathname === '/bookings/synthetic-booking') body = { id: 'synthetic-booking', status: 'confirmed', payment_status: 'paid', amount_cents: 12000 };
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+        if(url.pathname==='/auth/web/logout')body={ok:true};
+
+      return cookies.finish(route,200,body);
     };
     await context.route('**/*', intercept);
     const page = await context.newPage();
@@ -209,13 +213,13 @@ async function main() {
       await page.getByText('New traveler? Verifying your email creates your account automatically.', { exact: true }).waitFor();
     });
     await check('Unavailable code delivery displays an error rather than a sent notice', async () => {
-      await page.route('**/auth/request-code', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"Synthetic delivery unavailable"}' }));
+      await page.route('**/auth/web/request-code', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"Synthetic delivery unavailable"}' }));
       await page.goto(`${origin}/register?mode=login&role=traveler`);
       await page.locator('#guide-email').fill(user.email);
       await page.getByRole('button', { name: 'Send code to continue', exact: true }).click();
       await page.getByText('Synthetic delivery unavailable', { exact: true }).waitFor();
       assert.equal(await page.locator('#guide-secret').count(), 0);
-      await page.unroute('**/auth/request-code');
+      await page.unroute('**/auth/web/request-code');
     });
     await check('Passwordless modal explains automatic account creation without a redundant sign-up action', async () => {
       await page.goto(`${origin}/tours/${listing.id}`);
@@ -255,7 +259,7 @@ async function main() {
     });
     await check('Authenticated List your tour uses the existing session', async () => {
       await page.goto(origin);
-      await page.evaluate(() => localStorage.setItem('wadatrip_token', 'synthetic-browser-test-token'));
+      cookies.select(user.id);
       await page.reload();
       const link = page.locator('header a').filter({ hasText: 'List your tour' }).first();
       await page.getByRole('button', { name: user.name, exact: true }).waitFor();
@@ -264,7 +268,7 @@ async function main() {
       await page.getByRole('heading', { name: 'Operator dashboard', exact: true }).first().waitFor();
     });
     await check('Mobile menu and Login navigate correctly', async () => {
-      await page.evaluate(() => localStorage.clear());
+      cookies.select(null);await page.evaluate(() => localStorage.clear());
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(origin);
       await page.getByRole('button', { name: 'Open menu', exact: true }).click();
@@ -274,7 +278,7 @@ async function main() {
     await check('Traveler without a name saves it with Bearer before booking and sends no booking identity', async () => {
       user = { ...user, name: null };
       await page.setViewportSize({ width: 1440, height: 1000 });
-      await page.evaluate(() => localStorage.setItem('wadatrip_token', 'synthetic-browser-test-token'));
+      cookies.select(user.id);
       await page.goto(`${origin}/tours/${listing.id}`);
       await page.getByRole('button', { name: 'Save name and continue', exact: true }).waitFor();
       assert.equal(await page.getByRole('button', { name: 'Add your name to book', exact: true }).count(), 0);
@@ -285,7 +289,7 @@ async function main() {
       await page.getByText('Name saved. You can now complete your booking.', { exact: true }).waitFor();
       const update = calls.slice(before).find(call => call.path === '/auth/update');
       assert.equal(update.method, 'PATCH');
-      assert.equal(update.authorization, 'Bearer synthetic-browser-test-token');
+      assert.equal(update.authorization, undefined);
       assert.match(update.contentType, /^application\/json/);
       assert.deepEqual(update.body, { name: 'Saved Synthetic Traveler' });
       assert.ok(!calls.slice(before).some(call => call.path === '/bookings'));
@@ -293,7 +297,7 @@ async function main() {
     });
     await check('Booking controls validate input and paid checkout uses Bearer without client price or identity', async () => {
       await page.setViewportSize({ width: 1440, height: 1000 });
-      await page.evaluate(() => localStorage.setItem('wadatrip_token', 'synthetic-browser-test-token'));
+      cookies.select(user.id);
       await page.goto(`${origin}/tours/${listing.id}`);
       const book = page.getByRole('button', { name: 'Book and pay securely', exact: true });
       await book.waitFor();
@@ -308,7 +312,7 @@ async function main() {
       await book.click(); await page.waitForURL('**/synthetic-checkout');
       const booking = calls.slice(before).find(call => call.path === '/bookings');
       assert.deepEqual(booking.body, { listing_id: listing.id, num_people: 2, date, policy_version: terms.version });
-      assert.equal(booking.authorization, 'Bearer synthetic-browser-test-token');
+      assert.equal(booking.authorization, undefined);
       assert.ok(calls.slice(before).some(call => call.path.endsWith('/checkout') && call.authorization === booking.authorization));
     });
     await check('Free-tour button confirms using the backend result without checkout', async () => {
