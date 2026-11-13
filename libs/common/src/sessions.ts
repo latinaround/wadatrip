@@ -54,7 +54,7 @@ export async function startSessionFlow(db: any) {
   });
 }
 export type AuthMethod = 'password' | 'email_code' | 'google' | 'firebase';
-export type SessionIdentity = { id: string; generation: number; user_epoch: number; kind: string; auth_method: string; authenticated_at: Date | null; expires_at: Date; email_verified_at: Date | null };
+export type SessionIdentity = { id: string; generation: number; user_epoch: number; kind: string; auth_method: string; authenticated_at: Date | null; expires_at: Date; email_verified_at: Date | null; last_seen_at?: Date };
 export type ResolvedSession = { user: any; session: SessionIdentity };
 const resolved = new WeakMap<object, ResolvedSession>();
 const credentials = new WeakMap<object,{value:string;origin?:string}>();
@@ -75,8 +75,11 @@ export function currentSession(req: any) {
   const value = req && resolved.get(req);
   if (!value) throw new UnauthorizedException('A verified server session is required');return value.session;
 }
-export function sessionProjection(session: SessionIdentity) {
-  return { id: session.id, generation: session.generation, expires_at: session.expires_at.toISOString(), kind: session.kind };
+export function sessionProjection(session: SessionIdentity, now = new Date()) {
+  const basic = { id: session.id, generation: session.generation, expires_at: session.expires_at.toISOString(), kind: session.kind };
+  if (session.kind !== 'web' || session.last_seen_at == null || !Number.isFinite(+session.last_seen_at)) return basic;
+  const idle = integer('AUTH_SESSION_WEB_IDLE_SECONDS', 1800, 60, 3600);
+  return { ...basic, server_time: now.toISOString(), idle_expires_at: new Date(Math.min(+session.expires_at, +(session.last_seen_at as Date) + idle * 1000)).toISOString() };
 }
 async function createRegisteredSession(tx: any, userId: string, method: AuthMethod, verified: boolean,
   proofAt: Date | null, flow: FlowContext | null, previousCredential: string | null, kind:'web'|'native') {
@@ -107,7 +110,7 @@ async function createRegisteredSession(tx: any, userId: string, method: AuthMeth
     data: { revoked_at: now, revocation_reason: 'logout', generation: { increment: 1 } },
   });
   await tx.users.update({ where: { id: user.id }, data: { last_login_at: now } });
-  return kind==='web'?{credential:token,user,session:sessionProjection(row)}:{token,user,session:sessionProjection(row)};
+  return kind==='web'?{credential:token,user,session:sessionProjection(row,now)}:{token,user,session:sessionProjection(row,now)};
 }
 export async function createBearerSession(tx:any,userId:string,method:AuthMethod,verified:boolean,proofAt:Date|null,flow:FlowContext|null=null,previousCredential:string|null=null){
   if(flow)throw new ForbiddenException('Browser sessions require cookie transport');
@@ -152,7 +155,7 @@ export async function resolveSession(db: any, req: any, options: { touch?: boole
       AND s."revoked_at" IS NULL AND s."expires_at" > clock_timestamp()
       AND s."kind" = ${kind}
       AND (s."kind" <> 'web' OR s."last_seen_at" > clock_timestamp() - (${idle} * INTERVAL '1 second'))
-      RETURNING s."id", s."generation", s."user_epoch", s."kind", s."auth_method", s."authenticated_at", s."expires_at", s."email_verified_at",
+      RETURNING s."id", s."generation", s."user_epoch", s."kind", s."auth_method", s."authenticated_at", s."expires_at", s."email_verified_at", s."last_seen_at",
         u."id" AS "uid", u."email", u."name", u."role", u."status", u."auth_epoch"`;
     if (rows.length !== 1) throw new UnauthorizedException('Session is expired, revoked or unavailable');
     const row = rows[0], { uid, email, name, role, status, auth_epoch, ...session } = row;

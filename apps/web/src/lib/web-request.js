@@ -7,7 +7,7 @@ async function jsonRequest(path,init={}){
   const payload=await response.json().catch(()=>null);
   if(!response.ok)throw Object.assign(new Error(payload?.message||'Authentication request failed.'),{status:response.status});return payload;
 }
-export const webSession=createSessionClient(jsonRequest,next=>{state=next;for(const callback of subscribers)callback(next);});
+export const webSession=createSessionClient(jsonRequest,next=>{state={...next,sessionObservedAt:Date.now()};for(const callback of subscribers)callback(state);});
 export const sessionState=()=>state;
 export function subscribeSession(callback){subscribers.add(callback);return()=>subscribers.delete(callback);}
 export function sessionFetch(input,init={}){

@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import { createWebSession, credentialHash, databaseNow, selectedWebFlow, sessionTransaction, resolveSession } from '@wadatrip/common/sessions';
+import { createWebSession, credentialHash, databaseNow, selectedWebFlow, sessionTransaction, resolveSession, sessionProjection } from '@wadatrip/common/sessions';
 import { appendCookie, bootstrapSecrets, csrfFor, expireCookie, flowCookieName, requireWebRequest, sessionCookieName, verifyCsrf, webCookies, webReference } from '@wadatrip/common/web-security';
 import { safeUser } from '@wadatrip/common/public-data';
 import { reserveAuthAttempt } from './auth-rate-limit.service';
@@ -50,7 +50,7 @@ export async function bootstrapWeb(db:any,req:any,res:any,nonce:any) {
   if(row.user_id&&primary){
     const saved=req.headers['x-session-version'];req.headers['x-session-version']=`${row.id}:${row.generation}`;
     const savedMethod=req.method;req.method='GET';
-    try{const active=await resolveSession(db,req,{touch:false});user=safeUser(active.user);}
+    try{const active=await resolveSession(db,req,{touch:false});user=safeUser(active.user);session=sessionProjection(active.session,now);}
     catch(error:any){if(error.getStatus?.()!==401)throw error;}
     finally{req.method=savedMethod;if(saved===undefined)delete req.headers['x-session-version'];else req.headers['x-session-version']=saved;}
   }

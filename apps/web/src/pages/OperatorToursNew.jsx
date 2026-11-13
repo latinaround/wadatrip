@@ -1,5 +1,5 @@
 import {sessionFetch} from '../lib/web-request';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { AppConfig } from '../config/appConfig';
@@ -17,6 +17,8 @@ import OperatorReadinessPanel from '../components/OperatorReadinessPanel.jsx';
 import TourDateRequests from '../components/TourDateRequests.jsx';
 import { formatBookingDeparture } from '../utils/accountDisplay.js';
 import OperatorBookingInbox from '../components/OperatorBookingInbox.jsx';
+import OperatorSessionNotice from '../components/OperatorSessionNotice.jsx';
+import { clearTourDraft, readTourDraft, tourDraftStorage, writeTourDraft } from '../lib/tour-draft.js';
 
 const emptyProvider = {
   type: 'operator',
@@ -142,6 +144,13 @@ export default function OperatorToursNew() {
   const [providerBookingsLoading, setProviderBookingsLoading] = useState(false);
   const [providerBookingsError, setProviderBookingsError] = useState(null);
   const [showTourEditor, setShowTourEditor] = useState(false);
+  const [tourDirty, setTourDirty] = useState(false);
+  const [recoveryDraft, setRecoveryDraft] = useState(null);
+  const [recoveryError, setRecoveryError] = useState(null);
+  const [draftStored, setDraftStored] = useState(null);
+  const [formOwnerId, setFormOwnerId] = useState(user?.id || null);
+  const draftOwner = useRef(user?.id || null);
+  const dirtyOwner = useRef(null);
   const [activePanel, setActivePanel] = useState(() => {
     if (typeof window === 'undefined') return 'operations';
     const params = new URLSearchParams(window.location.search);
@@ -153,12 +162,40 @@ export default function OperatorToursNew() {
   useEffect(() => {
     if (new URLSearchParams(location.search).get('panel') === 'operations') setActivePanel('operations');
   }, [location.key, location.search]);
-  const isAuthenticatedMode = Boolean(sessionKey);
+  const isAuthenticatedMode = Boolean(sessionKey && user?.id && formOwnerId === user.id);
   const ownedProviderId = providerStatus?.id ? String(providerStatus.id) : '';
   const providerApprovalStatus = String(providerStatus?.status || providerStatus?.verification_status || '').toLowerCase();
   const providerApproved = ['approved', 'verified'].includes(providerApprovalStatus);
   const providerLinkReady = Boolean(ownedProviderId);
   const hasOwnedListings = ownedListings.length > 0;
+  const newTourBlocked = !isAuthenticatedMode || !providerLinkReady || !betaAccess?.can_prepare
+    || tourLoading || availabilityLoading || loadingOwnedProvider || loadingOwnedListings
+    || tourCoverUploading || Boolean(pendingEditId);
+  useEffect(() => {
+    if (!user?.id) return;
+    if (draftOwner.current && draftOwner.current !== user.id) {
+      dirtyOwner.current = null;
+      setTourDirty(false); setRecoveryDraft(null); setDraftStored(null);
+      setRecoveryError(null);
+      setTourForm(emptyTour); setEditingId(null); setCreatedTour(null);
+      setCoverPreview(''); setIsFreeTour(false); setShowTourEditor(false);
+      setAvailabilityItems([]); setAutoLoadAttempted(false);
+      setProviderStatus(null); setProviderForm(emptyProvider); setOwnedListings([]);
+      setProviderBookings([]); setPayoutStatus({ linked: false, ready: false });
+    }
+    draftOwner.current = user.id;
+    setFormOwnerId(user.id);
+  }, [user?.id]);
+  useEffect(() => {
+    if (!user?.id || !sessionKey || !ownedProviderId || !betaAccess?.can_prepare) { setRecoveryDraft(null); return; }
+    setRecoveryDraft(readTourDraft(tourDraftStorage(), user.id));
+  }, [user?.id, sessionKey, ownedProviderId, betaAccess?.can_prepare]);
+  useEffect(() => {
+    if (!tourDirty || !user?.id || dirtyOwner.current !== user.id || !sessionKey || !betaAccess?.can_prepare
+      || (editingId && createdTour?.status !== 'draft')) return;
+    setDraftStored(writeTourDraft(tourDraftStorage(), user.id, tourForm, editingId, isFreeTour));
+  }, [tourDirty, user?.id, sessionKey, betaAccess?.can_prepare, tourForm, editingId, isFreeTour, createdTour?.status]);
+  const markTourDirty = () => { dirtyOwner.current = user?.id || null; setTourDirty(true); };
   const { upcomingProviderBookings, historicalProviderBookings } = useMemo(() => {
     const now = Date.now();
     const inactiveStatuses = new Set(['cancelled', 'canceled', 'rejected', 'completed']);
@@ -234,8 +271,6 @@ export default function OperatorToursNew() {
     setTourForm((prev) => ({
       ...prev,
       provider_id: String(provider?.id || prev.provider_id || ''),
-      city: prev.city || normalizeNullable(provider?.base_city),
-      country_code: prev.country_code || normalizeCountryCode(provider?.country_code),
     }));
   }, [user?.email, user?.name]);
 
@@ -394,6 +429,7 @@ export default function OperatorToursNew() {
   };
 
   const handleTourChange = (field, value) => {
+    if (!['operational_contact', 'publish_now'].includes(field)) markTourDirty();
     setTourForm((prev) => ({
       ...prev,
       [field]: field === 'country_code' ? normalizeCountryCode(value) : value,
@@ -462,6 +498,7 @@ export default function OperatorToursNew() {
   }, [authFetch, createdTour?.id, editingId, loadAvailability, logout]);
 
   const selectTourType = (nextIsFree) => {
+    markTourDirty();
     setIsFreeTour(nextIsFree);
     if (nextIsFree) {
       setTourForm((prev) => ({
@@ -649,6 +686,33 @@ export default function OperatorToursNew() {
     }
   };
 
+  const handleNewTour = () => {
+    if (newTourBlocked) return;
+    setRecoveryDraft(readTourDraft(tourDraftStorage(), user.id));
+    dirtyOwner.current = null; setTourDirty(false); setDraftStored(null);
+    // Do not reuse the selected listing's identity, destination, policy or inventory.
+    setAutoLoadAttempted(true);
+    setPendingEditId(null);
+    setEditingId(null);
+    setCreatedTour(null);
+    setEditLookup('');
+    setEditMessage(null);
+    setTourMessage(null);
+    setTourForm({ ...emptyTour, provider_id: ownedProviderId, publish_now: false });
+    setIsFreeTour(false);
+    setCoverPreview('');
+    setAvailabilityItems([]);
+    setAvailabilityMessage(null);
+    setActivePanel('tours');
+    setShowTourEditor(true);
+    const url = new URL(window.location.href);
+    for (const key of ['edit', 'connect', 'panel']) url.searchParams.delete(key);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    window.requestAnimationFrame(() => {
+      document.getElementById('tour-details')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const handleCreateTour = async (event) => {
     event.preventDefault();
     setTourMessage(null);
@@ -724,12 +788,18 @@ export default function OperatorToursNew() {
         window.location.assign(buildPublicTourUrl(siteOrigin, created));
         return;
       }
-      setTourForm((prev) => ({
-        ...emptyTour,
-        provider_id: providerId,
-        city: prev.city,
-        country_code: prev.country_code,
-      }));
+      if (created?.id) {
+        clearTourDraft(tourDraftStorage(), user.id, null);
+        dirtyOwner.current = null; setTourDirty(false); setDraftStored(null); setRecoveryDraft(null);
+        // Further saves edit this draft instead of creating duplicate listings.
+        setEditingId(created.id);
+        setEditLookup(created.id);
+        setAutoLoadAttempted(true);
+        setTourForm((prev) => ({ ...prev, cover_image_url: created?.cover_image_url || coverImageUrl || '', publish_now: createdStatus === 'published' }));
+        const url = new URL(window.location.href);
+        url.searchParams.set('edit', created.id);
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+      }
     } catch (err) {
       if (err?.status === 401) logout?.();
       setTourMessage(
@@ -751,6 +821,7 @@ export default function OperatorToursNew() {
     setLoadingTourId(listingId);
     try {
       const data = await authFetch(`/listings/${encodeURIComponent(listingId)}/manage`, { method: 'GET' });
+      dirtyOwner.current = null; setTourDirty(false); setDraftStored(null);
       setEditingId(listingId);
       setEditLookup(listingId);
       setCreatedTour(data);
@@ -795,13 +866,34 @@ export default function OperatorToursNew() {
           });
         }
       }
+      return data;
     } catch (err) {
       if (err?.status === 401) logout?.();
       setEditMessage(err?.message || t('operator.messages.tour_load_error', 'Error loading tour.'));
+      return null;
     } finally {
       setTourLoading(false);
       setLoadingTourId(null);
     }
+  };
+
+  const restoreTourDraft = async () => {
+    if (!recoveryDraft || newTourBlocked || tourDirty) return;
+    setRecoveryError(null);
+    const saved = recoveryDraft;
+    let operationalContact = '';
+    if (saved.editingId) {
+      const loaded = await handleLoadTourById(saved.editingId, { openEditor: true, scroll: true });
+      if (!loaded?.id || loaded.status !== 'draft' || String(loaded.provider_id) !== ownedProviderId) {
+        setRecoveryError('This saved text cannot be restored to the selected tour. Check its current status and ownership.');
+        return;
+      }
+      operationalContact = loaded.operational_contact || '';
+    } else handleNewTour();
+    setTourForm({ ...emptyTour, ...saved.fields, provider_id: ownedProviderId, operational_contact: operationalContact, publish_now: false });
+    setIsFreeTour(saved.isFreeTour); setCoverPreview(saved.fields.cover_image_url || '');
+    markTourDirty(); setRecoveryDraft(null); setShowTourEditor(true); setActivePanel('tours');
+    setTourMessage('Saved text recovered. Review the fields, then save your draft tour.');
   };
 
   const resolveEditId = async () => {
@@ -839,12 +931,12 @@ export default function OperatorToursNew() {
   }, [pendingEditId, accessCodeTrimmed, sessionKey]);
 
   useEffect(() => {
-    if (!sessionKey || editingId || pendingEditId || loadingTourId || autoLoadAttempted) return;
+    if (!sessionKey || editingId || pendingEditId || loadingTourId || autoLoadAttempted || tourDirty) return;
     if (ownedListings.length === 1) {
       setAutoLoadAttempted(true);
       handleLoadTourById(ownedListings[0].id, { scroll: false });
     }
-  }, [autoLoadAttempted, editingId, loadingTourId, ownedListings, pendingEditId, sessionKey]);
+  }, [autoLoadAttempted, editingId, loadingTourId, ownedListings, pendingEditId, sessionKey, tourDirty]);
 
   const handleLoadTour = async (event) => {
     event.preventDefault();
@@ -907,6 +999,10 @@ export default function OperatorToursNew() {
       setCreatedTour(data);
       setCoverPreview(data?.cover_image_url || coverImageUrl || '');
       setTourMessage(t('operator.messages.tour_updated', 'Tour updated successfully.'));
+      if (data?.id === editingId) {
+        clearTourDraft(tourDraftStorage(), user.id, editingId);
+        dirtyOwner.current = null; setTourDirty(false); setDraftStored(null); setRecoveryDraft(null);
+      }
       loadOwnedListings();
     } catch (err) {
       if (err?.status === 401) logout?.();
@@ -957,6 +1053,15 @@ export default function OperatorToursNew() {
     <div className="page-shell">
       <div className="page-container flex w-full flex-col gap-10">
         <OperatorBetaNotice apiBase={apiBase} sessionKey={sessionKey} onAccess={setBetaAccess} />
+        {isAuthenticatedMode ? <OperatorSessionNotice /> : null}
+        {isAuthenticatedMode && betaAccess?.can_prepare && recoveryDraft && !tourDirty ? (
+          <aside role="status" aria-label="Tour text recovery" className="rounded-2xl border border-[#00D9FF]/40 p-4 text-sm">
+            <p className="font-semibold">You have unsaved tour text in this browser tab.</p>
+            <p>Recover it to review and save as a draft. Private contact details are not included.</p>
+            <Button type="button" disabled={newTourBlocked} onClick={restoreTourDraft}>Recover saved text</Button>
+            {recoveryError ? <p role="alert">{recoveryError}</p> : null}
+          </aside>
+        ) : null}
         <header className="space-y-4 text-center">
           {isAuthenticatedMode ? (
             <div className="flex justify-start">
@@ -1157,6 +1262,9 @@ export default function OperatorToursNew() {
                   Check availability, open the public page, or edit the details of an experience.
                 </p>
               </div>
+              <Button type="button" onClick={handleNewTour} disabled={newTourBlocked} className="h-12 neon-cta font-black">
+                New tour
+              </Button>
             </div>
             <div className="mt-4 space-y-3">
               {ownedListings.map((listing) => (
@@ -1503,13 +1611,13 @@ export default function OperatorToursNew() {
             <div className="space-y-1">
               <p className="text-sm text-[#00D9FF]">Tour setup</p>
               <h2 className="text-xl font-semibold text-white">
-                {isAuthenticatedMode && !hasOwnedListings && !editingId ? 'Create your first tour' : t('operator.tour_title', 'Tour details')}
+                {isAuthenticatedMode && !editingId ? (hasOwnedListings ? 'Create a new tour' : 'Create your first tour') : t('operator.tour_title', 'Tour details')}
               </h2>
               <p className="text-sm text-[#a0a0a0]">
                 {isAuthenticatedMode
-                  ? hasOwnedListings
+                  ? editingId
                     ? 'Update the information travelers see on the public tour page.'
-                    : 'Add the basics for your first experience. You can save it now and come back later to edit it.'
+                    : 'Add a new experience under your host profile. Save a draft, then prepare its dates and details for review.'
                   : t('operator.tour_help', 'Publish the experience you want to sell.')}
               </p>
             </div>
@@ -1557,6 +1665,11 @@ export default function OperatorToursNew() {
           ) : null}
 
           <form className="mt-6 grid gap-5" onSubmit={editingId ? handleUpdateTour : handleCreateTour}>
+            {!editingId || createdTour?.status === 'draft' ? <p className="text-sm text-[#a0a0a0]" role="status">
+              {draftStored === false ? 'We could not preserve your text in this tab. Save the draft to Wadatrip before leaving.'
+                : draftStored ? 'Public tour text preserved in this tab for up to 24 hours. It is not saved to Wadatrip yet.'
+                  : 'Unsaved public tour text can be recovered in this tab after signing in with the same account. Private contact details are excluded.'}
+            </p> : null}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <p className="text-sm text-[#e0e0e0]">Tour type</p>
@@ -1915,7 +2028,7 @@ export default function OperatorToursNew() {
                   : t('operator.publishing_label', 'Publishing...')
                 : editingId
                   ? t('operator.update_button', 'Update tour')
-                  : !betaAccess?.can_publish
+                  : !tourForm.publish_now || !betaAccess?.can_publish
                     ? 'Save draft tour'
                     : isFreeTour
                     ? 'Publish free tour'
