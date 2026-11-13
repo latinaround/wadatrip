@@ -19,6 +19,7 @@ import { formatBookingDeparture } from '../utils/accountDisplay.js';
 import OperatorBookingInbox from '../components/OperatorBookingInbox.jsx';
 import OperatorSessionNotice from '../components/OperatorSessionNotice.jsx';
 import { clearTourDraft, readTourDraft, tourDraftStorage, writeTourDraft } from '../lib/tour-draft.js';
+import { useOperatorFormActivity } from '../lib/useOperatorFormActivity.js';
 
 const emptyProvider = {
   type: 'operator',
@@ -163,6 +164,8 @@ export default function OperatorToursNew() {
     if (new URLSearchParams(location.search).get('panel') === 'operations') setActivePanel('operations');
   }, [location.key, location.search]);
   const isAuthenticatedMode = Boolean(sessionKey && user?.id && formOwnerId === user.id);
+  const { noteFormActivity, activityError } = useOperatorFormActivity(user?.id, sessionKey,
+    isAuthenticatedMode && Boolean(betaAccess?.can_prepare));
   const ownedProviderId = providerStatus?.id ? String(providerStatus.id) : '';
   const providerApprovalStatus = String(providerStatus?.status || providerStatus?.verification_status || '').toLowerCase();
   const providerApproved = ['approved', 'verified'].includes(providerApprovalStatus);
@@ -1050,10 +1053,11 @@ export default function OperatorToursNew() {
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell" onInputCapture={noteFormActivity} onChangeCapture={noteFormActivity}
+      onPointerDownCapture={noteFormActivity} onKeyDownCapture={noteFormActivity}>
       <div className="page-container flex w-full flex-col gap-10">
         <OperatorBetaNotice apiBase={apiBase} sessionKey={sessionKey} onAccess={setBetaAccess} />
-        {isAuthenticatedMode ? <OperatorSessionNotice /> : null}
+        {isAuthenticatedMode ? <OperatorSessionNotice activityError={activityError} /> : null}
         {isAuthenticatedMode && betaAccess?.can_prepare && recoveryDraft && !tourDirty ? (
           <aside role="status" aria-label="Tour text recovery" className="rounded-2xl border border-[#00D9FF]/40 p-4 text-sm">
             <p className="font-semibold">You have unsaved tour text in this browser tab.</p>

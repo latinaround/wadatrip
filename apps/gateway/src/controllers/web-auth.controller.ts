@@ -3,7 +3,7 @@ import { getPrisma } from '@wadatrip/db';
 import { revokeAllSessions } from '@wadatrip/common/sessions';
 import { requireWebRequest } from '@wadatrip/common/web-security';
 import { AuthController } from './auth.controller';
-import { bootstrapWeb,cancelBootstrap,completeWebAuth,logoutWeb,prepareWebAuth } from '../services/web-auth.service';
+import { bootstrapWeb,cancelBootstrap,completeWebAuth,logoutWeb,prepareWebAuth,recordWebActivity } from '../services/web-auth.service';
 
 @Controller('auth/web')
 export class WebAuthController {
@@ -12,6 +12,8 @@ export class WebAuthController {
   async bootstrap(@Req() req:any,@Res({passthrough:true}) res:any,@Body() body:any){return bootstrapWeb(getPrisma(),req,res,body?.bootstrap_nonce);}
   @Post('cancel-bootstrap')
   async cancel(@Req() req:any,@Res({passthrough:true}) res:any,@Body() body:any){return cancelBootstrap(getPrisma(),req,res,body?.bootstrap_nonce);}
+  @Post('activity')
+  async activity(@Req() req:any,@Res({passthrough:true}) res:any){return recordWebActivity(getPrisma(),req,res);}
   private async authenticate(method:'login'|'register'|'verifyCode'|'google'|'firebase',req:any,res:any,body:any){
     await prepareWebAuth(getPrisma(),req);const result=await this.native[method](body,req);completeWebAuth(req,res);return result;
   }

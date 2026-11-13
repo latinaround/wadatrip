@@ -60,6 +60,15 @@ export async function bootstrapWeb(db:any,req:any,res:any,nonce:any) {
   for(const c of selected.jar.flows)if(c.id!==row.id)expireCookie(res,c.name);
   return{user,session,csrf_token:csrfFor(row),session_version:`${row.id}:${row.generation}`};
 }
+// Explicit, CSRF-protected browser activity. The existing atomic session check
+// decides whether the idle timestamp may advance; expired sessions cannot revive.
+// No client timestamp, account identifier, credential or business data is accepted.
+export async function recordWebActivity(db:any,req:any,res:any) {
+  requireWebRequest(req,true);
+  res.setHeader('Cache-Control','no-store');
+  const active=await resolveSession(db,req,{touch:true});
+  return {session:sessionProjection(active.session,await databaseNow(db))};
+}
 export async function logoutWeb(db:any,req:any,res:any) {
   requireWebRequest(req,true);const ref=webReference(req),jar=webCookies(req),cookie=jar.flows.find(c=>c.id===ref.id);
   if(!cookie)throw new UnauthorizedException('Sign-out context is unavailable');

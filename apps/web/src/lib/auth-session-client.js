@@ -30,6 +30,30 @@ export function createSessionClient(request, onState = () => {}, runtime = globa
     snapshot:()=>context,
     logoutPending:()=>Boolean(pendingLogout),
     invalidate(){revision++;context=null;publish();},
+    activity(){
+      const expected=context,mark=revision;
+      if(!expected?.user||pendingLogout)return Promise.reject(Object.assign(new Error('Please sign in again.'),{status:401}));
+      return serialized(async()=>{
+        // A passive bootstrap may finish while waiting for the auth lock. It is
+        // safe only if the canonical account and session generation stayed put.
+        if(mark!==revision||context?.user?.id!==expected.user.id||context?.session_version!==expected.session_version||pendingLogout)throw stale();
+        const captured=context;
+        const current=()=>{if(mark!==revision||context!==captured||pendingLogout)throw stale();};
+        current();let value;
+        try{value=await request('/auth/web/activity',{method:'POST',headers:headers(captured),body:'{}'});}
+        catch(error){if(mark===revision&&context===captured&&[401,409].includes(error.status))this.invalidate();throw error;}
+        current();const next=value?.session;
+        const serverTime=Date.parse(next?.server_time),idle=Date.parse(next?.idle_expires_at),absolute=Date.parse(next?.expires_at);
+        if(next?.kind!=='web'||next.id!==captured.session.id||next.generation!==captured.session.generation
+          ||![serverTime,idle,absolute].every(Number.isFinite)||absolute!==Date.parse(captured.session.expires_at)
+          ||idle<=serverTime||idle>absolute)throw new Error('Could not verify the editing session.');
+        // Only deadline metadata changes. Preserve the context identity so a
+        // concurrent authorized tour save is not mistaken for an account switch.
+        captured.session={id:next.id,generation:next.generation,kind:'web',expires_at:next.expires_at,
+          server_time:next.server_time,idle_expires_at:next.idle_expires_at};
+        publish();return captured.session;
+      });
+    },
     bootstrap(){const mark=revision;return serialized(async()=>{if(pendingLogout)await revokePending();return bootstrapInside(mark);});},
     authenticate(path,body){const mark=revision;return serialized(async()=>{
       if(pendingLogout)await revokePending();if(mark!==revision)throw stale();
